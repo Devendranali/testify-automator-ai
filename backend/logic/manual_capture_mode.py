@@ -1,3 +1,5 @@
+# manual_capture_mode.py
+
 # from chromadb import PersistentClient
 # from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 # from sentence_transformers import SentenceTransformer
@@ -221,6 +223,9 @@
 #     return matched_records
 
 # ==================================== NEW CODE =============================
+
+# manual_capture_mode.py
+
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 from sentence_transformers import SentenceTransformer
