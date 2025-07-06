@@ -117,13 +117,13 @@ async def launch_browser(req: LaunchRequest):
         BROWSER = await PLAYWRIGHT.chromium.launch(headless=False, slow_mo=100)
         PAGE = await BROWSER.new_page()
         await PAGE.goto(req.url)
- 
+
         async def send_enrichment_wrapper(source, page_name):
             print("[DEBUG] Triggering enrichment for:", page_name)
             result = await send_enrichment_requests(page_name)
             # print("[DEBUG] Got:", result.count," from send_enrichment_requests")
             return json.dumps(result)
- 
+
         await PAGE.expose_binding("sendEnrichmentRequests", send_enrichment_wrapper)
 
 
@@ -208,16 +208,16 @@ async def launch_browser(req: LaunchRequest):
                 });
             }
             """)
-
+        
         return {
             "message": f"✅ Browser launched and navigated to {req.url}. Press Alt+E to enrich any page."
         }
- 
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
- 
+
 @router.post("/set-current-page-name")
 async def set_page_name(req: PageNameSetRequest):
     global CURRENT_PAGE_NAME
@@ -233,9 +233,9 @@ async def capture_from_keyboard(_: CaptureRequest):
         print(f"[INFO] Enrichment triggered for: {page_name}")
         if PAGE.is_closed():
             raise HTTPException(status_code=500, detail="❌ Cannot extract. Page is already closed.")
-        print('10')
+        # print('10')
         dom_data = await extract_dom_metadata(PAGE, page_name)
-        print('11 ', dom_data.count)
+        # print('11 ', dom_data.count)
 
         print("[DEBUG] DOM elements extracted:", len(dom_data))
 
