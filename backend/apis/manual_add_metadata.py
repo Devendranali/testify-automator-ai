@@ -19,8 +19,8 @@ class ManualMetadataInput(BaseModel):
     label_text: Optional[str] = ""
     value: Optional[str] = ""
     intent: Optional[str] = ""
-    ocr_type: str  # e.g., "button", "textbox", etc.
-    tag_name: str
+    ocr_type: Optional[str] = ""  # e.g., "button", "textbox", etc.
+    tag_name: Optional[str] = ""
     dom_id: Optional[str] = ""
     dom_class: Optional[str] = ""
 
@@ -90,7 +90,8 @@ def build_complete_metadata(manual: ManualMetadataInput):
     label_text: Optional[str] = ""
     value: Optional[str] = ""
     intent: Optional[str] = ""
-    ocr_type: str  # e.g., "button", "textbox", etc.
+    ocr_type: Optional[str] = ""  # e.g., "button", "textbox", etc.
+    tag_name: Optional[str] = ""
     dom_id: Optional[str] = ""
     dom_class: Optional[str] = ""
 

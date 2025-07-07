@@ -238,7 +238,7 @@ const StoryInput = ({ onBack, onNext }) => {
                         width: "50%",
                       }}
                     >
-                      Manual Test Cases
+                      Prompt
                     </th>
                     <th
                       style={{
