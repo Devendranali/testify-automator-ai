@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pytorch
+torchvision
+ultralytics
+opencv-python
+pillow
+pytesseract
+scikit-learn
+matplotlib
+tqdm

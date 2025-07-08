@@ -1,17 +1,17 @@
 import traceback
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from apis.image_text_api import router as image_router
-from apis.chroma_debug_api import router as debug_chroma_export_router
-from apis.enrichment_api import router as enrichment_router
-from apis.rag_testcase_runner import router as rag_router
-from apis.generate_from_story import router as generate_from_story_router
-from apis.generate_page_methods import router as generate_page_methods_router
-from apis.generate_from_manual_testcases import router as generate_from_manual_testcase_router
-from apis.generate_testcases_from_methods import router as generate_test_code_from_methods_router
-from apis.manual_add_metadata import router as manual_add_metadata
+import httpx
+
+
+
+
+
+
+
+
 import sys
 import asyncio
 import os
@@ -69,14 +69,252 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ✅ Include API routers
-app.include_router(image_router)
+
+@app.post("/upload-image")
+async def upload_image_proxy(request: Request):
+    image_text_service_url = os.getenv("IMAGE_TEXT_SERVICE_URL")
+    if not image_text_service_url:
+        raise HTTPException(status_code=500, detail="IMAGE_TEXT_SERVICE_URL not configured")
+
+    async with httpx.AsyncClient() as client:
+        # Forward the request including headers and body
+        # FastAPI's Request object can be directly used to stream the body
+        # and headers can be copied.
+        # We need to reconstruct the form data for httpx
+        form_data = await request.form()
+        files = []
+        data = {}
+        for field_name, field_value in form_data.items():
+            if isinstance(field_value, UploadFile):
+                files.append((field_name, (field_value.filename, field_value.file, field_value.content_type)))
+            else:
+                data[field_name] = field_value
+
+        try:
+            response = await client.post(f"{image_text_service_url}/upload-image", data=data, files=files, timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
 app.include_router(generate_from_story_router)
-app.include_router(enrichment_router)
-app.include_router(rag_router)
-app.include_router(debug_chroma_export_router)
-app.include_router(generate_from_manual_testcase_router)
-app.include_router(generate_page_methods_router)
-app.include_router(generate_test_code_from_methods_router)
+
+@app.post("/launch-browser")
+async def launch_browser_proxy(req: Request):
+    enrichment_service_url = os.getenv("ENRICHMENT_SERVICE_URL")
+    if not enrichment_service_url:
+        raise HTTPException(status_code=500, detail="ENRICHMENT_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{enrichment_service_url}/launch-browser", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+@app.post("/set-current-page-name")
+async def set_current_page_name_proxy(req: Request):
+    enrichment_service_url = os.getenv("ENRICHMENT_SERVICE_URL")
+    if not enrichment_service_url:
+        raise HTTPException(status_code=500, detail="ENRICHMENT_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{enrichment_service_url}/set-current-page-name", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+@app.post("/capture-dom-from-client")
+async def capture_dom_from_client_proxy(req: Request):
+    enrichment_service_url = os.getenv("ENRICHMENT_SERVICE_URL")
+    if not enrichment_service_url:
+        raise HTTPException(status_code=500, detail="ENRICHMENT_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{enrichment_service_url}/capture-dom-from-client", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+@app.get("/available-pages")
+async def available_pages_proxy(req: Request):
+    enrichment_service_url = os.getenv("ENRICHMENT_SERVICE_URL")
+    if not enrichment_service_url:
+        raise HTTPException(status_code=500, detail="ENRICHMENT_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{enrichment_service_url}/available-pages", timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+@app.get("/latest-match-result")
+async def latest_match_result_proxy(req: Request):
+    enrichment_service_url = os.getenv("ENRICHMENT_SERVICE_URL")
+    if not enrichment_service_url:
+        raise HTTPException(status_code=500, detail="ENRICHMENT_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{enrichment_service_url}/latest-match-result", timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+@app.post("/rag/run-generated-story-test")
+async def run_generated_story_test_proxy(request: Request):
+    rag_service_url = os.getenv("RAG_SERVICE_URL")
+    if not rag_service_url:
+        raise HTTPException(status_code=500, detail="RAG_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{rag_service_url}/rag/run-generated-story-test", json=await request.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+@app.get("/debug/export-chromadb")
+async def export_chroma_data_proxy(request: Request, record_type: str = None, locator_null: bool = False, page_name: str = None, as_file: bool = False):
+    chroma_debug_service_url = os.getenv("CHROMA_DEBUG_SERVICE_URL")
+    if not chroma_debug_service_url:
+        raise HTTPException(status_code=500, detail="CHROMA_DEBUG_SERVICE_URL not configured")
+
+    params = {
+        "record_type": record_type,
+        "locator_null": locator_null,
+        "page_name": page_name,
+        "as_file": as_file
+    }
+    # Filter out None values
+    params = {k: v for k, v in params.items() if v is not None}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{chroma_debug_service_url}/debug/export-chromadb", params=params, timeout=None)
+            response.raise_for_status()
+            if as_file:
+                # For file responses, return as is
+                return FileResponse(response.content, media_type=response.headers['content-type'], filename="chromadb_export.json")
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+
+@app.post("/rag/generate-from-story")
+async def generate_from_story_proxy(req: Request):
+    test_generation_service_url = os.getenv("TEST_GENERATION_SERVICE_URL")
+    if not test_generation_service_url:
+        raise HTTPException(status_code=500, detail="TEST_GENERATION_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{test_generation_service_url}/rag/generate-from-story", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+
+@app.post("/rag/generate-page-methods")
+async def generate_page_methods_proxy(req: Request):
+    page_method_generation_service_url = os.getenv("PAGE_METHOD_GENERATION_SERVICE_URL")
+    if not page_method_generation_service_url:
+        raise HTTPException(status_code=500, detail="PAGE_METHOD_GENERATION_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{page_method_generation_service_url}/rag/generate-page-methods", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+@app.post("/rag/generate-from-manual-testcase")
+async def generate_from_manual_testcase_proxy(req: Request):
+    manual_testcase_generation_service_url = os.getenv("MANUAL_TESTCASE_GENERATION_SERVICE_URL")
+    if not manual_testcase_generation_service_url:
+        raise HTTPException(status_code=500, detail="MANUAL_TESTCASE_GENERATION_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{manual_testcase_generation_service_url}/rag/generate-from-manual-testcase", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+
+@app.post("/rag/generate-from-method")
+async def generate_from_method_proxy(req: Request):
+    testcase_generation_service_url = os.getenv("TESTCASE_GENERATION_SERVICE_URL")
+    if not testcase_generation_service_url:
+        raise HTTPException(status_code=500, detail="TESTCASE_GENERATION_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{testcase_generation_service_url}/rag/generate-from-method", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
+
+@app.post("/rag/generate-from-method")
+async def generate_from_method_proxy(req: Request):
+    testcase_generation_service_url = os.getenv("TESTCASE_GENERATION_SERVICE_URL")
+    if not testcase_generation_service_url:
+        raise HTTPException(status_code=500, detail="TESTCASE_GENERATION_SERVICE_URL not configured")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{testcase_generation_service_url}/rag/generate-from-method", json=await req.json(), timeout=None)
+            response.raise_for_status()
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Proxy request failed: {e}")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Service responded with error: {e.response.text}")
+
 app.include_router(manual_add_metadata)
 
 

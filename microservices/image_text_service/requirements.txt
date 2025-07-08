@@ -1,0 +1,11 @@
+fastapi
+python-dotenv
+Pillow
+chromadb
+uvicorn
+sentence-transformers
+openai
+pytesseract
+ultralytics
+torch
+torchvision

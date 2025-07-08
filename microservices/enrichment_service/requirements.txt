@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+chromadb
+playwright
+python-dotenv
+bs4
+rapidfuzz
+sentence-transformers
+torch
+Pillow
