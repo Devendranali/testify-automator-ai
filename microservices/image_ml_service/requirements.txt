@@ -9,3 +9,4 @@ pytesseract
 scikit-learn
 matplotlib
 tqdm
+chromadb

@@ -1,6 +1,8 @@
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Union, List
 import re
 import os
 from dotenv import load_dotenv
@@ -10,11 +12,19 @@ load_dotenv()
 
 app = FastAPI(title="Manual Testcase Generation Service")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class ManualTestcaseRequest(BaseModel):
-    manual_testcase: str | list[str] = Field(..., example=[
+    manual_testcase: Union[str, List[str]] = Field(..., example=[
         "1. Navigate to login page",
         "2. Enter username 'standard_user'",
         "3. Enter password 'secret_sauce'",
@@ -22,15 +32,15 @@ class ManualTestcaseRequest(BaseModel):
         "5. Verify Products page is displayed"
     ])
     prompt: str = Field(
-    default=(
-        "Write a Playwright Python test for the following manual steps.\n"
-        "- Use only visible selectors (get_by_text, get_by_role, get_by_placeholder).\n"
-        "- Print before each action.\n"
-        "- For every verification, 'should be displayed', or 'verify' step, add a Playwright `expect` assertion, such as `expect(page.get_by_text('...')).to_be_visible()`.\n"
-        "- Do not use page.locator or xpath.\n"
-        "- Site URL: {site_url}\n"
-        "Steps:\n"
-        "{manual_steps}"
+        default=(
+            "Write a Playwright Python test for the following manual steps.\n"
+            "- Use only visible selectors (get_by_text, get_by_role, get_by_placeholder).\n"
+            "- Print before each action.\n"
+            "- For every verification, 'should be displayed', or 'verify' step, add a Playwright `expect` assertion, such as `expect(page.get_by_text('...')).to_be_visible()`.\n"
+            "- Do not use page.locator or xpath.\n"
+            "- Site URL: {site_url}\n"
+            "Steps:\n"
+            "{manual_steps}"
         )
     )
     site_url: str = Field(default="https://www.saucedemo.com/")
@@ -62,4 +72,4 @@ def generate_from_manual_testcase(req: ManualTestcaseRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8009) # Using a different port for the new service
+    uvicorn.run(app, host="0.0.0.0", port=8009)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 import json
 from pathlib import Path
@@ -9,6 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="Chroma Debug Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ChromaDB setup
 # This will connect to the chromadb service running in docker-compose

@@ -1,6 +1,7 @@
 # microservices/image_ml_service/main.py
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List
 from PIL import Image
@@ -18,6 +19,14 @@ from utils.match_utils import normalize_page_name
 load_dotenv()
 
 app = FastAPI(title="Image ML Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Logging
 os.makedirs("data", exist_ok=True)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import os, sys, subprocess, json
 from datetime import datetime
 from pathlib import Path
@@ -7,6 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="RAG Testcase Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 project_root = Path(__file__).resolve().parents[1]
 generated_runs_dir = project_root / "generated_runs" / "src"

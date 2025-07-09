@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import chromadb
 from logic.manual_capture_mode import extract_dom_metadata, match_and_update, get_last_match_result, set_last_match_result
@@ -14,6 +15,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="Enrichment Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ChromaDB setup
 chroma_client = chromadb.HttpClient(host=os.getenv("CHROMA_DB_HOST", "chromadb"), port=os.getenv("CHROMA_DB_PORT", "8000"))

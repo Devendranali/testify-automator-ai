@@ -1,4 +1,5 @@
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import re
 import json
@@ -14,6 +15,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="Test Generation Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Placeholder for ChromaDB client - assuming it's available as a separate service
 # or that this service will connect to the main ChromaDB instance.

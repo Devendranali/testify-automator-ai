@@ -1,38 +1,4 @@
 services:
-  frontend:
-    build:
-      context: ../frontend-demo
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-
-  backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
-    env_file:
-      - .env
-    depends_on:
-      - chromadb
-      - image_text_service # Add dependency on the new service
-    environment:
-      - CHROMA_DB_HOST=chromadb
-      - CHROMA_DB_PORT=8000
-      - IMAGE_TEXT_SERVICE_URL=http://image_text_service:8002
-      - CHROMA_DEBUG_SERVICE_URL=http://chroma_debug_service:8003
-      - ENRICHMENT_SERVICE_URL=http://enrichment_service:8004
-      - RAG_SERVICE_URL=http://rag_testcase_service:8005
-      - TEST_GENERATION_SERVICE_URL=http://test_generation_service:8006
-      - ORCHESTRATOR_SERVICE_URL=http://orchestrator_service:8007
-      - PAGE_METHOD_GENERATION_SERVICE_URL=http://page_method_generation_service:8008
-      - MANUAL_TESTCASE_GENERATION_SERVICE_URL=http://manual_testcase_generation_service:8009
-      - TESTCASE_GENERATION_SERVICE_URL=http://testcase_generation_service:8010
-      - MANUAL_METADATA_SERVICE_URL=http://manual_metadata_service:8011
-
   manual_metadata_service:
     build:
       context: ./manual_metadata_service
@@ -110,7 +76,21 @@ services:
     environment:
       - CHROMA_DB_HOST=chromadb
       - CHROMA_DB_PORT=8000
-      - DATA_PATH=/app/data # Define DATA_PATH for the service
+      - DATA_PATH=/app/data
+
+  image_ml_service:
+    build:
+      context: ./image_ml_service
+      dockerfile: Dockerfile
+    ports:
+      - "8012:8012"
+    env_file:
+      - .env
+    depends_on:
+      - chromadb
+    environment:
+      - CHROMA_DB_HOST=chromadb
+      - CHROMA_DB_PORT=8000
 
   test_generation_service:
     build:

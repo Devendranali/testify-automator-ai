@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List
 from PIL import Image
@@ -14,6 +15,14 @@ load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(title="Image Text Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Logging setup
 os.makedirs("data", exist_ok=True)
