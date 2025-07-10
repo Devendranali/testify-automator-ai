@@ -23,21 +23,37 @@ def normalize_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)     # collapse whitespace
     return text
 
+import re
+from urllib.parse import urlparse
+
 def normalize_page_name(input_string: str) -> str:
     input_string = input_string.strip().lower()
 
+    # Handle URLs
     if input_string.startswith("http"):
         parsed = urlparse(input_string)
-        domain = parsed.hostname.replace("www.", "").split('.')[0]  # 🛠 strip to `saucedemo`
+        domain = (parsed.hostname or "").replace("www.", "").split('.')[0] if parsed.hostname else ""
         path = parsed.path.strip("/")
-        page = path.replace(".html", "").replace("/", "_") or "login"
-        return f"{domain}_{page}"
 
+        # Just use the last non-empty path segment, or "login" as fallback
+        if path:
+            segments = [seg for seg in path.split("/") if seg]
+            page = segments[-1] if segments else "login"
+            page = re.sub(r'\.html?$', '', page)
+            page = re.sub(r'_\d+$', '', page)
+        else:
+            page = "login"
+        return f"{domain}_{page}" if domain else page
+
+    # Handle images: strip extension and trailing _<digits>
     if input_string.endswith((".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp")):
         base = re.sub(r'\.(png|jpg|jpeg|bmp|gif|webp)$', '', input_string)
+        base = re.sub(r'_\d+$', '', base)
         return base.lower()
 
-    return input_string
+    # Fallback: just remove trailing _<digits> for anything else
+    return re.sub(r'_\d+$', '', input_string)
+
 
 def generalize_label(label: str) -> str:
     """Map raw field names to semantic equivalents like username/password."""

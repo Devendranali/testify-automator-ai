@@ -1,5 +1,3 @@
-# apis/image_text_api.py
-
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
 from typing import List
@@ -7,7 +5,6 @@ from PIL import Image
 import os, zipfile, tempfile, json, logging
 from dotenv import load_dotenv
 from logic.image_text_extractor import process_image_gpt
-# from logic.image_text_extractor import process_image_paddleocr
 from services.graph_service import build_dependency_graph
 from utils.match_utils import normalize_page_name
 from config.settings import DATA_PATH
@@ -81,56 +78,73 @@ async def upload_image(
         extracted_images = [f for f in os.listdir(temp_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp'))]
         image_names = ordered_image_list if ordered_image_list else sorted(extracted_images)
 
-        # AddedBySubhankar
-        # Initialize global list for storing all raw GPT metadata (across all images)
+        # Group images by normalized page_name
+        page_images = {}
+        for image_name in image_names:
+            page_name = normalize_page_name(image_name)
+            page_images.setdefault(page_name, []).append(image_name)
+
+        # For saving all raw metadata
         all_raw_metadata = []
 
-        # Step 4: Process images in order using GPT-4o
-        for image_name in image_names:
-            image_path = os.path.join(temp_dir, image_name)
-            if not os.path.exists(image_path):
-                logger.warning(f"⚠️ Skipping missing image: {image_name}")
-                continue
-
-            with Image.open(image_path) as img:
-                logger.debug(f"📷 Processing image: {image_name}")
-
-                permanent_image_path = os.path.join(DATA_PATH, "images", image_name)
-                img.save(permanent_image_path)
-
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                DEBUG_LOG_PATH = f"./data/metadata_logs_{timestamp}.json"
-
-                # GPT image extraction
-                metadata_list = await process_image_gpt(
-                    img, image_name,
-                    image_path=permanent_image_path,
-                    debug_log_path=DEBUG_LOG_PATH
+        # Step 4: Process images grouped by logical page
+        for page_name, image_group in page_images.items():
+            # Fetch existing label_texts for this page from chroma
+            try:
+                existing = chroma_collection.get(where={"page_name": page_name})
+                existing_label_texts = set(
+                    m["label_text"].strip().lower()
+                    for m in (existing["metadatas"] or [])
+                    if m and m.get("label_text")
                 )
+            except Exception as fetch_err:
+                logger.warning(f"⚠️ Failed to fetch existing metadatas for {page_name}: {fetch_err}")
+                existing_label_texts = set()
 
-                # # PaddleOCR image extraction
-                # metadata_list = await process_image_paddleocr(img, image_name)
+            # For each image for this logical page
+            for image_name in image_group:
+                image_path = os.path.join(temp_dir, image_name)
+                if not os.path.exists(image_path):
+                    logger.warning(f"⚠️ Skipping missing image: {image_name}")
+                    continue
 
-                # AddedBySubhankar
-                # 💾 Append raw metadata for this image
-                all_raw_metadata.append({
-                    "image_name": image_name,
-                    "metadata": metadata_list
-                })
+                with Image.open(image_path) as img:
+                    logger.debug(f"📷 Processing image: {image_name}")
 
-                for metadata in metadata_list:
-                    chroma_collection.add(
-                        ids=[metadata["id"]],
-                        documents=[metadata["text"]],
-                        metadatas=[metadata]
+                    permanent_image_path = os.path.join(DATA_PATH, "images", image_name)
+                    img.save(permanent_image_path)
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    DEBUG_LOG_PATH = f"./data/metadata_logs_{timestamp}.json"
+
+                    # GPT image extraction
+                    metadata_list = await process_image_gpt(
+                        img, image_name,
+                        image_path=permanent_image_path,
+                        debug_log_path=DEBUG_LOG_PATH
                     )
-                    results.append(metadata)
 
-            image_file_map[image_name] = (image_path, normalize_page_name(image_name))
-            actual_received_images.append(image_name)
+                    all_raw_metadata.append({
+                        "image_name": image_name,
+                        "metadata": metadata_list
+                    })
 
-        # AddedBySubhankar        
-        # ✅ AFTER processing all images, save the raw GPT data to a single file
+                    # Only add new label_texts for this logical page
+                    for metadata in metadata_list:
+                        label_text = metadata.get("label_text", "").strip().lower()
+                        if label_text and label_text not in existing_label_texts:
+                            chroma_collection.add(
+                                ids=[metadata["id"]],
+                                documents=[metadata["text"]],
+                                metadatas=[metadata]
+                            )
+                            results.append(metadata)
+                            existing_label_texts.add(label_text)  # Avoid duplicates within this upload
+
+                image_file_map[image_name] = (image_path, page_name)
+                actual_received_images.append(image_name)
+
+        # Save all raw GPT metadata to a single file
         raw_data_file_path = os.path.join("data", "raw_data_from_gpt.json")
         with open(raw_data_file_path, "w", encoding="utf-8") as f:
             json.dump(all_raw_metadata, f, indent=2, ensure_ascii=False)
