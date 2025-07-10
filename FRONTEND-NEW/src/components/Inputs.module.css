@@ -1,0 +1,120 @@
+.inputContainer {
+  background-color: var(--color-background-light);
+  min-height: 100vh;
+}
+
+.navbar {
+  background-color: var(--color-white);
+  min-height: 8vh;
+  padding: 1rem 5vw;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-light);
+}
+
+.navbarBrand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbarIcon {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  padding: 1rem;
+  border-radius: 20%;
+  font-size: 15px;
+}
+
+.navbarTitle {
+  margin: 0;
+  font-size: 22px;
+}
+
+.navbarSubtitle {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+}
+
+.backButton {
+  padding: 0.8rem 1.5rem;
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 1rem;
+  font-weight: 550;
+  transition: var(--transition-button);
+}
+
+.backButton:hover {
+  box-shadow: var(--shadow-light);
+  transform: translateY(-2px);
+}
+
+.wizardTitle {
+  padding: 2rem 13vw 1rem;
+  font-size: 30px;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.stepContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1rem 13vw;
+}
+
+.stepItem {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex: 1 1 300px;
+  min-width: 250px;
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-light);
+  padding: 1.5rem;
+  transition: var(--transition-button);
+}
+
+.stepItem:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-medium);
+}
+
+.stepIconContainer {
+  background-color: var(--color-border);
+  padding: 0.75rem;
+  border-radius: var(--border-radius-round);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  width: 60px;
+}
+
+.stepIcon {
+  font-size: 26px;
+  color: var(--color-gray);
+}
+
+.stepTextContainer h2 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: var(--color-text-primary);
+}
+
+.stepTextContainer p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,209 @@
+.imageUploadContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 70vh;
+  background-color: var(--color-background-light);
+  padding-top: 2rem;
+  padding-bottom: 30px;
+}
+
+.uploadBox {
+  padding: 1rem 3rem;
+  border: 1px solid var(--color-border);
+  min-height: 45vh;
+  width: 70vw;
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-light);
+}
+
+.uploadTitle {
+  font-size: 22px;
+  color: var(--color-text-primary);
+}
+
+.uploadSubtitle {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  margin-bottom: 20px;
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--color-border);
+  padding: 1rem;
+  border-radius: var(--border-radius-medium);
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-light);
+}
+
+.uploadIcon {
+  font-size: 40px;
+  margin-bottom: 10px;
+  color: var(--color-gray);
+}
+
+.uploadText {
+  font-size: 18px;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.uploadInstructions {
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.selectFilesButton {
+  padding: 14px 30px;
+  border: 1px solid var(--color-gray);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--color-white);
+  transition: var(--transition-button);
+}
+
+.selectFilesButton:hover {
+  background-color: var(--color-background-light);
+  box-shadow: var(--shadow-light);
+}
+
+.selectFilesButtonIcon {
+  font-size: 16px;
+}
+
+.selectFilesButtonText {
+  font-size: 18px;
+}
+
+.errorText {
+  color: var(--color-error);
+  margin-top: 10px;
+}
+
+.successMessage {
+  margin-top: 20px;
+  padding: 12px 16px;
+  background-color: #e6ffed; /* Specific success background */
+  color: var(--color-success);
+  border: 1.5px solid #b7eb8f; /* Specific success border */
+  border-radius: var(--border-radius-medium);
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.availablePagesContainer {
+  margin-top: 20px;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-light);
+  background-color: var(--color-white);
+}
+
+.availablePagesTitle {
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+.pageList {
+  list-style: none;
+  padding: 0;
+}
+
+.pageListItem {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-small);
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 30px;
+  gap: 10px;
+}
+
+.uploadImagesButton {
+  padding: 0.7rem 2rem;
+  font-size: 20px;
+  color: var(--color-white);
+  border: 0px;
+  background: var(--gradient-button);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.uploadImagesButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.generateMethodsButton {
+  padding: 0.7rem 2rem;
+  font-size: 20px;
+  color: var(--color-white);
+  border: 0px;
+  background: var(--gradient-button);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.generateMethodsButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.nextButtonContainer {
+  width: 70vw;
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.nextButton {
+  padding: 0.7rem 3rem;
+  font-size: 20px;
+  color: var(--color-white);
+  border: 0px;
+  background: var(--color-gray);
+  border-radius: var(--border-radius-small);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.nextButton:hover {
+  background-color: var(--color-gray-dark);
+  transform: translateY(-2px);
+}
+

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import ImageDragDrop from "./imagehandles"; // adjust path if needed
+import styles from "./ImageUpload.module.css";
 
 const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
   const [loadingIngestion, setLoadingIngestion] = useState(false);
@@ -115,45 +116,14 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minHeight: "70vh",
-        backgroundColor: "#f2f7fe",
-        paddingTop: "2rem",
-        paddingBottom: "30px",
-      }}
-    >
-      <div
-        style={{
-          padding: "1rem 3rem",
-          border: "1px solid #ccc",
-          minHeight: "45vh",
-          width: "70vw",
-          backgroundColor: "white",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <h2 style={{ fontSize: "22px", color: "#333" }}>Upload Designs</h2>
-        <p style={{ fontSize: "18px", color: "#555", marginBottom: "20px" }}>
+    <div className={styles.imageUploadContainer}>
+      <div className={styles.uploadBox}>
+        <h2 className={styles.uploadTitle}>Upload Designs</h2>
+        <p className={styles.uploadSubtitle}>
           Upload screenshots or visual designs of your application
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "2px dashed #d6d8e1",
-            padding: "1rem",
-            borderRadius: "10px",
-            transition: "all 0.3s ease",
-          }}
-        >
+        <div className={styles.dropzone}>
           <input
             id="file-upload"
             type="file"
@@ -163,44 +133,22 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
             onChange={handleFileChange}
           />
 
-          <i
-            className="fa-solid fa-cloud-arrow-up"
-            style={{ fontSize: "40px", marginBottom: "10px" }}
-          ></i>
+          <i className={`fa-solid fa-cloud-arrow-up ${styles.uploadIcon}`}></i>
 
-          <h3 style={{ fontSize: "18px", color: "black", margin: "0" }}>
+          <h3 className={styles.uploadText}>
             Upload Design Files
           </h3>
 
-          <p
-            style={{
-              color: "#666",
-              fontSize: "18px",
-              marginTop: "8px",
-              marginBottom: "16px",
-            }}
-          >
+          <p className={styles.uploadInstructions}>
             Click the button below to select your files
           </p>
 
           <button
             onClick={() => document.getElementById("file-upload").click()}
-            style={{
-              padding: "14px 30px",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "15px",
-              fontWeight: "500",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              border: "1px solid grey",
-              backgroundColor: "white",
-            }}
+            className={styles.selectFilesButton}
           >
-            <i className="fa-solid fa-upload" style={{ fontSize: "16px" }}></i>
-            <span style={{ fontSize: "18px" }}>Select Files</span>
+            <i className={`fa-solid fa-upload ${styles.selectFilesButtonIcon}`}></i>
+            <span className={styles.selectFilesButtonText}>Select Files</span>
           </button>
         </div>
 
@@ -210,45 +158,22 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
           </div>
         )}
 
-        {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
+        {error && <p className={styles.errorText}>{error}</p>}
 
         {ingestionSuccess && (
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "12px 16px",
-              backgroundColor: "#e6ffed",
-              color: "#027a48",
-              border: "1.5px solid #b7eb8f",
-              borderRadius: "8px",
-              fontWeight: "600",
-              fontSize: "15px",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            ✅ Success
+          <div className={styles.successMessage}>
+            ✅ OCR extracted and stored in ChromaDB successfully.
           </div>
         )}
 
         {pageNames.length > 0 && (
-          <div className="mt-4 p-4 border rounded shadow-sm bg-light">
-            <h5 className="mb-3" style={{ color: "black" }}>Available Pages:</h5>
-            <ul className="list-group">
+          <div className={styles.availablePagesContainer}>
+            <h5 className={styles.availablePagesTitle}>Available Pages:</h5>
+            <ul className={styles.pageList}>
               {pageNames.map((name, idx) => (
                 <li
                   key={idx}
-                  className="list-group-item d-flex justify-content-between align-items-center"
-                  style={{
-                    backgroundColor: "white",
-                    borderRadius: "4px",
-                    marginBottom: "6px",
-                    padding: "8px 12px",
-                    fontWeight: "500",
-                    color: "#333",
-                    border: "1px solid #dee2e6",
-                  }}
+                  className={styles.pageListItem}
                 >
                   {name}
                 </li>
@@ -257,72 +182,28 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
           </div>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginTop: "30px",
-            gap: "10px",
-          }}
-        >
+        <div className={styles.actionButtons}>
           <button
             onClick={handleContinue}
             disabled={loadingIngestion}
-            style={{
-              padding: "0.7rem 2rem",
-              fontSize: "20px",
-              color: "white",
-              border: "0px",
-              background:
-                "linear-gradient(90deg,rgb(76, 62, 203),rgb(106, 92, 227),rgb(216, 148, 221))",
-              borderRadius: "5px",
-              cursor: "pointer",
-              opacity: loadingIngestion ? 0.6 : 1,
-            }}
+            className={styles.uploadImagesButton}
           >
             {loadingIngestion ? "Uploading..." : "Upload Images"}
           </button>
 
           <button
             onClick={handleGenerateMethods}
-            style={{
-              padding: "0.7rem 2rem",
-              fontSize: "20px",
-              color: "white",
-              border: "0px",
-              background:
-                "linear-gradient(90deg,rgb(76, 62, 203),rgb(106, 92, 227),rgb(216, 148, 221))",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
+            className={styles.generateMethodsButton}
           >
             Generate Page Methods
           </button>
         </div>
       </div>
 
-      <div
-        style={{
-          width: "70vw",
-          marginTop: "20px",
-          display: "flex",
-          justifyContent: "flex-end",
-        }}
-      >
+      <div className={styles.nextButtonContainer}>
         <button
           onClick={handleNext}
-          style={{
-            padding: "0.7rem 3rem",
-            fontSize: "20px",
-            color: "white",
-            border: "0px",
-            background: "grey",
-            borderRadius: "5px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            cursor: "pointer",
-          }}
+          className={styles.nextButton}
         >
           Next <i className="fa-solid fa-angle-right"></i>
         </button>
@@ -332,3 +213,4 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
 };
 
 export default ImageUpload;
+

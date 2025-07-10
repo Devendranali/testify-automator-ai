@@ -1,0 +1,162 @@
+.homeContainer {
+  background-color: var(--color-background-light);
+  min-height: 100vh;
+}
+
+.navbar {
+  background-color: var(--color-white);
+  min-height: 8vh;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-light);
+}
+
+.navbarBrand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbarIcon {
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  padding: 1rem;
+  border-radius: 20%;
+  font-size: 1rem;
+}
+
+.navbarTitle {
+  margin: 0;
+  font-size: clamp(20px, 2vw, 26px);
+}
+
+.navbarSubtitle {
+  margin: 0;
+  font-size: clamp(14px, 1.5vw, 18px);
+  color: var(--color-text-secondary);
+}
+
+.newProjectButton {
+  padding: 0.9rem 2rem;
+  background: var(--gradient-button);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: clamp(16px, 1.5vw, 18px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: var(--transition-button);
+}
+
+.newProjectButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--color-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialogContent {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-medium);
+  padding: 2rem;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: var(--shadow-medium);
+  animation: fadeInScale 0.3s ease-out forwards;
+}
+
+.dialogContent h2 {
+  margin-bottom: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.formLabel {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-text-primary);
+}
+
+.formInput,
+.formSelect {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  margin-top: 6px;
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--color-border);
+  transition: var(--transition-form-elements);
+}
+
+.formInput:focus,
+.formSelect:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(91, 75, 234, 0.2);
+  outline: none;
+}
+
+.formSelect {
+  margin-bottom: 1.5rem;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.cancelButton {
+  padding: 0.6rem 1.4rem;
+  background: var(--color-gray);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius-small);
+  font-size: 16px;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.cancelButton:hover {
+  background-color: var(--color-gray-dark);
+}
+
+.startButton {
+  padding: 0.6rem 1.4rem;
+  background: var(--gradient-button-secondary);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius-small);
+  font-size: 16px;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.startButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

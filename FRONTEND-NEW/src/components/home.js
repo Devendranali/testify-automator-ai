@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "./dashboard";
 import { toast, ToastContainer } from "react-toastify";
+import styles from "./Home.module.css"; // Import the CSS module
 
 const Home = () => {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ const Home = () => {
 
   const handleStartProject = () => {
     if (!projectName.trim()) {
-      alert("Please enter a project name.");
+      toast.error("Please enter a project name."); // Using toast for better UX
       return;
     }
 
@@ -27,37 +28,18 @@ const Home = () => {
 
 
   return (
-    <div style={{ backgroundColor: "#f1f7fe", minHeight: "100vh" }}>
+    <div className={styles.homeContainer}>
       <ToastContainer/>
-      <nav
-        style={{
-          backgroundColor: "#ffffff",
-          minHeight: "8vh",
-          padding: "1rem 2rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+      <nav className={styles.navbar}>
+        <div className={styles.navbarBrand}>
           <i
-            className="fa fa-code"
-            style={{
-              background:
-                "linear-gradient(90deg,rgb(87, 72, 222),rgb(47, 28, 220),rgb(236, 7, 253))",
-              color: "white",
-              padding: "1rem",
-              borderRadius: "20%",
-              fontSize: "1rem",
-            }}
+            className={`fa fa-code ${styles.navbarIcon}`}
           ></i>
           <div>
-            <h4 style={{ margin: 0, fontSize: "clamp(20px, 2vw, 26px)" }}>
+            <h4 className={styles.navbarTitle}>
               AutoTest Studio
             </h4>
-            <p style={{ margin: 0, fontSize: "clamp(14px, 1.5vw, 18px)", color: "#555" }}>
+            <p className={styles.navbarSubtitle}>
               Automation Development Platform
             </p>
           </div>
@@ -65,19 +47,7 @@ const Home = () => {
 
         <button
           onClick={() => setShowDialog(true)}
-          style={{
-            padding: "0.9rem 2rem",
-            background:
-              "linear-gradient(90deg,rgb(76, 62, 203),rgb(87, 72, 222),rgb(227, 83, 237))",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontSize: "clamp(16px, 1.5vw, 18px)",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
+          className={styles.newProjectButton}
         >
           <i className="fa-solid fa-plus" style={{ fontSize: "18px" }}></i>
           New Project
@@ -88,63 +58,27 @@ const Home = () => {
 
       {/* Project Setup Dialog */}
       {showDialog && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.4)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "10px",
-              padding: "2rem",
-              width: "90%",
-              maxWidth: "450px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-            }}
-          >
-            <h2 style={{ marginBottom: "1.5rem" }}>Create New Project</h2>
+        <div className={styles.dialogOverlay}>
+          <div className={styles.dialogContent}>
+            <h2 className={styles.dialogContentH2}>Create New Project</h2>
 
-            <label style={{ display: "block", marginBottom: "10px" }}>
+            <label className={styles.formLabel}>
               Project Name:
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Enter project name"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  fontSize: "16px",
-                  marginTop: "6px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                }}
+                className={styles.formInput}
               />
             </label>
 
-            <label style={{ display: "block", marginBottom: "10px" }}>
+            <label className={styles.formLabel}>
               Select Framework:
               <select
                 value={framework}
                 onChange={(e) => setFramework(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  fontSize: "16px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                  marginTop: "6px",
-                }}
+                className={styles.formSelect}
               >
                 <option>Selenium </option>
                 <option>Playwright</option>
@@ -153,19 +87,12 @@ const Home = () => {
               </select>
             </label>
 
-            <label style={{ display: "block", marginBottom: "1.5rem" }}>
+            <label className={styles.formLabel}>
               Programming Language:
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  fontSize: "16px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                  marginTop: "6px",
-                }}
+                className={styles.formSelect}
               >
                 <option>Java</option>
                 <option>Python</option>
@@ -174,32 +101,16 @@ const Home = () => {
               </select>
             </label>
 
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div className={styles.dialogActions}>
               <button
                 onClick={() => setShowDialog(false)}
-                style={{
-                  padding: "0.6rem 1.4rem",
-                  background: "gray",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                }}
+                className={styles.cancelButton}
               >
                 Cancel
               </button>
               <button
                 onClick={handleStartProject}
-                style={{
-                  padding: "0.6rem 1.4rem",
-                  background: "linear-gradient(to right, #4c3ecb, #e353ed)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                }}
+                className={styles.startButton}
               >
                 Start Project
               </button>
@@ -212,3 +123,4 @@ const Home = () => {
 };
 
 export default Home;
+

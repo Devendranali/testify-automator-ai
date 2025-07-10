@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import styles from "./Execute.module.css";
 
 const Execute = ({ onBack, fullTestData }) => {
   const [loadingExecution, setLoadingExecution] = useState(false);
@@ -28,138 +29,60 @@ const Execute = ({ onBack, fullTestData }) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minHeight: "100vh",
-        backgroundColor: "#f2f7fe",
-        paddingTop: "2rem",
-        paddingBottom: "30px",
-      }}
-    >
-      <div
-        style={{
-          width: "90%",
-          maxWidth: "1200px",
-          backgroundColor: "white",
-          border: "1px solid #ccc",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
-          padding: "2rem 2.5rem",
-        }}
-      >
+    <div className={styles.executeContainer}>
+      <div className={styles.contentBox}>
         {/* Heading Section */}
-        <h3 style={{ fontSize: "22px", marginBottom: "0.5rem" }}>
-          <i className="fa-solid fa-code" style={{ color: "blue", marginRight: "10px" }}></i>
+        <h3 className={styles.heading}>
+          <i className={`fa-solid fa-code ${styles.headingIcon}`}></i>
           Generate Scripts
         </h3>
-        <p style={{ fontSize: "17px", color: "gray" }}>
+        <p className={styles.subheading}>
           Configure framework and generate test scripts
         </p>
 
         {/* Icon & Description */}
-        <div style={{ textAlign: "center", marginTop: "2rem", marginBottom: "2rem" }}>
-          <div style={{ fontSize: "45px", color: "blue" }}>
+        <div className={styles.centerContent}>
+          <div className={styles.mainIcon}>
             <i className="fa-solid fa-code"></i>
           </div>
-          <h2 style={{ margin: "0.5rem 0" }}>Generate Test Scripts</h2>
-          <p style={{ color: "gray", fontSize: "17px" }}>
+          <h2 className={styles.mainTitle}>Generate Test Scripts</h2>
+          <p className={styles.mainDescription}>
             Your test scripts will be generated based on the uploaded designs and user stories.
           </p>
         </div>
 
         {/* Two-Column Responsive Layout */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "2rem",
-          }}
-        >
+        <div className={styles.summaryCardsContainer}>
           {/* Project Summary Card */}
-          <div
-            style={{
-              flex: "1 1 300px",
-              border: "1px solid #e0e0e0",
-              borderRadius: "10px",
-              padding: "1.5rem",
-              backgroundColor: "#fff",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "22px",
-                marginBottom: "1.5rem",
-                fontWeight: "600",
-                color: "#212121",
-                borderBottom: "1px solid #e0e0e0",
-                paddingBottom: "0.5rem",
-              }}
-            >
+          <div className={styles.summaryCard}>
+            <h3 className={styles.summaryCardTitle}>
               Project Summary
             </h3>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "16.5px",
-                marginBottom: "1rem",
-                color: "#444",
-              }}
-            >
+            <div className={styles.summaryItem}>
               <span>Design Files:</span>
-              <strong style={{ color: "#000" }}>0</strong>
+              <strong className={styles.summaryItemValue}>0</strong>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "16.5px",
-                marginBottom: "1rem",
-                color: "#444",
-              }}
-            >
+            <div className={styles.summaryItem}>
               <span>User Stories:</span>
-              <strong style={{ color: "#000" }}>0</strong>
+              <strong className={styles.summaryItemValue}>0</strong>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "16.5px",
-                color: "#444",
-              }}
-            >
+            <div className={styles.summaryItem}>
               <span>Selected Framework:</span>
-              <strong style={{ color: "#000" }}>Selenium (Web)</strong>
+              <strong className={styles.summaryItemValue}>Selenium (Web)</strong>
             </div>
           </div>
 
         </div>
 
         {/* Execute Button */}
-        <div style={{ textAlign: "center", marginTop: "3rem" }}>
+        <div className={styles.executeButtonContainer}>
           <button
             onClick={executeStoryTest}
             disabled={loadingExecution}
-            style={{
-              backgroundColor: loadingExecution ? "#ccc" : "#4CAF50",
-              color: "white",
-              padding: "12px 28px",
-              fontSize: "17px",
-              fontWeight: "600",
-              border: "none",
-              borderRadius: "8px",
-              cursor: loadingExecution ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-            }}
+            className={styles.executeButton}
           >
             {loadingExecution ? "Executing..." : "Execute"}
           </button>
@@ -167,28 +90,12 @@ const Execute = ({ onBack, fullTestData }) => {
       </div>
 
       {/* Back Button */}
-      <div
-        style={{
-          width: "90%",
-          maxWidth: "1200px",
-          marginTop: "20px",
-          display: "flex",
-          justifyContent: "flex-start",
-        }}
-      >
+      <div className={styles.backButtonContainer}>
         <button
           onClick={onBack}
-          style={{
-            padding: "0.7rem 2rem",
-            fontSize: "17px",
-            background: "lightgray",
-            color: "black",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
+          className={styles.backButton}
         >
-          <i className="fa-solid fa-angle-left" style={{ marginRight: "10px" }}></i>
+          <i className="fa-solid fa-angle-left"></i>
           Back
         </button>
       </div>

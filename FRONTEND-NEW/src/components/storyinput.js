@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
+import styles from "./StoryInput.module.css";
 
 const StoryInput = ({ onBack, onNext }) => {
   const [userStoriesInput, setUserStoriesInput] = useState("");
@@ -74,96 +75,33 @@ const StoryInput = ({ onBack, onNext }) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minHeight: "60vh",
-        backgroundColor: "#f2f7fe",
-        paddingTop: "2rem",
-        paddingBottom: "30px",
-      }}
-    >
+    <div className={styles.storyInputContainer}>
       <ToastContainer/>
-      <div
-        style={{
-          padding: "1rem 3rem",
-          border: "1px solid #ccc",
-          minHeight: "45vh",
-          width: "70vw",
-          backgroundColor: "white",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <h3 style={{ fontSize: "30px" }}>Import User Stories</h3>
+      <div className={styles.contentBox}>
+        <h3 className={styles.title}>Import User Stories</h3>
         <p>Add user stories from Jira, Excel, or create them manually</p>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            margin: "1px",
-            gap: "20px",
-            flexWrap: "nowrap",
-            overflowX: "auto",
-          }}
-        >
-          <div
-            style={{
-              border: "1px solid grey",
-              minWidth: "340px",
-              padding: "1rem",
-              borderRadius: "8px",
-              textAlign: "center",
-              backgroundColor: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            <i className="fa-solid fa-plus" style={{ fontSize: "30px", color: "blue" }}></i>
-            <h3>Manual Entry</h3>
-            <p>Add user stories manually</p>
-          </div>
+        <div className={styles.importOptions}>
+          <button className={`${styles.optionCard} ${styles.clickable}`}>
+            <i className={`fa-solid fa-plus ${styles.optionIcon}`} style={{ color: "blue" }}></i>
+            <h3 className={styles.optionTitle}>Manual Entry</h3>
+            <p className={styles.optionDescription}>Add user stories manually</p>
+          </button>
 
           <button
             onClick={handleJiraImport}
-            style={{
-              border: "1px solid grey",
-              minWidth: "340px",
-              padding: "1rem",
-              borderRadius: "8px",
-              textAlign: "center",
-              backgroundColor: "#fff",
-              flexShrink: 0,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.5rem",
-            }}
+            className={`${styles.optionCard} ${styles.clickable}`}
           >
-            <i className="fa-solid fa-file-import" style={{ fontSize: "30px", color: "green" }}></i>
-            <h3 style={{ margin: 0 , fontSize:"20px" }}>Import from Jira</h3>
-            <p style={{ margin: 0 , fontSize:"17px"}}>Connect to Jira Instance</p>
+            <i className={`fa-solid fa-file-import ${styles.optionIcon}`} style={{ color: "green" }}></i>
+            <h3 className={styles.optionTitle}>Import from Jira</h3>
+            <p className={styles.optionDescription}>Connect to Jira Instance</p>
           </button>
 
-          <div
-            style={{
-              border: "1px solid grey",
-              minWidth: "340px",
-              padding: "1rem",
-              borderRadius: "8px",
-              textAlign: "center",
-              backgroundColor: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            <i className="fa-solid fa-file" style={{ fontSize: "30px", color: "purple" }}></i>
-            <h3>Upload Excel</h3>
-            <p>Upload Excel File</p>
-          </div>
+          <button className={`${styles.optionCard} ${styles.clickable}`}>
+            <i className={`fa-solid fa-file ${styles.optionIcon}`} style={{ color: "purple" }}></i>
+            <h3 className={styles.optionTitle}>Upload Excel</h3>
+            <p className={styles.optionDescription}>Upload Excel File</p>
+          </button>
         </div>
 
         <textarea
@@ -172,30 +110,15 @@ const StoryInput = ({ onBack, onNext }) => {
           placeholder="Type your user story here..."
           value={userStoriesInput}
           onChange={(e) => setUserStoriesInput(e.target.value)}
-          style={{
-            padding: "1rem",
-            borderRadius: "8px",
-            border: "1px solid #ccc",
-            fontSize: "16px",
-            width: "97%",
-            marginTop: "20px",
-          }}
+          className={styles.textArea}
         ></textarea>
 
-        {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
+        {error && <p className={styles.errorText}>{error}</p>}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "30px" }}>
+        <div className={styles.generateButtonContainer}>
           <button
             onClick={fetchTestCases}
-            style={{
-              padding: "0.7rem 1.5rem",
-              fontSize: "18px",
-              background: "linear-gradient(90deg, #4c3ecb, #5748de, #e353ed)",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className={styles.generateButton}
           >
             {loadingGeneration ? "Generating..." : "Generate Test Cases"}
           </button>
@@ -205,81 +128,24 @@ const StoryInput = ({ onBack, onNext }) => {
           testCasesGeneratedFromStory.map((tc, idx) => (
             <div
               key={idx}
-              style={{
-                marginTop: "20px",
-                padding: "15px",
-                border: "1px solid #ccc",
-                borderRadius: "10px",
-                backgroundColor: "#fafafa",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-              }}
+              className={styles.testCaseCard}
             >
-              <h4 style={{ marginBottom: "15px", color: "#333" }}>
+              <h4 className={styles.testCaseTitle}>
                 Generated Test Case : {idx + 1}
               </h4>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-                  fontSize: "14px",
-                  color: "#444",
-                }}
-              >
+              <table className={styles.testCaseTable}>
                 <thead>
                   <tr>
-                    <th
-                      style={{
-                        border: "1px solid #ccc",
-                        padding: "12px",
-                        textAlign: "left",
-                        backgroundColor: "#e8e8e8",
-                        fontWeight: "600",
-                        width: "50%",
-                      }}
-                    >
-                      Prompt
-                    </th>
-                    <th
-                      style={{
-                        border: "1px solid #ccc",
-                        padding: "12px",
-                        textAlign: "left",
-                        backgroundColor: "#e8e8e8",
-                        fontWeight: "600",
-                        width: "50%",
-                      }}
-                    >
-                      Automated Test Cases
-                    </th>
+                    <th>Prompt</th>
+                    <th>Automated Test Cases</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td
-                      style={{
-                        border: "1px solid #ccc",
-                        padding: "12px",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        verticalAlign: "top",
-                        backgroundColor: "#fff",
-                      }}
-                    >
+                    <td className={styles.testCaseTableTd}>
                       {tc.manual_testcase}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #ccc",
-                        padding: "12px",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        fontFamily: "Consolas, monospace",
-                        fontSize: "13px",
-                        backgroundColor: "#f7f7f7",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className={`${styles.testCaseTableTd} ${styles.code}`}>
                       {tc.auto_testcase}
                     </td>
                   </tr>
@@ -289,43 +155,20 @@ const StoryInput = ({ onBack, onNext }) => {
           ))}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginTop: "30px",
-          width: "70vw",
-        }}
-      >
+      <div className={styles.navigationButtons}>
         <button
           onClick={onBack}
-          style={{
-            padding: "0.7rem 2rem",
-            fontSize: "18px",
-            background: "lightgray",
-            color: "black",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
+          className={styles.navButton}
         >
-          <i className="fa-solid fa-angle-left" style={{ marginRight: "10px" }}></i>
+          <i className="fa-solid fa-angle-left"></i>
           Previous
         </button>
 
         <button
           onClick={onNext}
-          style={{
-            padding: "0.7rem 2rem",
-            fontSize: "18px",
-            backgroundColor:"lightgray",
-            color: "black",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
+          className={`${styles.navButton} ${styles.next}`}
         >
-          Next <i className="fa-solid fa-angle-right" style={{ marginLeft: "10px" }}></i>
+          Next <i className="fa-solid fa-angle-right"></i>
         </button>
       </div>
     </div>
@@ -333,3 +176,4 @@ const StoryInput = ({ onBack, onNext }) => {
 };
 
 export default StoryInput;
+
