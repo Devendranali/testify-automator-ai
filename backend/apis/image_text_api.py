@@ -11,6 +11,7 @@ from config.settings import DATA_PATH
 import chromadb
 from datetime import datetime
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+import re
 
 load_dotenv()
 
@@ -129,17 +130,21 @@ async def upload_image(
                         "metadata": metadata_list
                     })
 
+
                     # Only add new label_texts for this logical page
                     for metadata in metadata_list:
-                        label_text = metadata.get("label_text", "").strip().lower()
-                        if label_text and label_text not in existing_label_texts:
+                        original_label_text = metadata.get("label_text", "")
+                        cleaned_label_text = clean_label_text(original_label_text)
+                        metadata["label_text"] = cleaned_label_text  # Overwrite with cleaned version
+                        if cleaned_label_text and cleaned_label_text not in existing_label_texts:
                             chroma_collection.add(
                                 ids=[metadata["id"]],
                                 documents=[metadata["text"]],
                                 metadatas=[metadata]
                             )
                             results.append(metadata)
-                            existing_label_texts.add(label_text)  # Avoid duplicates within this upload
+                            existing_label_texts.add(cleaned_label_text)
+
 
                 image_file_map[image_name] = (image_path, page_name)
                 actual_received_images.append(image_name)
@@ -169,3 +174,9 @@ async def upload_image(
     except Exception as e:
         logger.error("❌ Error in upload_image", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def clean_label_text(text: str) -> str:
+    # Remove leading/trailing numbers, dots, dashes, and spaces
+    cleaned = re.sub(r"^[\s\W\d_]+|[\s\W\d_]+$", "", text, flags=re.UNICODE)
+    return cleaned
