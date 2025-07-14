@@ -137,7 +137,7 @@ const Execute = ({ onBack, fullTestData }) => {
               }}
             >
               <span>Selected Framework:</span>
-              <strong style={{ color: "#000" }}>Selenium (Web)</strong>
+              <strong style={{ color: "#000" }}>Playwright (python)</strong>
             </div>
           </div>
 

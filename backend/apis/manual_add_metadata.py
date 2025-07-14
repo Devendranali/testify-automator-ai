@@ -114,7 +114,7 @@ def build_complete_metadata(manual: ManualMetadataInput):
   "label_text": "customers",
   "value": "",
   "intent": "",
-  "ocr_type": "button",
+  "ocr_type": "link",
   "tag_name": "a",
   "dom_id": "",
   "dom_class": ""
