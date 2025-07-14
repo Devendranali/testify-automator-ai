@@ -150,14 +150,19 @@
 }
 
 .uploadImagesButton {
-  padding: 0.7rem 2rem;
-  font-size: 20px;
+  padding: 0.8rem 2.2rem;
+  font-size: 18px;
   color: var(--color-white);
   border: 0px;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
+  min-width: 200px;
+  min-height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .uploadImagesButton:hover {
@@ -166,14 +171,19 @@
 }
 
 .generateMethodsButton {
-  padding: 0.7rem 2rem;
-  font-size: 20px;
+  padding: 0.8rem 2.2rem;
+  font-size: 18px;
   color: var(--color-white);
   border: 0px;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
+  min-width: 250px;
+  min-height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .generateMethodsButton:hover {
@@ -207,3 +217,20 @@
   transform: translateY(-2px);
 }
 
+.spinner {
+  border: 4px dotted #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  animation: spin 1s ease infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

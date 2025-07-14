@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 60vh;
+  min-height: 70vh;
   background-color: var(--color-background-light);
   padding-top: 2rem;
   padding-bottom: 30px;
@@ -19,74 +19,60 @@
 }
 
 .title {
-  font-size: 30px;
+  font-size: 22px;
   color: var(--color-text-primary);
 }
 
 .importOptions {
   display: flex;
-  justify-content: space-between;
-  margin: 1px;
   gap: 20px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .optionCard {
-  border: 1px solid var(--color-border);
-  min-width: 340px;
+  flex: 1;
   padding: 1rem;
+  border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
   text-align: center;
-  background-color: var(--color-white);
-  flex-shrink: 0;
-  transition: var(--transition-button);
-}
-
-.optionCard.clickable {
   cursor: pointer;
+  transition: var(--transition-button);
+  min-height: 120px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  align-items: center;
 }
 
 .optionCard:hover {
-  transform: translateY(-5px);
+  border-color: var(--color-primary);
   box-shadow: var(--shadow-light);
 }
 
 .optionIcon {
-  font-size: 30px;
+  font-size: 24px;
+  margin-bottom: 10px;
 }
 
 .optionTitle {
-  margin: 0;
-  font-size: 20px;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .optionDescription {
-  margin: 0;
-  font-size: 17px;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
 .textArea {
+  width: 100%;
   padding: 1rem;
-  border-radius: var(--border-radius-medium);
   border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium);
   font-size: 16px;
-  width: 97%;
-  margin-top: 20px;
-  transition: var(--transition-form-elements);
-}
-
-.textArea:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(91, 75, 234, 0.2);
-  outline: none;
+  resize: vertical;
 }
 
 .errorText {
@@ -97,18 +83,23 @@
 .generateButtonContainer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 
 .generateButton {
-  padding: 0.7rem 1.5rem;
+  padding: 0.8rem 2.2rem;
   font-size: 18px;
-  background: var(--gradient-button-secondary);
   color: var(--color-white);
-  border: none;
+  border: 0px;
+  background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
+  min-width: 250px;
+  min-height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .generateButton:hover {
@@ -118,64 +109,57 @@
 
 .testCaseCard {
   margin-top: 20px;
-  padding: 15px;
+  padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
-  background-color: var(--color-white);
   box-shadow: var(--shadow-light);
+  background-color: var(--color-white);
 }
 
 .testCaseTitle {
-  margin-bottom: 15px;
+  font-size: 18px;
   color: var(--color-text-primary);
+  margin-bottom: 1rem;
 }
 
 .testCaseTable {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--font-family-inter);
-  font-size: 14px;
-  color: var(--color-text-primary);
+}
+
+.testCaseTable th,
+.testCaseTable td {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem;
+  text-align: left;
 }
 
 .testCaseTable th {
-  border: 1px solid var(--color-border);
-  padding: 12px;
-  text-align: left;
   background-color: var(--color-background-light);
-  font-weight: 600;
-  width: 50%;
 }
 
-.testCaseTable td {
-  border: 1px solid var(--color-border);
-  padding: 12px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  vertical-align: top;
-  background-color: var(--color-white);
-}
-
-.testCaseTable td.code {
-  font-family: 'Consolas', monospace;
-  font-size: 13px;
-  background-color: #f7f7f7;
+.code {
+  font-family: monospace;
+  background-color: #f5f5f5;
 }
 
 .navigationButtons {
+  width: 70vw;
+  margin-top: 20px;
   display: flex;
   justify-content: space-between;
-  margin-top: 30px;
-  width: 70vw;
 }
 
 .navButton {
-  padding: 0.7rem 2rem;
-  font-size: 18px;
-  background: var(--color-gray);
+  padding: 0.7rem 3rem;
+  font-size: 20px;
   color: var(--color-white);
-  border: 1px solid var(--color-border);
+  border: 0px;
+  background: var(--color-gray);
   border-radius: var(--border-radius-small);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   cursor: pointer;
   transition: var(--transition-button);
 }
@@ -185,20 +169,24 @@
   transform: translateY(-2px);
 }
 
-.navButton.next {
-  background-color: var(--color-gray);
-  border: none;
+.next {
+  background: var(--gradient-button);
 }
 
-.navButton.next:hover {
-  background-color: var(--color-gray-dark);
+.spinner {
+  border: 4px dotted #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  animation: spin 1s ease infinite;
 }
 
-.navButton i {
-  margin-right: 10px;
-}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
 
-.navButton.next i {
-  margin-left: 10px;
-  margin-right: 0;
+  100% {
+    transform: rotate(360deg);
+  }
 }

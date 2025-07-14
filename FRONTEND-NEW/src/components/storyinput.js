@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
+import * as XLSX from "xlsx";
 import { toast, ToastContainer } from "react-toastify";
 import styles from "./StoryInput.module.css";
 
-const StoryInput = ({ onBack, onNext }) => {
+const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
   const [userStoriesInput, setUserStoriesInput] = useState("");
   const [userStoriesPrompt, setUserStoriesPrompt] = useState("generate test cases");
-  const [testCasesGeneratedFromStory, setTestCasesGeneratedFromStory] = useState([]);
+  
   const [loadingGeneration, setLoadingGeneration] = useState(false);
+  const [loadingJira, setLoadingJira] = useState(false);
+  const [loadingExcel, setLoadingExcel] = useState(false);
   const [error, setError] = useState("");
   const [generationSuccess, setGenerationSuccess] = useState(false);
   const [generationError, setGenerationError] = useState(false);
@@ -40,7 +43,7 @@ const StoryInput = ({ onBack, onNext }) => {
         user_story: stories,
       });
 
-      setTestCasesGeneratedFromStory(response.data.results);
+      setTestCases(response.data.results);
       toast.success("Test cases generated successfully.");
       setGenerationSuccess(true);  
       setGenerationError(false);  
@@ -52,12 +55,10 @@ const StoryInput = ({ onBack, onNext }) => {
     } finally {
       setLoadingGeneration(false);
     }
-
-    console.log("Prompt:", userStoriesPrompt);
-    console.log("User Stories:", userStoriesInput);
   };
 
   const handleJiraImport = async () => {
+    setLoadingJira(true);
     try {
       const response = await axios.get("http://localhost:8001/jira/import"); 
       const importedStories = response.data?.stories || [];
@@ -71,12 +72,44 @@ const StoryInput = ({ onBack, onNext }) => {
     } catch (err) {
       console.error(err);
       toast.error("Failed to import stories from Jira.");
+    } finally {
+      setLoadingJira(false);
     }
+  };
+
+  const handleExcelImport = () => {
+    setLoadingExcel(true);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".xlsx, .xls";
+
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const flattened = jsonData.flat().filter(cell => !!cell);
+        setUserStoriesInput(flattened.join(" |\n"));
+        toast.success("User stories imported from Excel.");
+        setLoadingExcel(false);
+      };
+
+      reader.readAsArrayBuffer(file);
+    };
+
+    input.click();
   };
 
   return (
     <div className={styles.storyInputContainer}>
-      <ToastContainer/>
+      <ToastContainer />
       <div className={styles.contentBox}>
         <h3 className={styles.title}>Import User Stories</h3>
         <p>Add user stories from Jira, Excel, or create them manually</p>
@@ -90,11 +123,22 @@ const StoryInput = ({ onBack, onNext }) => {
 
           <button
             onClick={handleJiraImport}
+            disabled={loadingJira}
             className={`${styles.optionCard} ${styles.clickable}`}
           >
             <i className={`fa-solid fa-file-import ${styles.optionIcon}`} style={{ color: "green" }}></i>
-            <h3 className={styles.optionTitle}>Import from Jira</h3>
+            <h3 className={styles.optionTitle}>{loadingJira ? <div className={styles.spinner}></div> : "Import from Jira"}</h3>
             <p className={styles.optionDescription}>Connect to Jira Instance</p>
+          </button>
+
+          <button
+            onClick={handleExcelImport}
+            disabled={loadingExcel}
+            className={`${styles.optionCard} ${styles.clickable}`}
+          >
+            <i className={`fa-solid fa-file ${styles.optionIcon}`} style={{ color: "red" }}></i>
+            <h3 className={styles.optionTitle}>{loadingExcel ? <div className={styles.spinner}></div> : "Import Excel"}</h3>
+            <p className={styles.optionDescription}>Import Excel file</p>
           </button>
 
           <button className={`${styles.optionCard} ${styles.clickable}`}>
@@ -120,19 +164,14 @@ const StoryInput = ({ onBack, onNext }) => {
             onClick={fetchTestCases}
             className={styles.generateButton}
           >
-            {loadingGeneration ? "Generating..." : "Generate Test Cases"}
+            {loadingGeneration ? <div className={styles.spinner}></div> : "Generate Test Cases"}
           </button>
         </div>
 
-        {Array.isArray(testCasesGeneratedFromStory) &&
-          testCasesGeneratedFromStory.map((tc, idx) => (
-            <div
-              key={idx}
-              className={styles.testCaseCard}
-            >
-              <h4 className={styles.testCaseTitle}>
-                Generated Test Case : {idx + 1}
-              </h4>
+        {Array.isArray(testCases) &&
+          testCases.map((tc, idx) => (
+            <div key={idx} className={styles.testCaseCard}>
+              <h4 className={styles.testCaseTitle}>Generated Test Case : {idx + 1}</h4>
               <table className={styles.testCaseTable}>
                 <thead>
                   <tr>
@@ -156,18 +195,12 @@ const StoryInput = ({ onBack, onNext }) => {
       </div>
 
       <div className={styles.navigationButtons}>
-        <button
-          onClick={onBack}
-          className={styles.navButton}
-        >
+        <button onClick={onBack} className={styles.navButton}>
           <i className="fa-solid fa-angle-left"></i>
           Previous
         </button>
 
-        <button
-          onClick={onNext}
-          className={`${styles.navButton} ${styles.next}`}
-        >
+        <button onClick={onNext} className={`${styles.navButton} ${styles.next}`}>
           Next <i className="fa-solid fa-angle-right"></i>
         </button>
       </div>
@@ -176,4 +209,3 @@ const StoryInput = ({ onBack, onNext }) => {
 };
 
 export default StoryInput;
-

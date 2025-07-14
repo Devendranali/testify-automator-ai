@@ -127,3 +127,7 @@
   margin-left: 10px;
   margin-right: 0;
 }
+
+.next {
+  background: var(--gradient-button);
+}

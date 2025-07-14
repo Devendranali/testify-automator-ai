@@ -160,3 +160,37 @@
     transform: scale(1);
   }
 }
+
+.loginButton,
+.signupButton,
+.ctaButton {
+  padding: 0.7rem 1.5rem;
+  font-size: 16px;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.loginButton {
+  background-color: var(--color-white);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.loginButton:hover {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.signupButton,
+.ctaButton {
+  background: var(--gradient-button);
+  color: var(--color-white);
+  border: none;
+}
+
+.signupButton:hover,
+.ctaButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}

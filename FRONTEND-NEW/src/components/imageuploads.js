@@ -4,11 +4,12 @@ import { toast } from "react-toastify";
 import ImageDragDrop from "./imagehandles"; // adjust path if needed
 import styles from "./ImageUpload.module.css";
 
-const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
+const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames, setPageNames }) => {
   const [loadingIngestion, setLoadingIngestion] = useState(false);
+  const [loadingMethods, setLoadingMethods] = useState(false);
   const [ingestionSuccess, setIngestionSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [pageNames, setPageNames] = useState([]);
+  
 
   const selectedFiles = persistedFiles;
   const setSelectedFiles = setPersistedFiles;
@@ -95,6 +96,7 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
   };
 
   const handleGenerateMethods = async () => {
+    setLoadingMethods(true);
     try {
       const response = await fetch("http://localhost:8001/rag/generate-page-methods", {
         method: "POST",
@@ -112,6 +114,8 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
       console.error("Error fetching page methods:", error);
       setPageNames([]);
       toast.error("Error generating methods");
+    } finally {
+      setLoadingMethods(false);
     }
   };
 
@@ -188,14 +192,15 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles }) => {
             disabled={loadingIngestion}
             className={styles.uploadImagesButton}
           >
-            {loadingIngestion ? "Uploading..." : "Upload Images"}
+            {loadingIngestion ? <div className={styles.spinner}></div> : "Upload Images"}
           </button>
 
           <button
             onClick={handleGenerateMethods}
+            disabled={loadingMethods}
             className={styles.generateMethodsButton}
           >
-            Generate Page Methods
+            {loadingMethods ? <div className={styles.spinner}></div> : "Generate Page Methods"}
           </button>
         </div>
       </div>

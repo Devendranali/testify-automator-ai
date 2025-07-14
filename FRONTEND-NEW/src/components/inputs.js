@@ -10,6 +10,8 @@ const Input = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [persistedFiles, setPersistedFiles] = useState([]);
+  const [pageNames, setPageNames] = useState([]);
+  const [testCases, setTestCases] = useState([]);
 
   const handleNext = () => {
     setCurrentStep((prev) => prev + 1);
@@ -27,10 +29,12 @@ const Input = () => {
             handleNext={handleNext}
             persistedFiles={persistedFiles}
             setPersistedFiles={setPersistedFiles}
+            pageNames={pageNames}
+            setPageNames={setPageNames}
           />
         );
       case 2:
-        return <StoryInput onBack={handleBack} onNext={handleNext} />;
+        return <StoryInput onBack={handleBack} onNext={handleNext} testCases={testCases} setTestCases={setTestCases} />;
       case 3:
         return <URLInput onBack={handleBack} onNext={handleNext} />; 
       case 4:
