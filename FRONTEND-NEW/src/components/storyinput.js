@@ -112,7 +112,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         setLoadingExcel(true);
         const input = document.createElement("input");
         input.type = "file";
-        input.accept = ".xlsx, .xls, .csv";
+        input.accept = ".xlsx, .xls";
 
         input.onchange = (e) => {
             const file = e.target.files[0];
@@ -121,17 +121,54 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
             const reader = new FileReader();
 
             reader.onload = (event) => {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: "array" });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-                    header: 1,
-                });
-                const flattened = jsonData.flat().filter((cell) => !!cell);
-                setUserStoriesInput(flattened.join(" |\n"));
-                setSelectedFile(file);
-                toast.success("User stories imported from Excel.");
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: "array" });
+
+                    // Always pick "User Stories" sheet
+                    const userStoriesSheet = workbook.Sheets["User Stories"];
+                    if (!userStoriesSheet) {
+                        toast.error("Sheet named 'User Stories' not found.");
+                        setLoadingExcel(false);
+                        return;
+                    }
+
+                    // Parse sheet as array of objects
+                    const jsonSheet = XLSX.utils.sheet_to_json(
+                        userStoriesSheet,
+                        { defval: "" }
+                    );
+
+                    // Find the correct "User Story" column (case-insensitive)
+                    const userStoryColKey = jsonSheet.length
+                        ? Object.keys(jsonSheet[0]).find(
+                              (k) => k.trim().toLowerCase() === "user story"
+                          )
+                        : null;
+
+                    if (!userStoryColKey) {
+                        toast.error(
+                            "Column 'User Story' not found in 'User Stories' sheet."
+                        );
+                        setLoadingExcel(false);
+                        return;
+                    }
+
+                    // Extract all values in the column (ignore empty)
+                    const stories = jsonSheet
+                        .map((row) => row[userStoryColKey])
+                        .filter(
+                            (val) =>
+                                typeof val === "string" && val.trim().length > 0
+                        );
+
+                    setUserStoriesInput(stories.join(" |\n"));
+                    setSelectedFile(file);
+                    toast.success("User stories imported from Excel.");
+                } catch (err) {
+                    console.error(err);
+                    toast.error("Failed to import user stories from Excel.");
+                }
                 setLoadingExcel(false);
             };
 
