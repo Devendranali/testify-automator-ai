@@ -15,6 +15,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
     const [generationSuccess, setGenerationSuccess] = useState(false);
     const [generationError, setGenerationError] = useState(false);
 
+    // Fetch test cases from backend
     const fetchTestCases = async () => {
         if (
             (!userStoriesInput || userStoriesInput.trim() === "") &&
@@ -32,9 +33,8 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
 
             let response;
 
+            // If a file was selected (Excel/CSV)
             if (selectedFile) {
-                console.log("Uploading file:", selectedFile);
-
                 const formData = new FormData();
                 formData.append("file", selectedFile);
                 formData.append("site_url", "https://www.saucedemo.com");
@@ -47,6 +47,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                     }
                 );
             } else {
+                // Use stories entered in the textarea
                 const stories = userStoriesInput
                     .split("|")
                     .map((s) => s.trim())
@@ -85,6 +86,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         }
     };
 
+    // Import from Jira
     const handleJiraImport = async () => {
         setLoadingJira(true);
         try {
@@ -108,6 +110,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         }
     };
 
+    // Import from Excel, extract 'User Story' column from 'User Stories' sheet
     const handleExcelImport = () => {
         setLoadingExcel(true);
         const input = document.createElement("input");
@@ -163,7 +166,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         );
 
                     setUserStoriesInput(stories.join(" |\n"));
-                    setSelectedFile(file);
+                    setSelectedFile(file); // set the file, so the name will show in UI
                     toast.success("User stories imported from Excel.");
                 } catch (err) {
                     console.error(err);
@@ -188,6 +191,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                 </p>
 
                 <div className={styles.importOptions}>
+                    {/* Manual Entry Button */}
                     <button
                         onClick={() => {
                             setSelectedFile(null); // clear file when manually entering
@@ -204,6 +208,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         </p>
                     </button>
 
+                    {/* Jira Import Button */}
                     <button
                         onClick={handleJiraImport}
                         disabled={loadingJira}
@@ -225,6 +230,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         </p>
                     </button>
 
+                    {/* Excel Import Button: always renders, file name shows only if selected */}
                     <button
                         onClick={handleExcelImport}
                         disabled={loadingExcel}
@@ -244,9 +250,16 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         <p className={styles.optionDescription}>
                             Import Excel file
                         </p>
+                        {/* Show file name if selected */}
+                        {selectedFile && (
+                            <div className={styles.selectedFileName}>
+                                {selectedFile.name}
+                            </div>
+                        )}
                     </button>
                 </div>
 
+                {/* Textarea for user stories */}
                 <textarea
                     rows="5"
                     cols="60"
@@ -261,6 +274,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
 
                 {error && <p className={styles.errorText}>{error}</p>}
 
+                {/* Generate Button */}
                 <div className={styles.generateButtonContainer}>
                     <button
                         onClick={fetchTestCases}
@@ -274,6 +288,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                     </button>
                 </div>
 
+                {/* Render test cases if available */}
                 {Array.isArray(testCases) &&
                     testCases.map((tc, idx) => (
                         <div key={idx} className={styles.testCaseCard}>
@@ -304,6 +319,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                     ))}
             </div>
 
+            {/* Navigation buttons */}
             <div className={styles.navigationButtons}>
                 <button onClick={onBack} className={styles.navButton}>
                     <i className="fa-solid fa-angle-left"></i>
