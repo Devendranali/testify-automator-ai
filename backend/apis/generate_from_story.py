@@ -1,25 +1,23 @@
-from fastapi import APIRouter
+# rag_testcase_runner.py
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pathlib import Path
 import re
 import json
 import ast
-from pydantic import BaseModel, Field
+import pandas as pd
 from typing import List, Optional
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path
-from services.test_generation_utils import openai_client  # Make sure this is the OpenAI client!
+from services.test_generation_utils import openai_client
 from utils.match_utils import normalize_page_name
 from utils.prompt_utils import build_prompt
 import textwrap
 
 from chromadb import PersistentClient
+
 chroma_client = PersistentClient(path="./data/chroma_db")
 collection = chroma_client.get_or_create_collection(name="element_metadata")
 
 router = APIRouter()
-
-class UserStoryRequest(BaseModel):
-    user_story: str | List[str]
-    site_url: Optional[str] = Field(default="https://www.saucedemo.com")
 
 def create_default_test_data(run_folder):
     data = {
@@ -60,7 +58,8 @@ def get_all_page_methods(pages_dir):
 
 def next_index(target_dir, pattern="test_{}.py"):
     files = list(target_dir.glob(pattern.format("*")))
-    indices = [int(m.group(1)) for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
+    indices = [int(m.group(1))
+               for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
     return max(indices, default=0) + 1
 
 def generate_test_code_from_methods(user_story, method_map, page_names, site_url):
@@ -77,10 +76,10 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
                     "verify_", "").replace("_", " ").capitalize()
                 dynamic_steps.append(
                     f"    - Assert `{method}()` → checks if **{readable}** is visible")
+
     user_story_clean = user_story.replace('"""', '\"\"\"')
     story_block = f'"""{user_story_clean}"""'
 
-    # Storing the dynamic_steps.
     output_dir = Path("generated_runs/src/logs/dynamic_steps")
     output_dir.mkdir(parents=True, exist_ok=True)
     i = 1
@@ -101,7 +100,7 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
         site_url=site_url,
         dynamic_steps=dynamic_steps
     )
-    # Storing the prompts
+
     prompt_dir = Path("generated_runs/src/logs/prompts")
     prompt_dir.mkdir(parents=True, exist_ok=True)
     i = 1
@@ -113,14 +112,12 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
     with open(prompt_file, "w", encoding="utf-8") as f:
         f.write(prompt)
 
-    # Use the correct OpenAI client here!
     result = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=4096
     )
 
-    # Clean the result text
     clean_output = re.sub(
         r"```(?:python)?|^\s*Here is.*?:",
         "",
@@ -128,7 +125,6 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
         flags=re.MULTILINE
     ).strip()
 
-    # Store the output in test_output_<n>.py
     output_dir = Path("generated_runs/src/logs/test_output")
     output_dir.mkdir(parents=True, exist_ok=True)
     i = 1
@@ -144,7 +140,8 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
 
 def get_inferred_pages(user_story: str, method_map_full: dict, openai_client):
     page_list_str = "\n".join(
-        [f"{i+1}. {k.replace('_', ' ')}" for i, k in enumerate(method_map_full.keys())]
+        [f"{i+1}. {k.replace('_', ' ')}" for i,
+         k in enumerate(method_map_full.keys())]
     )
     prompt = f"""
 You are an expert QA automation engineer.
@@ -170,7 +167,11 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
         return list(method_map_full.keys())
 
 @router.post("/rag/generate-from-story")
-def generate_from_user_story(req: UserStoryRequest):
+async def generate_from_user_story(
+    user_story: Optional[str] = Form(None),
+    site_url: Optional[str] = Form("https://www.saucedemo.com"),
+    file: Optional[UploadFile] = File(None)
+):
     run_folder = Path("generated_runs") / "src"
     pages_dir = run_folder / "pages"
     tests_dir = run_folder / "tests"
@@ -181,17 +182,64 @@ def generate_from_user_story(req: UserStoryRequest):
         (d / "__init__.py").touch()
     (run_folder / "__init__.py").touch()
 
-    # Save all ChromaDB metadata as before_enrichment.json before running test generation
+    stories = []
+
+    if file:
+        import io
+        content = await file.read()
+        # --- Handle Excel files: load only the 'User Stories' sheet
+        if file.filename.endswith((".xls", ".xlsx")):
+            try:
+                xls = pd.ExcelFile(io.BytesIO(content))
+                if "User Stories" not in xls.sheet_names:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Sheet 'User Stories' not found. Sheets present: {xls.sheet_names}"
+                    )
+                df = pd.read_excel(io.BytesIO(content),
+                                   sheet_name="User Stories")
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to read 'User Stories' sheet from Excel: {str(e)}"
+                )
+        # --- Handle CSV: just read as normal (no sheets in CSV)
+        elif file.filename.endswith(".csv"):
+            df = pd.read_csv(io.StringIO(content.decode()))
+        else:
+            raise HTTPException(
+                status_code=400, detail="Unsupported file type"
+            )
+
+        # --- Always clean up column names for safe matching
+        column_map = {col.strip().lower(): col for col in df.columns}
+        print("DEBUG Columns found in selected sheet:", column_map)
+
+        if "user story" not in column_map:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Column 'User Story' not found in sheet. Columns present: {list(column_map.keys())}"
+            )
+
+        column_name = column_map["user story"]
+        stories = df[column_name].dropna().astype(str).tolist()
+
+    elif user_story:
+        stories = [user_story]
+
+    else:
+        raise HTTPException(
+            status_code=400, detail="Either 'user_story' or 'file' must be provided"
+        )
+
     all_chroma_data = collection.get()
     all_chroma_metadatas = all_chroma_data.get("metadatas", [])
-
     before_file = meta_dir / "before_enrichment.json"
     with open(before_file, "w", encoding="utf-8") as f:
         json.dump(all_chroma_metadatas, f, indent=2)
 
     method_map_full = get_all_page_methods(pages_dir)
 
-    stories = req.user_story if isinstance(req.user_story, list) else [req.user_story]
     results, test_functions = [], []
     all_path_pages = []
 
@@ -200,8 +248,11 @@ def generate_from_user_story(req: UserStoryRequest):
         if not path_pages:
             continue
         all_path_pages.extend(path_pages)
-        sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(story, sub_method_map, path_pages, req.site_url)
+        sub_method_map = {p: method_map_full[p]
+                          for p in path_pages if p in method_map_full}
+        code = generate_test_code_from_methods(
+            story, sub_method_map, path_pages, site_url
+        )
         test_functions.append(code)
         results.append({
             "Prompt": f" Prompt\n\n1. {story}\nExpected: Success",
@@ -213,46 +264,47 @@ def generate_from_user_story(req: UserStoryRequest):
     test_file = tests_dir / f"test_{test_idx}.py"
     log_file = logs_dir / f"logs_{log_idx}.log"
 
-    page_method_files = sorted((pages_dir).glob("*_page_methods.py"))
+    page_method_files = sorted(pages_dir.glob("*_page_methods.py"))
     import_lines = ["from playwright.sync_api import sync_playwright"]
     for file in page_method_files:
         module_name = file.stem
         import_lines.append(f"from pages.{module_name} import *")
 
-    test_file.write_text("\n\n".join(import_lines + test_functions), encoding="utf-8")
+    test_file.write_text("\n\n".join(
+        import_lines + test_functions), encoding="utf-8")
 
     if all_path_pages:
         log_file.write_text("\n".join(all_path_pages), encoding="utf-8")
     else:
         log_file.write_text("No stories were processed.", encoding="utf-8")
 
-    meta_file = meta_dir / "metadata.json"
-    if not meta_file.exists():
-        metadata = {
-            "timestamp": test_file.stat().st_mtime,
-            "pages": all_path_pages,
-            "test_files": [str(test_file.name)],
-            "log_files": [str(log_file.name)],
-        }
-        json.dump(metadata, open(meta_file, "w"), indent=2)
-    
     create_default_test_data(run_folder)
 
     # ================== ui_script.py generation block =======================
-
-    test_files = sorted(tests_dir.glob("test_*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
+    # Re-using your previous logic
+    test_files = sorted(tests_dir.glob("test_*.py"),
+                        key=lambda f: f.stat().st_mtime, reverse=True)
     if not test_files:
         print("No test_*.py files found in", tests_dir.resolve())
         print("Contents:", list(tests_dir.glob("*")))
+        # Do NOT raise exception! Just skip generation and return as usual.
     else:
         latest_test = test_files[0]
 
-        # 2. Collect all page method imports
+        # 2. Collect all page method imports and all code outside functions
         page_imports = set()
+        non_func_code = []
         with open(latest_test, "r", encoding="utf-8") as f:
+            in_func = False
             for line in f:
                 if re.match(r"from pages\.", line):
                     page_imports.add(line.rstrip())
+                if not line.strip().startswith("def ") and not in_func and line.strip():
+                    non_func_code.append(line.rstrip())
+                if line.strip().startswith("def "):
+                    in_func = True
+                if in_func and not line.strip():
+                    in_func = False
 
         # 3. Parse all test functions and inline their bodies as run_* functions
         func_blocks = []
@@ -263,38 +315,45 @@ def generate_from_user_story(req: UserStoryRequest):
         func_body = []
         in_func = False
         for i, line in enumerate(lines):
+            # Detect test function
             m = re.match(r"def (test_[a-zA-Z0-9_]+)\(page\):", line)
             if m:
                 if func_name and func_body:
+                    # Write previous function
                     body = ''.join(func_body)
                     func_blocks.append((func_name, body))
                 func_name = m.group(1)
                 func_body = []
                 in_func = True
                 continue
+            # Capture indented body lines
             if in_func:
+                # Stop if we hit another function or dedent
                 if re.match(r"def [a-zA-Z_]", line) or (line.startswith(" ") and not line.startswith("    ")):
                     in_func = False
                     continue
+                if line.strip() == "":
+                    func_body.append(line)
+                    continue
+                # Only lines inside the function (skip docstrings)
                 func_body.append(line)
+        # Catch last one
         if func_name and func_body:
             body = ''.join(func_body)
             func_blocks.append((func_name, body))
 
         # 4. Compose one run_* function for each, dedenting and re-indenting properly
         wrapper_blocks = []
-        runner_func_names = []
         for func_name, func_body in func_blocks:
             runner_name = "run_" + func_name.replace("test_", "")
-            runner_func_names.append(runner_name)
             dedented = textwrap.dedent(func_body)
+            # All step lines in the test function body are indented 2 levels (8 spaces)
             step_lines = []
             for l in dedented.strip('\n').splitlines():
                 step_lines.append("        " + l if l.strip() else "")
             steps = "\n".join(step_lines)
             wrapper_blocks.append(
-f"""def {runner_name}():
-    import time
+                f"""def {runner_name}():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, slow_mo=300)
         page = browser.new_page()
@@ -304,35 +363,28 @@ f"""def {runner_name}():
             actual_metadata = json.load(f)
         patch_page_with_smartai(page, actual_metadata)
 {steps}
-        time.sleep(5)
+        input("Press Enter to close browser...")
         browser.close()
 
 """)
 
-        # 5. Compose the file header (NO leading indentation!)
-        header = "# Auto-generated UI runner\n\nfrom playwright.sync_api import sync_playwright\nimport json\nfrom pathlib import Path\n"
-        if page_imports:
-            header += "\n".join(page_imports) + "\n"
-        header += "from lib.smart_ai import patch_page_with_smartai\n\n"
+        # 5. Compose the file header
+        header = """# Auto-generated UI runner
 
-        # 6. Compose the main block using try/except and collect errors
-        main_block = "if __name__ == '__main__':\n"
-        main_block += "    errors = []\n"
-        main_block += "    for func in [\n"
-        for runner_name in runner_func_names:
-            main_block += f"        {runner_name},\n"
-        main_block += "    ]:\n"
-        main_block += "        try:\n"
-        main_block += "            func()\n"
-        main_block += "        except Exception as e:\n"
-        main_block += "            print(f\"[ERROR] {func.__name__} failed: {e}\")\n"
-        main_block += "            errors.append({'function': func.__name__, 'error': str(e)})\n"
-        main_block += "    if errors:\n"
-        main_block += "        print(\"\\nSummary of failures:\")\n"
-        main_block += "        for err in errors:\n"
-        main_block += "            print(f\" - {err['function']} failed: {err['error']}\")\n"
-        main_block += "    else:\n"
-        main_block += "        print(\"\\nAll scenarios executed successfully!\")\n"
+from playwright.sync_api import sync_playwright
+import json
+from pathlib import Path
+{page_imports}
+from lib.smart_ai import patch_page_with_smartai
+"""
+
+        header = header.format(page_imports="\n".join(page_imports))
+
+        # 6. Compose the main block
+        main_block = "\nif __name__ == '__main__':\n"
+        for func_name, _ in func_blocks:
+            runner_name = "run_" + func_name.replace("test_", "")
+            main_block += f"    {runner_name}()\n"
 
         # 7. Write out the file (inside tests_dir, name: ui_script_N.py to match test_N.py)
         match = re.search(r"test_(\d+)\.py$", latest_test.name)
@@ -348,11 +400,18 @@ f"""def {runner_name}():
                 f.write(block)
             f.write(main_block)
 
-        print(f"✅ {ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
+        print(
+            f"✅ {ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
 
     # ================== End ui_script.py generation block ===================
 
-    return {"results": results, "test_file": str(test_file), "log_file": str(log_file)}
+    return {
+        "results": results,
+        "test_file": str(test_file),
+        "log_file": str(log_file)
+    }
+
+
 
 
 
