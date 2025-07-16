@@ -5,9 +5,10 @@ import re
 import json
 import ast
 import pandas as pd
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path
-from services.test_generation_utils import openai_client
+from services.test_generation_utils import openai_client  # Make sure this is the OpenAI client!
 from utils.match_utils import normalize_page_name
 from utils.prompt_utils import build_prompt
 import textwrap
@@ -354,6 +355,7 @@ async def generate_from_user_story(
             steps = "\n".join(step_lines)
             wrapper_blocks.append(
                 f"""def {runner_name}():
+    import time
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, slow_mo=300)
         page = browser.new_page()
@@ -363,7 +365,7 @@ async def generate_from_user_story(
             actual_metadata = json.load(f)
         patch_page_with_smartai(page, actual_metadata)
 {steps}
-        input("Press Enter to close browser...")
+        time.sleep(3)
         browser.close()
 
 """)
