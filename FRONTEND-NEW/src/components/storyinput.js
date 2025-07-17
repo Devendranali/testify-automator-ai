@@ -310,7 +310,13 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                                         <td
                                             className={`${styles.testCaseTableTd} ${styles.code}`}
                                         >
-                                            {tc.auto_testcase}
+                                            <pre>
+                                                <code>
+                                                    {" "}
+                                                    {tc.auto_testcase ||
+                                                        "No output generated"}{" "}
+                                                </code>
+                                            </pre>
                                         </td>
                                     </tr>
                                 </tbody>
