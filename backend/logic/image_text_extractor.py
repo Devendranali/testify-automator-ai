@@ -148,43 +148,43 @@ Your task is to analyze a given screenshot of a user interface (UI) and extract 
    secret_sauce - label - password_info
 """
 
-PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
+# PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
 
-Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element, accurately identifying its type and intent.
+# Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element, accurately identifying its type and intent.
 
-1. Element Extraction:
-   - Extract ALL visible UI text from the image, including:
-     • Input fields
-     • Buttons
-     • Labels (including credentials, instructions)
-     • Dropdowns, checkboxes
+# 1. Element Extraction:
+#    - Extract ALL visible UI text from the image, including:
+#      • Input fields
+#      • Buttons
+#      • Labels (including credentials, instructions)
+#      • Dropdowns, checkboxes
 
-2. Element Classification:
-   - For each element, output:
-     • Label text (exact as visible)
-     • Element type (one of: `textbox`, `button`, `label`, `checkbox`, `select`)
-     • Intent (like: `login`, `username`, `password`, `price_label`, `submit`, `add_to_cart`, `password_info`, `username_info`, etc.)
+# 2. Element Classification:
+#    - For each element, output:
+#      • Label text (exact as visible)
+#      • Element type (one of: `textbox`, `button`, `label`, `checkbox`, `select`)
+#      • Intent (like: `login`, `username`, `password`, `price_label`, `submit`, `add_to_cart`, `password_info`, `username_info`, etc.)
 
-   - For credentials or user types like `standard_user`, `secret_sauce`, assign type as `label` and use intent like `username_info`, `password_info`.
+#    - For credentials or user types like `standard_user`, `secret_sauce`, assign type as `label` and use intent like `username_info`, `password_info`.
 
-   - If the UI element appears as part of a vertical or horizontal navigation menu, always classify it as `button` or `link`.
-   - If uncertain whether an element is clickable or navigational, prefer classifying it as a `button` over a `label`.
+#    - If the UI element appears as part of a vertical or horizontal navigation menu, always classify it as `button` or `link`.
+#    - If uncertain whether an element is clickable or navigational, prefer classifying it as a `button` over a `label`.
 
-3. Format:
-   - Each element on its own line:
-     <label text> - <element type> - <intent>
+# 3. Format:
+#    - Each element on its own line:
+#      <label text> - <element type> - <intent>
 
-4. Rules:
-   - Do NOT rephrase or skip lines.
-   - Preserve punctuation, line breaks.
-   - Traverse from top-left to bottom-right.
+# 4. Rules:
+#    - Do NOT rephrase or skip lines.
+#    - Preserve punctuation, line breaks.
+#    - Traverse from top-left to bottom-right.
 
-5. Only output newline-separated lines like:
-   Username - textbox - login
-   Login - button - login
-   secret_sauce - label - password_info
-   Dashboard - button - navigation
-"""
+# 5. Only output newline-separated lines like:
+#    Username - textbox - login
+#    Login - button - login
+#    secret_sauce - label - password_info
+#    Dashboard - button - navigation
+# """
 
 async def process_image_gpt(
     image: Image.Image,
