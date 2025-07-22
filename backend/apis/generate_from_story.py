@@ -41,13 +41,16 @@ def create_default_test_data(run_folder):
     with open(data_dir / "test_data.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
+
 def extract_method_names_from_file(file_path):
     method_names = []
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
-            m = re.match(r"def\s+([a-zA-Z_][a-zA-Z0-9_]*)\(", line)
+            m = re.match(r"def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^\)]*\):", line)
             if m:
-                method_names.append(m.group(1))
+                # This grabs the whole signature line, e.g.:
+                # 'def select_account_type(page, value):'
+                method_names.append(line.strip())
     return method_names
 
 def get_all_page_methods(pages_dir):
@@ -59,8 +62,7 @@ def get_all_page_methods(pages_dir):
 
 def next_index(target_dir, pattern="test_{}.py"):
     files = list(target_dir.glob(pattern.format("*")))
-    indices = [int(m.group(1))
-               for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
+    indices = [int(m.group(1)) for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
     return max(indices, default=0) + 1
 
 def generate_test_code_from_methods(user_story, method_map, page_names, site_url):
@@ -141,8 +143,7 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
 
 def get_inferred_pages(user_story: str, method_map_full: dict, openai_client):
     page_list_str = "\n".join(
-        [f"{i+1}. {k.replace('_', ' ')}" for i,
-         k in enumerate(method_map_full.keys())]
+        [f"{i+1}. {k.replace('_', ' ')}" for i, k in enumerate(method_map_full.keys())]
     )
     prompt = f"""
 You are an expert QA automation engineer.

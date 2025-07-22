@@ -34,75 +34,70 @@ def save_region(image: Image.Image, x: int, y: int, w: int, h: int, output_dir: 
     
     
 def build_standard_metadata(element: dict, page_name: str, image_path: str = "", source_url: str = "") -> dict:
-    label_text = element.get("label_text") or element.get("text", "")
-    
-    intent = element.get("intent", "")
-    if not intent and label_text:
-        try:
-            intent = assign_intent_semantic(label_text)
-        except Exception as e:
-            print(f"[WARN] Failed to assign intent for '{label_text}': {e}")
-            intent = ""
-
+    label_text = element.get("label_text", "")  
     ocr_type = element.get("ocr_type", "")
-    if not ocr_type and image_path and os.path.exists(image_path):
-        ocr_type = element.get("ocr_type", "")
-    if not ocr_type and image_path and os.path.exists(image_path):
-        try:
-            ocr_type = classify_ocr_type(image_path)
-        except Exception as e:
-            print(f"[WARN] classify_ocr_type failed for '{image_path}': {e}")
-    ocr_type = ocr_type if ocr_type else "label"
-
-    unique_name = generate_unique_name(page_name,intent,label_text, ocr_type)
+    intent = element.get("intent", "")
+    
+    unique_name = generate_unique_name(page_name, label_text, ocr_type, intent)
 
     return sanitize_metadata({
+        "page_name": page_name,
+        "label_text": label_text,
+        "ocr_type": ocr_type,
+        "intent": intent,
+        "unique_name":unique_name,
+        "external": False,
+        "dom_matched": element.get("dom_matched", False), 
+        
+        "region_image_path": image_path,
+        "source_url": source_url,
+        "confidence_score": element.get("confidence_score", 1.0),
+        "visibility_score": element.get("visibility_score", 1.0),
+        "locator_stability_score": element.get("locator_stability_score", 1.0),
+        
         "id": element.get("id") or element.get("ocr_id") or element.get("element_id", ""),
         "ocr_id": element.get("ocr_id") or element.get("id") or element.get("element_id", ""),
-        "page_name": page_name,
-        "text": element.get("text") or label_text,
-        "label_text": label_text,
+        "text": element.get("text") or label_text,        
         "x": element.get("x", element.get("boundingBox", {}).get("x", 0)),
         "y": element.get("y", element.get("boundingBox", {}).get("y", 0)),
         "width": element.get("width", element.get("boundingBox", {}).get("width", 0)),
         "height": element.get("height", element.get("boundingBox", {}).get("height", 0)),
-        "confidence_score": element.get("confidence_score", 1.0),
-        "visibility_score": element.get("visibility_score", 1.0),
-        "locator_stability_score": element.get("locator_stability_score", 1.0),
         "used_in_tests": element.get("used_in_tests", []),
         "last_tested": element.get("last_tested", ""),
         "healing_success_rate": element.get("healing_success_rate", 0.0),
         "snapshot_id": element.get("snapshot_id", ""),
         "match_timestamp": element.get("match_timestamp", ""),
-        "region_image_path": image_path,
-        "source_url": source_url,
         "bbox": element.get("bbox", f"{element.get('x', 0)},{element.get('y', 0)},{element.get('width', 0)},{element.get('height', 0)}"),
         "position_relation": element.get("position_relation", {}),
         "tag_name": element.get("tag_name", ""),
         "xpath": element.get("xpath", ""),
         "get_by_text": element.get("get_by_text", ""),
         "get_by_role": element.get("get_by_role", ""),
-        "intent": intent,
         "html_snippet": element.get("html_snippet", ""),
-        "dom_matched": element.get("dom_matched", False),
-        "ocr_type": ocr_type,
-        "unique_name":unique_name,
-        "placeholder": element.get("placeholder", ""),   # ✅ ADDED LINE by Subhankar
-        "external": False,   # ✅ ADDED LINE by Subhankar
+        "placeholder": element.get("placeholder", ""),   
     })
 
 # def generate_unique_name(page_name: str, intent: str, label_text: str, ocr_type: str) -> str:
 #     label = label_text.lower().strip().replace(" ", "_")
 #     return f"{page_name}_{intent}_{label}_{ocr_type}"
 
-def generate_unique_name(page_name: str, intent: str, label_text: str, ocr_type: str) -> str:
+import hashlib
+def generate_unique_name(page_name: str, label_text: str, ocr_type: str, intent: str) -> str:
     # Remove quotes from label_text
     cleaned_label = (label_text or "").replace("'", "").replace('"', "")
-    # Truncate to 50 chars
-    cleaned_label = cleaned_label[:50]
     # Lowercase and replace spaces with underscores
     label = cleaned_label.lower().strip().replace(" ", "_")
-    return f"{page_name}_{intent}_{label}_{ocr_type}"
+    # Truncate to 50 chars
+    cleaned_label = cleaned_label[:50]
+    # Define unique string to hash
+    unique_str = f"{page_name}_{label}_{ocr_type}_{intent}"
+    # Use SHA256, take the first 8 chars for brevity
+    hash_part = hashlib.sha256(unique_str.encode("utf-8")).hexdigest()[:8]    
+    # Assemble the final unique name
+    if label_text:
+        return f"{page_name}_{label}_{ocr_type}_{intent}_{hash_part}"
+    else:
+        return f"{page_name}_{ocr_type}_{intent}_{hash_part}"
 
 
 

@@ -44,71 +44,153 @@ class SmartAISelfHealing:
 
     # 5️⃣ Single definition; all prioritization inside
     def _try_all_locators(self, element, page):
-        # Tries various locator strategies in strict priority order.
-        # Enhancement: Prioritize, early return, minimal .count() checks.
-        # Enhancement: Penalize recently failing locators.
-        def should_skip(unique_name):
-            return self.locator_fail_count.get(unique_name, 0) >= 3
-
         strategies = []
 
+        # Highest priority: try by role and label_text (esp for button, input, etc)
+        if element.get("tag_name") and element.get("label_text"):
+            role = self._map_tag_to_role(element["tag_name"])
+            if role:
+                strategies.append((lambda: page.get_by_role(
+                    role, name=element["label_text"]), f"get_by_role({role}, name={element['label_text']})"))
+
+        # Try by label (best for inputs)
+        if element.get("label_text"):
+            strategies.append((lambda: page.get_by_label(
+                element["label_text"]), f"get_by_label({element['label_text']})"))
+
+        # Try by visible text (good for buttons, links, etc)
+        if element.get("label_text"):
+            strategies.append((lambda: page.get_by_text(
+                element["label_text"], exact=True), f"get_by_text({element['label_text']}, exact=True)"))
+
+        # Try by placeholder (for textboxes/inputs)
+        if element.get("placeholder"):
+            strategies.append((lambda: page.get_by_placeholder(
+                element["placeholder"]), f"get_by_placeholder({element['placeholder']})"))
+
+        # Try by sample value (displayed value in input)
+        if element.get("sample_value"):
+            strategies.append((lambda: page.get_by_display_value(
+                element["sample_value"]), f"get_by_display_value({element['sample_value']})"))
+
+        # Data attributes (testid/qa)
         data_attrs = element.get("data_attrs", {})
         for k, v in data_attrs.items():
             if "test" in k.lower() or "qa" in k.lower():
-                strategies.append((lambda: page.get_by_test_id(v), f"get_by_test_id({v}) for {k}"))
+                strategies.append((lambda: page.get_by_test_id(v),
+                                f"get_by_test_id({v}) for {k}"))
 
-        if element.get("tag_name"):
-            role = self._map_tag_to_role(element["tag_name"])
-            if role and element.get("label_text"):
-                strategies.append((lambda: page.get_by_role(role, name=element["label_text"]), f"get_by_role({role}, name={element['label_text']})"))
-
-        if element.get("label_text"):
-            strategies.append((lambda: page.get_by_label(element["label_text"]), f"get_by_label({element['label_text']})"))
-
-        if element.get("placeholder"):
-            strategies.append((lambda: page.get_by_placeholder(element["placeholder"]), f"get_by_placeholder({element['placeholder']})"))
-
-        if element.get("label_text"):
-            strategies.append((lambda: page.get_by_text(element["label_text"], exact=True), f"get_by_text({element['label_text']}, exact=True)"))
-
-        if element.get("sample_value"):
-            strategies.append((lambda: page.get_by_display_value(element["sample_value"]), f"get_by_display_value({element['sample_value']})"))
-
+        # By id (exact and partial)
         if element.get("dom_id"):
             id_value = element["dom_id"]
-            strategies.append((lambda: page.locator(f'#{id_value}'), f"locator(#{id_value}) [ID exact]"))
-            strategies.append((lambda: page.locator(f'[id*="{id_value}"]'), f'locator([id*="{id_value}"]) [ID partial]'))
+            strategies.append((lambda: page.locator(
+                f'#{id_value}'), f"locator(#{id_value}) [ID exact]"))
+            strategies.append((lambda: page.locator(
+                f'[id*="{id_value}"]'), f'locator([id*="{id_value}"]) [ID partial]'))
 
+        # By class (exact and partial)
         if element.get("dom_class"):
             class_value = element["dom_class"]
             class_sel = "." + ".".join(class_value.split())
-            strategies.append((lambda: page.locator(class_sel), f"locator({class_sel}) [class exact]"))
-            strategies.append((lambda: page.locator(f'[class*="{class_value}"]'), f'locator([class*="{class_value}"]) [class partial]'))
+            strategies.append((lambda: page.locator(class_sel),
+                            f"locator({class_sel}) [class exact]"))
+            strategies.append((lambda: page.locator(
+                f'[class*="{class_value}"]'), f'locator([class*="{class_value}"]) [class partial]'))
 
+        # By class_list
         if element.get("class_list"):
             sel = "." + ".".join(element["class_list"])
-            strategies.append((lambda: page.locator(sel), f"locator({sel}) [class_list]"))
+            strategies.append((lambda: page.locator(
+                sel), f"locator({sel}) [class_list]"))
 
+        # Custom CSS locator
         if element.get("locator") and element["locator"].get("type") == "css":
-            strategies.append((lambda: page.locator(element["locator"]["value"]), f"locator({element['locator']['value']}) [custom css]"))
-
-        # Attempt strategies in order, skipping if penalized
+            strategies.append((lambda: page.locator(
+                element["locator"]["value"]), f"locator({element['locator']['value']}) [custom css]"))
+                
+        # Now try each strategy in order
         for func, desc in strategies:
             try:
                 locator = func()
-                # 2️⃣ Only check .count() once per strategy, early return
                 if locator and locator.count() > 0:
                     print(f"[SmartAI][Return] {desc} succeeded.")
-                    self.locator_fail_count[element.get("unique_name")] = 0  # Reset fail count
+                    self.locator_fail_count[element.get("unique_name")] = 0
                     return locator.last
             except Exception as e:
-                # 10️⃣ Track fail count for this unique_name
                 unique_name = element.get("unique_name", "")
-                self.locator_fail_count[unique_name] = self.locator_fail_count.get(unique_name, 0) + 1
+                self.locator_fail_count[unique_name] = self.locator_fail_count.get(
+                    unique_name, 0) + 1
                 print(f"[SmartAI][Skip] {desc} failed: {e}")
 
         print("[SmartAI][Return] No locator found for element.")
         return None
+
+    # def _try_all_locators(self, element, page):
+    #     # Tries various locator strategies in strict priority order.
+    #     # Enhancement: Prioritize, early return, minimal .count() checks.
+    #     # Enhancement: Penalize recently failing locators.
+    #     def should_skip(unique_name):
+    #         return self.locator_fail_count.get(unique_name, 0) >= 3
+
+    #     strategies = []
+
+    #     data_attrs = element.get("data_attrs", {})
+    #     for k, v in data_attrs.items():
+    #         if "test" in k.lower() or "qa" in k.lower():
+    #             strategies.append((lambda: page.get_by_test_id(v), f"get_by_test_id({v}) for {k}"))
+
+    #     if element.get("tag_name"):
+    #         role = self._map_tag_to_role(element["tag_name"])
+    #         if role and element.get("label_text"):
+    #             strategies.append((lambda: page.get_by_role(role, name=element["label_text"]), f"get_by_role({role}, name={element['label_text']})"))
+
+    #     if element.get("label_text"):
+    #         strategies.append((lambda: page.get_by_label(element["label_text"]), f"get_by_label({element['label_text']})"))
+
+    #     if element.get("placeholder"):
+    #         strategies.append((lambda: page.get_by_placeholder(element["placeholder"]), f"get_by_placeholder({element['placeholder']})"))
+
+    #     if element.get("label_text"):
+    #         strategies.append((lambda: page.get_by_text(element["label_text"], exact=True), f"get_by_text({element['label_text']}, exact=True)"))
+
+    #     if element.get("sample_value"):
+    #         strategies.append((lambda: page.get_by_display_value(element["sample_value"]), f"get_by_display_value({element['sample_value']})"))
+
+    #     if element.get("dom_id"):
+    #         id_value = element["dom_id"]
+    #         strategies.append((lambda: page.locator(f'#{id_value}'), f"locator(#{id_value}) [ID exact]"))
+    #         strategies.append((lambda: page.locator(f'[id*="{id_value}"]'), f'locator([id*="{id_value}"]) [ID partial]'))
+
+    #     if element.get("dom_class"):
+    #         class_value = element["dom_class"]
+    #         class_sel = "." + ".".join(class_value.split())
+    #         strategies.append((lambda: page.locator(class_sel), f"locator({class_sel}) [class exact]"))
+    #         strategies.append((lambda: page.locator(f'[class*="{class_value}"]'), f'locator([class*="{class_value}"]) [class partial]'))
+
+    #     if element.get("class_list"):
+    #         sel = "." + ".".join(element["class_list"])
+    #         strategies.append((lambda: page.locator(sel), f"locator({sel}) [class_list]"))
+
+    #     if element.get("locator") and element["locator"].get("type") == "css":
+    #         strategies.append((lambda: page.locator(element["locator"]["value"]), f"locator({element['locator']['value']}) [custom css]"))
+
+    #     # Attempt strategies in order, skipping if penalized
+    #     for func, desc in strategies:
+    #         try:
+    #             locator = func()
+    #             # 2️⃣ Only check .count() once per strategy, early return
+    #             if locator and locator.count() > 0:
+    #                 print(f"[SmartAI][Return] {desc} succeeded.")
+    #                 self.locator_fail_count[element.get("unique_name")] = 0  # Reset fail count
+    #                 return locator.last
+    #         except Exception as e:
+    #             # 10️⃣ Track fail count for this unique_name
+    #             unique_name = element.get("unique_name", "")
+    #             self.locator_fail_count[unique_name] = self.locator_fail_count.get(unique_name, 0) + 1
+    #             print(f"[SmartAI][Skip] {desc} failed: {e}")
+
+    #     print("[SmartAI][Return] No locator found for element.")
+    #     return None
 
     def find_element(self, unique_name, page):
         # Main entry for SmartAI: tries direct lookup, then ML self-healing, then heuristics.
@@ -194,7 +276,6 @@ def patch_page_with_smartai(page, metadata):
     page.smartAI = smartAI
     return page
 """
-
 
 def ensure_smart_ai_module():
     lib_path = Path("generated_runs/src/lib")

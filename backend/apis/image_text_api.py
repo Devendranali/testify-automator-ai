@@ -1,5 +1,6 @@
 # image_text_api.py
 
+import numpy as np
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
 from typing import List
@@ -27,20 +28,15 @@ router = APIRouter()
 os.makedirs("data", exist_ok=True)
 file_handler = logging.FileHandler("upload_image_logs.txt", encoding="utf-8")
 file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter(
-    "%(asctime)s - %(levelname)s - %(message)s"))
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(file_handler)
 
 # ChromaDB setup
-embedding_function = SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2")
+embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./data/chroma_db")
-chroma_collection = chroma_client.get_or_create_collection(
-    name="element_metadata",
-    embedding_function=embedding_function
-)
+chroma_collection = chroma_client.get_or_create_collection(name="element_metadata", embedding_function=embedding_function)
 
 
 @router.post("/upload-image")
@@ -99,7 +95,7 @@ async def upload_image(
             page_images.setdefault(page_name, []).append(image_name)
 
         # For saving all raw metadata
-        all_raw_metadata = []
+        # all_raw_metadata = []
 
         # Step 4: Process images grouped by logical page
         for page_name, image_group in page_images.items():
@@ -131,45 +127,63 @@ async def upload_image(
                         DATA_PATH, "images", image_name)
                     img.save(permanent_image_path)
 
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    DEBUG_LOG_PATH = f"./data/metadata_logs_{timestamp}.json"
+                    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    # DEBUG_LOG_PATH = f"./data/metadata_logs_{timestamp}.json"
 
                     # GPT image extraction
                     metadata_list = await process_image_gpt(
                         img, image_name,
                         image_path=permanent_image_path,
-                        debug_log_path=DEBUG_LOG_PATH
-                    )
+                        # debug_log_path=DEBUG_LOG_PATH
+                    )                    
 
-                    all_raw_metadata.append({
-                        "image_name": image_name,
-                        "metadata": metadata_list
-                    })
+                    # Save per-image metadata to data/stored/timestamp_imageName.json
+                    def to_serializable(obj):
+                        if isinstance(obj, np.ndarray):
+                            return obj.tolist()
+                        if isinstance(obj, (set,)):
+                            return list(obj)
+                        return obj
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    base_image_name = os.path.splitext(os.path.basename(image_name))[0]
+                    os.makedirs("data/stored", exist_ok=True)
+                    out_file = os.path.join(
+                        "data", "stored", f"{timestamp}_{base_image_name}.json")
+                    with open(out_file, "w", encoding="utf-8") as f:
+                        json.dump(metadata_list, f, indent=4, ensure_ascii=False, default=to_serializable)
 
-                    # Only add new label_texts for this logical page
-                    for metadata in metadata_list:
-                        original_label_text = metadata.get("label_text", "")
-                        cleaned_label_text = clean_label_text(
-                            original_label_text)
-                        # Overwrite with cleaned version
-                        metadata["label_text"] = cleaned_label_text
-                        if cleaned_label_text and cleaned_label_text not in existing_label_texts:
-                            chroma_collection.add(
-                                ids=[metadata["id"]],
-                                documents=[metadata["text"]],
-                                metadatas=[metadata]
-                            )
-                            results.append(metadata)
-                            existing_label_texts.add(cleaned_label_text)
+                    
+                    
+                    
+                    # all_raw_metadata.append({
+                    #     "image_name": image_name,
+                    #     "metadata": metadata_list
+                    # })
+
+                    # # Only add new label_texts for this logical page
+                    # for metadata in metadata_list:
+                    #     original_label_text = metadata.get("label_text", "")
+                    #     cleaned_label_text = clean_label_text(
+                    #         original_label_text)
+                    #     # Overwrite with cleaned version
+                    #     metadata["label_text"] = cleaned_label_text
+                    #     if cleaned_label_text and cleaned_label_text not in existing_label_texts:
+                    #         chroma_collection.add(
+                    #             ids=[metadata["id"]],
+                    #             documents=[metadata["text"]],
+                    #             metadatas=[metadata]
+                    #         )
+                    #         results.append(metadata)
+                    #         existing_label_texts.add(cleaned_label_text)
 
                 image_file_map[image_name] = (image_path, page_name)
                 actual_received_images.append(image_name)
 
-        # Save all raw GPT metadata to a single file
-        raw_data_file_path = os.path.join("data", "raw_data_from_gpt.json")
-        with open(raw_data_file_path, "w", encoding="utf-8") as f:
-            json.dump(all_raw_metadata, f, indent=2, ensure_ascii=False)
-        logger.info(f"📝 Saved all raw GPT metadata to {raw_data_file_path}")
+        # # Save all raw GPT metadata to a single file
+        # raw_data_file_path = os.path.join("data", "raw_data_from_gpt.json")
+        # with open(raw_data_file_path, "w", encoding="utf-8") as f:
+        #     json.dump(all_raw_metadata, f, indent=2, ensure_ascii=False)
+        # logger.info(f"📝 Saved all raw GPT metadata to {raw_data_file_path}")
 
         # Step 5: Store dependency graph
         if ordered_image_list:
@@ -192,6 +206,7 @@ async def upload_image(
     except Exception as e:
         logger.error("❌ Error in upload_image", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 def clean_label_text(text: str) -> str:

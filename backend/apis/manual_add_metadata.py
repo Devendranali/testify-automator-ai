@@ -31,7 +31,7 @@ async def manual_add_metadata(input: ManualMetadataInput):
     # 2. Insert into ChromaDB
     collection.add(
         ids=[metadata["id"]],
-        documents=[metadata["text"]],
+        documents=[metadata["label_text"]],
         metadatas=[metadata]
     )
     # 3. Return the metadata for verification
@@ -45,7 +45,7 @@ def build_complete_metadata(manual: ManualMetadataInput):
     label_text = manual.label_text or manual.placeholder or manual.text or manual.value or ""
     unique_name = f"{manual.page_name}_{manual.intent}_{label_text}_{manual.ocr_type}".replace(" ", "_").lower()
     return {
-        "id": uid,
+        "element_id": uid,
         "ocr_id": uid,
         "page_name": manual.page_name,
         "text": manual.text or "",

@@ -1,3 +1,5 @@
+# chroma_services.py
+
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 from config.settings import CHROMA_PATH
@@ -9,7 +11,7 @@ import json
 # Setup ChromaDB client and collection
 embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 client = chromadb.PersistentClient(path=CHROMA_PATH)
-collection = client.get_or_create_collection(name="login_page", embedding_function=embedding_function)
+collection = client.get_or_create_collection(name="element_metadata", embedding_function=embedding_function)
 
 # Logger
 error_logger = logging.getLogger("chroma_upsert_errors")
@@ -32,46 +34,79 @@ def upsert_text_record(record: dict):
 
     metadata = {
         "element_id": _sanitize_metadata_value(record.get("id")),
-        "page_name": _sanitize_metadata_value(record.get("page")),
-        "intent": _sanitize_metadata_value(record.get("text")),
-        "tag": "",
-        "label_text": _sanitize_metadata_value(record.get("text")),
-        "css_selector": "",
-        "get_by_text": _sanitize_metadata_value(record.get("text")),
-        "get_by_role": "",
-        "xpath": "",
-        "x": bbox_values[0],
-        "y": bbox_values[1],
-        "width": bbox_values[2],
-        "height": bbox_values[3],
-        "bbox": bbox_str,
-        "position_relation": "",
-        "html_snippet": "",
-        "confidence_score": 0.0,
-        "visibility_score": 0.0,
-        "locator_stability_score": 0.0,
-        "snapshot_id": "",
-        "timestamp": "",
-        "source_url": "",
-        "used_in_tests": "",
-        "last_tested": "",
-        "healing_success_rate": 0.0,
-        "region_image_path": _sanitize_metadata_value(record.get("region_image_path")),
-        "locator": _sanitize_metadata_value(record.get("locator")),
-        "ocr_type": classify_ocr_type(record.get("region_image_path", "")),
-        "type": "ocr"
+        "page_name": _sanitize_metadata_value(record.get("page_name")),
+        
+        "label_text": _sanitize_metadata_value(record.get("label_text")),
+        "ocr_type": _sanitize_metadata_value(record.get("ocr_type", "")),
+        "intent": _sanitize_metadata_value(record.get("intent")),
+        
+        "unique_name": _sanitize_metadata_value(record.get("unique_name")),
+        "external": _sanitize_metadata_value(record.get("external")),
+        "dom_matched": _sanitize_metadata_value(record.get("dom_matched")),      
+        "placeholder": _sanitize_metadata_value(record.get("label_text", "intent")),
+        
+        "get_by_text": _sanitize_metadata_value(record.get("label_text")),
+        "type": "ocr",
     }
+    
+    # ---- DUPLICATE CHECK START ----
+    # 1. Query by the broadest field (the one with the most candidates)
+    possible_matches = collection.get(
+        where={"label_text": metadata.get("label_text")},
+        include=["metadatas"]
+    )
+
+    # 2. Loop through matches and check all fields
+    for idx, meta in enumerate(possible_matches.get("metadatas", [])):
+        if (
+            meta.get("page_name") == metadata.get("page_name") and
+            meta.get("ocr_type") == metadata.get("ocr_type") and
+            meta.get("intent") == metadata.get("intent")
+        ):
+            existing_id = possible_matches["ids"][idx]
+            existing_record = collection.get(ids=[existing_id], include=["documents", "metadatas", "embeddings"])
+            return {
+                "id": existing_record["ids"][0],
+                "document": existing_record["documents"][0],
+                "metadata": existing_record["metadatas"][0],
+                # "embedding": existing_record["embeddings"][0]
+            }
+    # ---- DUPLICATE CHECK END ----
 
     try:
-        embedding_value = embedding_function([record["text"]])[0]
+        text_to_embed = build_embedding_text(record)
+        embedding_value = embedding_function([text_to_embed])[0]
         collection.upsert(
-            documents=[record["text"]],
+            ids=[record["id"]],
+            documents=[metadata["label_text"]],
             metadatas=[metadata],
             embeddings=[embedding_value],
-            ids=[record["id"]]
         )
+        
+        # Fetch what was actually stored
+        stored_data = collection.get(ids=[record["id"]], include=["documents", "metadatas", "embeddings"]
+        )
+
+        # Return it as a structured object
+        return {
+            "id": stored_data["ids"][0],
+            "document": stored_data["documents"][0],
+            "metadata": stored_data["metadatas"][0],
+            # "embedding": stored_data["embeddings"][0]
+        }
+
     except Exception as e:
         error_logger.warning(f"upsert_text_record failed: {str(e)} | Record: {record}")
+
+def build_embedding_text(record: dict) -> str:
+    parts = [
+        record.get("label_text", "").strip(),
+        record.get("ocr_type", "").strip(),
+        record.get("intent", "").strip(),
+        record.get("page_name", "").strip()
+    ]
+    # Remove empty fields and join with a space
+    return " | ".join([p for p in parts if p])
 
 def upsert_element_record(record: dict):
     document_content = record.get("html_snippet") or record.get("label_text") or record.get("intent")
