@@ -118,7 +118,8 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
     result = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096
+        max_tokens=4096,
+        temperature=0
     )
 
     clean_output = re.sub(
@@ -160,6 +161,7 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=256,
+        temperature=0
     )
     output = result.choices[0].message.content.strip()
     try:

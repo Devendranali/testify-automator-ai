@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import pprint
 import time
+import asyncio
 
 router = APIRouter()
 client = PersistentClient(path="./data/chroma_db")
@@ -91,7 +92,7 @@ async def send_enrichment_requests(page_name: str):
 
         # 2) call enrichment endpoint
         try:
-            time.sleep(5)
+            await asyncio.sleep(5)
             resp = await client.post(f"{BASE}/capture-dom-from-client", json={})
             resp.raise_for_status()
         except HTTPStatusError as e:
