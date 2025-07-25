@@ -214,12 +214,18 @@ async def process_image_gpt(
                 intent = assign_intent_semantic(label_text)
         elif len(parts) == 2:
             first, second = [p.strip() for p in parts]
-            # If the first part is empty or looks like a type (starts with dash), treat accordingly
+
             if line.startswith("-") or not first:
-                label_text = ""
+                # Case: - textbox - phone_number_input
                 ocr_type = first.lstrip("-").strip()
-                intent = second
+                intent = second.strip()
+
+                # Extract label from intent by removing the last underscore-separated word
+                label_base = "_".join(intent.split("_")[:-1])  # "phone_number"
+                label_text = label_base.replace("_", " ").title()  # "Phone Number"
+
             else:
+                # Case: label - ocr_type
                 label_text = first
                 ocr_type = second
                 intent = assign_intent_semantic(label_text)
