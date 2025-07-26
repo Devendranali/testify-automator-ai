@@ -1,5 +1,7 @@
 # enrichment_api.py
 
+from utils.enrichment_status import reset_enriched
+from fastapi import APIRouter
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from chromadb import PersistentClient
@@ -326,5 +328,12 @@ async def get_latest_match_result():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
- 
+
+
+@router.post("/reset-enrichment/{page_name}")
+async def reset_enrichment_api(page_name: str):
+    reset_enriched(page_name)
+    return {"success": True, "message": f"Enrichment reset for {page_name}"}
+
+
 __all__ = ["router"]
