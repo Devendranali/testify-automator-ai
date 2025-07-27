@@ -26,7 +26,7 @@ class PlaywrightPythonAgent(MCPAgentBase):
     def generate_page_file(self, payload):
         entries = payload["entries"]
         page_name = normalize_page_name(payload.get("page_name", "page"))
-        class_name = f"{page_name.capitalize()}Page"
+        class_name = f"{''.join([word.capitalize() for word in page_name.split('_')])}Page"
 
         import_block = (
             "import asyncio\n"
@@ -49,7 +49,7 @@ class PlaywrightPythonAgent(MCPAgentBase):
         method_blocks = []
         seen_method_names = set()
 
-        ignored_types = {"label", "heading", "textblock", "legend", "title"}
+        ignored_types = {}
 
         for entry in entries:
             ocr_type = (entry.get("ocr_type") or "").lower()
@@ -110,7 +110,7 @@ class PlaywrightPythonAgent(MCPAgentBase):
                     f"        await self.page.smartAI('{smartai_name}').fill(value)\n"
                 )
 
-            elif ocr_type in ("image", "avatar", "userpic", "badge", "chip", "tag", "alert", "modal", "toast", "dialog"):
+            elif ocr_type in ("image", "avatar", "userpic", "badge", "chip", "tag", "alert", "modal", "toast", "dialog", "label"):
                 method_name = f"verify_{base_name}_visible"
                 block = (
                     f"    async def {method_name}(self):\n"

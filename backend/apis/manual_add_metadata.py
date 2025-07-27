@@ -45,6 +45,7 @@ def build_complete_metadata(manual: ManualMetadataInput):
     label_text = manual.label_text or manual.placeholder or manual.text or manual.value or ""
     unique_name = f"{manual.page_name}_{manual.intent}_{label_text}_{manual.ocr_type}".replace(" ", "_").lower()
     return {
+        "id": uid,
         "element_id": uid,
         "ocr_id": uid,
         "page_name": manual.page_name,

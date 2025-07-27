@@ -2146,6 +2146,18 @@ TypeError: Object of type ndarray is not JSON serializable
 2025-07-26 00:27:09,640 - DEBUG - 📷 Processing image: customers_2.png
 2025-07-26 00:27:25,693 - INFO - 📄 Dependency graph stored in data/dependency_graph.json
 2025-07-26 00:27:25,696 - INFO - 📄 Ordered images logged to data/image_order.json
+2025-07-26 10:36:08,195 - INFO - 🟢 Ordered images from frontend: ['dashboard.png', 'customers.png', 'customers_2.png']
+2025-07-26 10:36:08,362 - DEBUG - 📷 Processing image: dashboard.png
+2025-07-26 10:36:39,774 - DEBUG - 📷 Processing image: customers.png
+2025-07-26 10:37:09,770 - DEBUG - 📷 Processing image: customers_2.png
+2025-07-26 10:37:19,611 - INFO - 📄 Dependency graph stored in data/dependency_graph.json
+2025-07-26 10:37:19,613 - INFO - 📄 Ordered images logged to data/image_order.json
+2025-07-26 15:12:55,451 - INFO - 🟢 Ordered images from frontend: ['dashboard.png', 'customers.png', 'customers_2.png']
+2025-07-26 15:12:55,727 - DEBUG - 📷 Processing image: dashboard.png
+2025-07-26 15:13:15,366 - DEBUG - 📷 Processing image: customers.png
+2025-07-26 15:13:39,034 - DEBUG - 📷 Processing image: customers_2.png
+2025-07-26 15:13:48,667 - INFO - 📄 Dependency graph stored in data/dependency_graph.json
+2025-07-26 15:13:48,669 - INFO - 📄 Ordered images logged to data/image_order.json
 
 
 
@@ -2241,7 +2253,7 @@ class PlaywrightPythonAgent(MCPAgentBase):
         method_blocks = []
         seen_method_names = set()
 
-        ignored_types = {"label", "heading", "textblock", "legend", "title"}
+        ignored_types = {}
 
         for entry in entries:
             ocr_type = (entry.get("ocr_type") or "").lower()
@@ -3093,8 +3105,6 @@ def generate_from_manual_testcase(req: ManualTestcaseRequest):
 
 
 # === FILE: apis\generate_from_story.py ===
-# ✅ Final version of rag_testcase_runner.py for page-class based async tests
-
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pathlib import Path
 import re
@@ -3134,7 +3144,6 @@ def extract_method_names_from_file(file_path):
     method_names = []
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
-
     for line in lines:
         stripped = line.strip()
         if stripped.startswith("async def "):
@@ -3150,14 +3159,15 @@ def get_all_page_methods(pages_dir):
     for py_file in Path(pages_dir).glob("*_page.py"):
         page_name = py_file.stem.replace("_page", "")
         method_list = extract_method_names_from_file(py_file)
-        print(f"📄 {page_name}: {len(method_list)} methods")  # Add this
+        print(f"📄 {page_name}: {len(method_list)} methods")
         page_method_map[page_name] = method_list
     return page_method_map
 
 
 def next_index(target_dir, pattern="test_{}.py"):
     files = list(target_dir.glob(pattern.format("*")))
-    indices = [int(m.group(1)) for f in files if (m := re.match(r".*_(\\d+)\\.", f.name))]
+    indices = [int(m.group(1))
+               for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
     return max(indices, default=0) + 1
 
 
@@ -3167,12 +3177,15 @@ def generate_test_code_from_methods(user_story, method_map, page_names, site_url
         for method in methods:
             if method.startswith("enter_"):
                 param = method.replace("enter_", "")
-                dynamic_steps.append(f"    - Call `await {page}_page.{method}(\"<{param}>\")`")
+                dynamic_steps.append(
+                    f"    - Call `await {page}_page.{method}(\"<{param}>\")`")
             elif method.startswith("click_") or method.startswith("select_"):
-                dynamic_steps.append(f"    - Call `await {page}_page.{method}()`")
+                dynamic_steps.append(
+                    f"    - Call `await {page}_page.{method}()`")
 
     story_block = f'"""{user_story.strip()}"""'
-    method_prompt_block = json.dumps({f"{page}_page": methods for page, methods in method_map.items()}, indent=2)
+    method_prompt_block = json.dumps(
+        {f"{page}_page": methods for page, methods in method_map.items()}, indent=2)
 
     prompt = f"""
 You are an expert QA automation engineer.
@@ -3207,19 +3220,18 @@ URL: {site_url}
         max_tokens=4096,
         temperature=0
     )
-    
+
     print("\n📤 Prompt sent to LLM:\n", prompt)
-
-
     print("\n📥 LLM raw response:\n", result.choices[0].message.content)
 
-
-    clean_output = re.sub(r"```(?:python)?|^\\s*Here is.*?:", "", result.choices[0].message.content.strip(), flags=re.MULTILINE).strip()
+    clean_output = re.sub(r"```(?:python)?|^\s*Here is.*?:", "",
+                          result.choices[0].message.content.strip(), flags=re.MULTILINE).strip()
     return clean_output
 
 
 def get_inferred_pages(user_story: str, method_map_full: dict):
-    page_list_str = "\n".join([f"{i+1}. {k.replace('_', ' ')}" for i, k in enumerate(method_map_full.keys())])
+    page_list_str = "\n".join(
+        [f"{i+1}. {k.replace('_', ' ')}" for i, k in enumerate(method_map_full.keys())])
     prompt = f"""
 You are an expert QA automation engineer.
 Given the following available application pages:
@@ -3233,7 +3245,8 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
     result = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=512
+        max_tokens=2000,
+        temperature=0
     )
     try:
         output = result.choices[0].message.content.strip()
@@ -3265,11 +3278,13 @@ async def generate_from_user_story(
         elif file.filename.endswith(".csv"):
             df = pd.read_csv(io.StringIO(content.decode()))
         else:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+            raise HTTPException(
+                status_code=400, detail="Unsupported file type")
 
         column_map = {col.strip().lower(): col for col in df.columns}
         if "user story" not in column_map:
-            raise HTTPException(status_code=400, detail="Column 'User Story' not found")
+            raise HTTPException(
+                status_code=400, detail="Column 'User Story' not found")
 
         column_name = column_map["user story"]
         stories = df[column_name].dropna().astype(str).tolist()
@@ -3277,7 +3292,8 @@ async def generate_from_user_story(
     elif user_story:
         stories = [user_story]
     else:
-        raise HTTPException(status_code=400, detail="Provide user_story or file")
+        raise HTTPException(
+            status_code=400, detail="Provide user_story or file")
 
     all_chroma_data = collection.get()
     all_chroma_metadatas = all_chroma_data.get("metadatas", [])
@@ -3290,8 +3306,18 @@ async def generate_from_user_story(
     test_functions = []
     for story in stories:
         path_pages = get_inferred_pages(story, method_map_full)
-        sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url)
+        sub_method_map = {p: method_map_full[p]
+                          for p in path_pages if p in method_map_full}
+        code = generate_test_code_from_methods(
+            story, sub_method_map, path_pages, site_url)
+        # 👇 Ensure all async test functions are decorated and import is present
+        pattern = r'(?m)^(async def test_)'
+        code = re.sub(pattern, '@pytest.mark.asyncio\n\\1', code)
+        if 'import pytest' not in code:
+            code = 'import pytest\n' + code
+        # Remove _enrich_if_needed calls (if present)
+        code = re.sub(
+            r'await\s+\w+_page\._enrich_if_needed\([^\)]*\)\s*\n', '', code)
         test_functions.append(code)
 
     idx = next_index(tests_dir, "test_{}.py")
@@ -3319,6 +3345,37 @@ from orchestrator.orchestrator import send_message
 
 router = APIRouter()
 
+# ✅ Function to dynamically generate BasePage with your DOM enrichment logic
+
+
+def generate_base_page(base_page_path: Path):
+    base_page_content = '''from services.page_enricher import enrich_page
+
+class BasePage:
+    enriched_pages = set()
+
+    def __init__(self, page, page_name, url=None):
+        self.page = page
+        self.page_name = page_name
+        self.url = url
+
+    async def goto(self):
+        if self.url:
+            await self.page.goto(self.url)
+        else:
+            raise ValueError(f"URL not set for {self.page_name}")
+
+    async def enrich_once(self, force=False):
+        if force or self.page_name not in BasePage.enriched_pages:
+            await enrich_page(self.page, self.page_name)  # DOM enrichment clearly triggered
+            BasePage.enriched_pages.add(self.page_name)
+            print(f"🌟 Enriched page: {self.page_name}")
+        else:
+            print(f"✅ Already enriched: {self.page_name}")
+'''
+    base_page_path.write_text(base_page_content.strip(), encoding="utf-8")
+    print("✅ Generated BasePage class")
+
 
 @router.post("/rag/generate-page-methods")
 def generate_page_methods():
@@ -3326,6 +3383,7 @@ def generate_page_methods():
     target_pages = filter_all_pages()
     result = {}
 
+    # ✅ Generate conftest.py once
     def create_conftest_file():
         conftest_content = '''import pytest
 import json
@@ -3343,10 +3401,18 @@ def smartai_page(page):
         tests_dir = Path(__file__).parent.parent / \
             "generated_runs" / "src" / "tests"
         tests_dir.mkdir(parents=True, exist_ok=True)
-        (tests_dir / "conftest.py").write_text(conftest_content.strip())
+        (tests_dir / "conftest.py").write_text(conftest_content.strip(), encoding="utf-8")
 
-    # ✅ Create conftest.py once
     create_conftest_file()
+
+    # ✅ Ensure pages directory exists
+    outdir = Path("generated_runs") / "src" / "pages"
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # ✅ Dynamically generate BasePage (if not exists)
+    base_page_path = outdir / "base_page.py"
+    if not base_page_path.exists():
+        generate_base_page(base_page_path)
 
     for page in target_pages:
         page_data = collection.get(where={"page_name": page})
@@ -3354,20 +3420,42 @@ def smartai_page(page):
 
         page_spec = {
             "page_name": page,
-            "entries": entries  # let agent handle all logic
+            "entries": entries  # agent handles logic
         }
 
         response = send_message("python", "generate_page_file", page_spec)
         payload = response.payload
 
-        outdir = Path("generated_runs") / "src" / "pages"
-        outdir.mkdir(parents=True, exist_ok=True)
+        # ✅ Inject BasePage inheritance clearly and consistently
+        page_class_code = payload["code"]
+
+        # Remove existing enrichment methods to avoid duplicates/conflicts
+        lines = page_class_code.splitlines()
+        new_lines = []
+        inserted_import = False
+        skip_next = False
+
+        for line in lines:
+            if 'def _enrich_if_needed' in line or skip_next:
+                skip_next = line.strip() != ''
+                continue  # Skip the existing enrichment method entirely
+            if not inserted_import and line.strip().startswith("class"):
+                new_lines.append("from .base_page import BasePage\n")
+                if "(object)" in line:
+                    line = line.replace("(object)", "(BasePage)")
+                elif ":" in line and "(BasePage)" not in line:
+                    line = line.replace(":", "(BasePage):")
+                inserted_import = True
+            new_lines.append(line)
+        page_class_code = "\n".join(new_lines)
+
+        # Write the generated page class
         filepath = outdir / payload["page_file"]
-        filepath.write_text(payload["code"], encoding="utf-8")
+        filepath.write_text(page_class_code, encoding="utf-8")
 
         result[page] = {
             "filename": str(filepath),
-            "code": payload["code"]
+            "code": page_class_code
         }
 
     return result
@@ -4060,66 +4148,9 @@ os.makedirs(CHROMA_PATH, exist_ok=True)
 }
 
 
-# === FILE: data\openai_response\20250726_002611_dashboard.txt ===
-I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements based on the description you provided. Here's a general approach:
-
-1. **Navigation Menu:**
-   - Dashboard - button - navigation
-   - Customers - button - navigation
-   - Loans - button - navigation
-   - Transactions - button - navigation
-   - Tasks - button - navigation
-   - Reports - button - navigation
-   - Analytics - button - navigation
-   - Settings - button - navigation
-
-2. **Search Bar:**
-   - Search customers, loans, transactions... - textbox - search
-
-3. **Main Content:**
-   - Dashboard - label - page_title
-   - Welcome back! Here's your banking overview. - label - greeting
-
-4. **Statistics Cards:**
-   - Total Customers - label - total_customers
-   - 2,847 - label - total_customers_value
-   - Active Loans - label - active_loans
-   - $45.2M - label - active_loans_value
-   - Monthly Transactions - label - monthly_transactions
-   - 18,394 - label - monthly_transactions_value
-   - Revenue Growth - label - revenue_growth
-   - 23.4% - label - revenue_growth_value
-
-5. **Graphs and Charts:**
-   - Loan Portfolio Trend - label - loan_portfolio_trend
-   - Monthly loan disbursements over the last 6 months - label - loan_portfolio_info
-   - Customer Distribution - label - customer_distribution
-   - Customer segments by account type - label - customer_distribution_info
-   - Premium 35% - label - premium_segment
-   - Standard 45% - label - standard_segment
-   - Basic 20% - label - basic_segment
-
-6. **Recent Activities:**
-   - Recent Activities - label - recent_activities
-   - Latest customer interactions and transactions - label - recent_activities_info
-   - Sarah Johnson - label - customer_name
-   - Loan Application Approved - label - customer_activity
-   - Michael Chen - label - customer_name
-   - $250,000 - label - transaction_amount
-   - 2 hours ago - label - transaction_time
-
-7. **User Profile:**
-   - John Doe - label - user_profile
-
-8. **Buttons:**
-   - Export Report - button - export
-   - Edit with Lovable - button - edit
-
-This should give you a structured way to extract and classify the UI elements from the screenshot.
----------------------------------------- After Cleaning ----------------------------------------
-I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements based on the description you provided. Here's a general approach:
-
-Navigation Menu:
+# === FILE: data\openai_response\20250726_151305_dashboard.txt ===
+- button - navigation
+Search customers, loans, transactions... - textbox - search
 Dashboard - button - navigation
 Customers - button - navigation
 Loans - button - navigation
@@ -4128,15 +4159,8 @@ Tasks - button - navigation
 Reports - button - navigation
 Analytics - button - navigation
 Settings - button - navigation
-
-Search Bar:
-Search customers, loans, transactions... - textbox - search
-
-Main Content:
 Dashboard - label - page_title
-Welcome back! Here's your banking overview. - label - greeting
-
-Statistics Cards:
+Welcome back! Here's your banking overview. - label - welcome_message
 Total Customers - label - total_customers
 2,847 - label - total_customers_value
 Active Loans - label - active_loans
@@ -4145,103 +4169,23 @@ Monthly Transactions - label - monthly_transactions
 18,394 - label - monthly_transactions_value
 Revenue Growth - label - revenue_growth
 23.4% - label - revenue_growth_value
-
-Graphs and Charts:
-Loan Portfolio Trend - label - loan_portfolio_trend
-Monthly loan disbursements over the last 6 months - label - loan_portfolio_info
-Customer Distribution - label - customer_distribution
-Customer segments by account type - label - customer_distribution_info
-Premium 35% - label - premium_segment
-Standard 45% - label - standard_segment
-Basic 20% - label - basic_segment
-
-Recent Activities:
-Recent Activities - label - recent_activities
-Latest customer interactions and transactions - label - recent_activities_info
-Sarah Johnson - label - customer_name
-Loan Application Approved - label - customer_activity
-Michael Chen - label - customer_name
-$250,000 - label - transaction_amount
-2 hours ago - label - transaction_time
-
-User Profile:
-John Doe - label - user_profile
-
-Buttons:
 Export Report - button - export
-Edit with Lovable - button - edit
-
-This should give you a structured way to extract and classify the UI elements from the screenshot.
-
-
-
-# === FILE: data\openai_response\20250726_002656_customers.txt ===
-I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements based on the description you provided. Here's a structured approach:
-
-1. **Navigation Menu:**
-   - Dashboard - button - navigation
-   - Customers - button - navigation
-   - Loans - button - navigation
-   - Transactions - button - navigation
-   - Tasks - button - navigation
-   - Reports - button - navigation
-   - Analytics - button - navigation
-   - Settings - button - navigation
-
-2. **Search Bar:**
-   - Search customers, loans, transactions... - textbox - search
-
-3. **Main Content:**
-   - Customers - label - section_title
-   - Manage your customer relationships and accounts - label - section_info
-   - Search customers... - textbox - search
-   - Filters - button - filter
-
-4. **Customer List Section:**
-   - Customer List - label - section_title
-   - 3 customers found - label - section_info
-   - Customer - label - column_title
-   - Account Type - label - column_title
-   - Balance - label - column_title
-   - Status - label - column_title
-   - Join Date - label - column_title
-   - Actions - label - column_title
-
-5. **Customer Entries:**
-   - Sarah Johnson - label - customer_name
-   - sarah.johnson@email.com - label - customer_email
-   - Premium - label - account_type
-   - $1,45,000 - label - balance
-   - Active - label - status
-   - 2023-01-15 - label - join_date
-   - Michael Chen - label - customer_name
-   - michael.chen@email.com - label - customer_email
-   - Standard - label - account_type
-   - $52,000 - label - balance
-   - Active - label - status
-   - 2023-03-22 - label - join_date
-   - Emma Davis - label - customer_name
-   - emma.davis@email.com - label - customer_email
-   - Premium - label - account_type
-   - $89,000 - label - balance
-   - Active - label - status
-   - 2022-11-08 - label - join_date
-
-6. **Buttons:**
-   - Export - button - export
-   - New Customer - button - add_customer
-
-7. **Profile Section:**
-   - John Doe - label - user_profile
-
-8. **Footer:**
-   - Edit with Loveable - button - edit_tool
-
-This structured approach should help you extract and classify the UI elements effectively.
+Loan Portfolio Trend - label - loan_portfolio_trend
+Monthly loan disbursements over the last 6 months - label - loan_portfolio_description
+Customer Distribution - label - customer_distribution
+Customer segments by account type - label - customer_distribution_description
+Recent Activities - label - recent_activities
+Latest customer interactions and transactions - label - recent_activities_description
+Sarah Johnson - label - recent_activity_user
+Loan Application Approved - label - recent_activity_description
+Michael Chen - label - recent_activity_user
+- label - recent_activity_description
+$250,000 - label - recent_activity_value
+Edit with - label - edit_tool
+Lovable - button - edit_tool
 ---------------------------------------- After Cleaning ----------------------------------------
-I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements based on the description you provided. Here's a structured approach:
-
-Navigation Menu:
+- button - navigation
+Search customers, loans, transactions... - textbox - search
 Dashboard - button - navigation
 Customers - button - navigation
 Loans - button - navigation
@@ -4250,63 +4194,141 @@ Tasks - button - navigation
 Reports - button - navigation
 Analytics - button - navigation
 Settings - button - navigation
+Dashboard - label - page_title
+Welcome back! Here's your banking overview. - label - welcome_message
+Total Customers - label - total_customers
+2,847 - label - total_customers_value
+Active Loans - label - active_loans
+$45.2M - label - active_loans_value
+Monthly Transactions - label - monthly_transactions
+18,394 - label - monthly_transactions_value
+Revenue Growth - label - revenue_growth
+4% - label - revenue_growth_value
+Export Report - button - export
+Loan Portfolio Trend - label - loan_portfolio_trend
+Monthly loan disbursements over the last 6 months - label - loan_portfolio_description
+Customer Distribution - label - customer_distribution
+Customer segments by account type - label - customer_distribution_description
+Recent Activities - label - recent_activities
+Latest customer interactions and transactions - label - recent_activities_description
+Sarah Johnson - label - recent_activity_user
+Loan Application Approved - label - recent_activity_description
+Michael Chen - label - recent_activity_user
+- label - recent_activity_description
+$250,000 - label - recent_activity_value
+Edit with - label - edit_tool
+Lovable - button - edit_tool
 
-Search Bar:
+
+
+# === FILE: data\openai_response\20250726_151326_customers.txt ===
+- button - navigation
+Dashboard - button - navigation
+Customers - button - navigation
+Loans - button - navigation
+Transactions - button - navigation
+Tasks - button - navigation
+Reports - button - navigation
+Analytics - button - navigation
+Settings - button - navigation
 Search customers, loans, transactions... - textbox - search
-
-Main Content:
-Customers - label - section_title
-Manage your customer relationships and accounts - label - section_info
+Customers - label - header
+Manage your customer relationships and accounts - label - subheader
 Search customers... - textbox - search
 Filters - button - filter
-
-Customer List Section:
-Customer List - label - section_title
-3 customers found - label - section_info
-Customer - label - column_title
-Account Type - label - column_title
-Balance - label - column_title
-Status - label - column_title
-Join Date - label - column_title
-Actions - label - column_title
-
-Customer Entries:
+Customer List - label - section_header
+3 customers found - label - info
+Customer - label - column_header
+Account Type - label - column_header
+Balance - label - column_header
+Status - label - column_header
+Join Date - label - column_header
+Actions - label - column_header
 Sarah Johnson - label - customer_name
 sarah.johnson@email.com - label - customer_email
 Premium - label - account_type
 $1,45,000 - label - balance
 Active - label - status
 2023-01-15 - label - join_date
+- button - view_action
+- button - edit_action
 Michael Chen - label - customer_name
 michael.chen@email.com - label - customer_email
 Standard - label - account_type
 $52,000 - label - balance
 Active - label - status
 2023-03-22 - label - join_date
+- button - view_action
+- button - edit_action
 Emma Davis - label - customer_name
 emma.davis@email.com - label - customer_email
 Premium - label - account_type
 $89,000 - label - balance
 Active - label - status
 2022-11-08 - label - join_date
-
-Buttons:
+- button - view_action
+- button - edit_action
 Export - button - export
 New Customer - button - add_customer
+Edit with - label - footer
+Lovable - label - footer_brand
+---------------------------------------- After Cleaning ----------------------------------------
+- button - navigation
+Dashboard - button - navigation
+Customers - button - navigation
+Loans - button - navigation
+Transactions - button - navigation
+Tasks - button - navigation
+Reports - button - navigation
+Analytics - button - navigation
+Settings - button - navigation
+Search customers, loans, transactions... - textbox - search
+Customers - label - header
+Manage your customer relationships and accounts - label - subheader
+Search customers... - textbox - search
+Filters - button - filter
+Customer List - label - section_header
+3 customers found - label - info
+Customer - label - column_header
+Account Type - label - column_header
+Balance - label - column_header
+Status - label - column_header
+Join Date - label - column_header
+Actions - label - column_header
+Sarah Johnson - label - customer_name
+sarah.johnson@email.com - label - customer_email
+Premium - label - account_type
+$1,45,000 - label - balance
+Active - label - status
+2023-01-15 - label - join_date
+- button - view_action
+- button - edit_action
+Michael Chen - label - customer_name
+michael.chen@email.com - label - customer_email
+Standard - label - account_type
+$52,000 - label - balance
+Active - label - status
+2023-03-22 - label - join_date
+- button - view_action
+- button - edit_action
+Emma Davis - label - customer_name
+emma.davis@email.com - label - customer_email
+Premium - label - account_type
+$89,000 - label - balance
+Active - label - status
+2022-11-08 - label - join_date
+- button - view_action
+- button - edit_action
+Export - button - export
+New Customer - button - add_customer
+Edit with - label - footer
+Lovable - label - footer_brand
 
-Profile Section:
-John Doe - label - user_profile
-
-Footer:
-Edit with Loveable - button - edit_tool
-
-This structured approach should help you extract and classify the UI elements effectively.
 
 
-
-# === FILE: data\openai_response\20250726_002719_customers_2.txt ===
+# === FILE: data\openai_response\20250726_151342_customers_2.txt ===
 Add New Customer - label - form_title  
-Enter the customer details to create a new account. - label - form_instructions  
+Enter the customer details to create a new account. - label - form_instruction  
 Full Name * - label - full_name_label  
 - textbox - full_name_input  
 Email * - label - email_label  
@@ -4327,7 +4349,7 @@ Cancel - button - cancel
 Add Customer - button - submit
 ---------------------------------------- After Cleaning ----------------------------------------
 Add New Customer - label - form_title  
-Enter the customer details to create a new account. - label - form_instructions  
+Enter the customer details to create a new account. - label - form_instruction  
 Full Name  - label - full_name_label  
 - textbox - full_name_input  
 Email  - label - email_label  
@@ -4349,1706 +4371,1787 @@ Add Customer - button - submit
 
 
 
-# === FILE: data\stored\20250726_002622_dashboard.json ===
+# === FILE: data\stored\20250726_151315_dashboard.json ===
 [
     {
-        "id": "c37aff00-06f2-4615-88fd-406ce9b66177",
+        "id": "1233c562-20f0-4202-90fd-663914b09c9d",
+        "document": "",
+        "metadata": {
+            "dom_matched": false,
+            "unique_name": "dashboard_button_navigation_34c032c8",
+            "placeholder": "",
+            "page_name": "dashboard",
+            "ocr_type": "button",
+            "type": "ocr",
+            "element_id": "1233c562-20f0-4202-90fd-663914b09c9d",
+            "label_text": "",
+            "get_by_text": "",
+            "intent": "navigation",
+            "external": false
+        }
+    },
+    {
+        "id": "0da341dd-0730-4547-b6b2-b2d3f0cc8a1a",
+        "document": "Search customers, loans, transactions...",
+        "metadata": {
+            "type": "ocr",
+            "element_id": "0da341dd-0730-4547-b6b2-b2d3f0cc8a1a",
+            "ocr_type": "textbox",
+            "dom_matched": false,
+            "external": false,
+            "placeholder": "Search customers, loans, transactions...",
+            "get_by_text": "Search customers, loans, transactions...",
+            "page_name": "dashboard",
+            "label_text": "Search customers, loans, transactions...",
+            "intent": "search",
+            "unique_name": "dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968"
+        }
+    },
+    {
+        "id": "fcab9ebe-5767-462d-8cfb-82bd3348f3f9",
         "document": "Dashboard",
         "metadata": {
-            "element_id": "c37aff00-06f2-4615-88fd-406ce9b66177",
-            "label_text": "Dashboard",
-            "unique_name": "dashboard_dashboard_button_navigation_83914516",
-            "external": false,
-            "ocr_type": "button",
-            "page_name": "dashboard",
-            "placeholder": "Dashboard",
             "type": "ocr",
+            "element_id": "fcab9ebe-5767-462d-8cfb-82bd3348f3f9",
             "dom_matched": false,
             "intent": "navigation",
-            "get_by_text": "Dashboard"
+            "get_by_text": "Dashboard",
+            "placeholder": "Dashboard",
+            "external": false,
+            "label_text": "Dashboard",
+            "page_name": "dashboard",
+            "ocr_type": "button",
+            "unique_name": "dashboard_dashboard_button_navigation_83914516"
         }
     },
     {
-        "id": "a0201464-4d7d-431d-91b0-c57d7587cb8b",
+        "id": "45394f62-91b9-4529-adae-5627e4313b4c",
         "document": "Customers",
         "metadata": {
-            "placeholder": "Customers",
-            "external": false,
-            "label_text": "Customers",
-            "page_name": "dashboard",
             "get_by_text": "Customers",
-            "ocr_type": "button",
-            "unique_name": "dashboard_customers_button_navigation_bb4303b6",
             "dom_matched": false,
-            "element_id": "a0201464-4d7d-431d-91b0-c57d7587cb8b",
+            "unique_name": "dashboard_customers_button_navigation_bb4303b6",
+            "type": "ocr",
+            "element_id": "45394f62-91b9-4529-adae-5627e4313b4c",
+            "placeholder": "Customers",
+            "page_name": "dashboard",
             "intent": "navigation",
-            "type": "ocr"
+            "ocr_type": "button",
+            "external": false,
+            "label_text": "Customers"
         }
     },
     {
-        "id": "38759ddb-7b10-46f8-8cc0-f5663623221e",
+        "id": "24e6ff1a-d33a-4ba8-a5a6-be626370a5dd",
         "document": "Loans",
         "metadata": {
-            "unique_name": "dashboard_loans_button_navigation_42436e2a",
-            "type": "ocr",
             "dom_matched": false,
-            "label_text": "Loans",
-            "placeholder": "Loans",
-            "get_by_text": "Loans",
-            "ocr_type": "button",
             "external": false,
+            "get_by_text": "Loans",
+            "placeholder": "Loans",
+            "type": "ocr",
+            "label_text": "Loans",
+            "unique_name": "dashboard_loans_button_navigation_42436e2a",
+            "element_id": "24e6ff1a-d33a-4ba8-a5a6-be626370a5dd",
+            "ocr_type": "button",
             "page_name": "dashboard",
-            "intent": "navigation",
-            "element_id": "38759ddb-7b10-46f8-8cc0-f5663623221e"
+            "intent": "navigation"
         }
     },
     {
-        "id": "592ac771-9883-4b3a-9710-d1967aa6ad9b",
+        "id": "c8b402b6-f1f8-4c0e-ae27-ccab631cd424",
         "document": "Transactions",
         "metadata": {
-            "external": false,
             "placeholder": "Transactions",
-            "label_text": "Transactions",
+            "ocr_type": "button",
             "page_name": "dashboard",
-            "element_id": "592ac771-9883-4b3a-9710-d1967aa6ad9b",
-            "get_by_text": "Transactions",
-            "dom_matched": false,
+            "type": "ocr",
             "unique_name": "dashboard_transactions_button_navigation_f0479a72",
+            "label_text": "Transactions",
+            "element_id": "c8b402b6-f1f8-4c0e-ae27-ccab631cd424",
+            "get_by_text": "Transactions",
+            "intent": "navigation",
+            "dom_matched": false,
+            "external": false
+        }
+    },
+    {
+        "id": "560d2d8f-c76a-4d45-9a08-a11877b31d9e",
+        "document": "Tasks",
+        "metadata": {
+            "get_by_text": "Tasks",
+            "type": "ocr",
+            "page_name": "dashboard",
+            "label_text": "Tasks",
+            "ocr_type": "button",
+            "placeholder": "Tasks",
+            "unique_name": "dashboard_tasks_button_navigation_cde2a4d6",
+            "external": false,
+            "intent": "navigation",
+            "element_id": "560d2d8f-c76a-4d45-9a08-a11877b31d9e",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "b95730ff-2fe4-44c4-baf5-ad976c203079",
+        "document": "Reports",
+        "metadata": {
+            "unique_name": "dashboard_reports_button_navigation_578fb659",
+            "page_name": "dashboard",
+            "dom_matched": false,
+            "placeholder": "Reports",
+            "element_id": "b95730ff-2fe4-44c4-baf5-ad976c203079",
             "intent": "navigation",
             "ocr_type": "button",
+            "label_text": "Reports",
+            "type": "ocr",
+            "get_by_text": "Reports",
+            "external": false
+        }
+    },
+    {
+        "id": "16d843ef-d207-41e4-884a-80192b4cd287",
+        "document": "Analytics",
+        "metadata": {
+            "page_name": "dashboard",
+            "placeholder": "Analytics",
+            "intent": "navigation",
+            "dom_matched": false,
+            "external": false,
+            "element_id": "16d843ef-d207-41e4-884a-80192b4cd287",
+            "label_text": "Analytics",
+            "ocr_type": "button",
+            "unique_name": "dashboard_analytics_button_navigation_49884ab5",
+            "type": "ocr",
+            "get_by_text": "Analytics"
+        }
+    },
+    {
+        "id": "fd2f64e0-9d2a-4bb1-9af2-7c439720110f",
+        "document": "Settings",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "button",
+            "get_by_text": "Settings",
+            "element_id": "fd2f64e0-9d2a-4bb1-9af2-7c439720110f",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_settings_button_navigation_7a36fd5d",
+            "intent": "navigation",
+            "dom_matched": false,
+            "placeholder": "Settings",
+            "label_text": "Settings",
+            "external": false
+        }
+    },
+    {
+        "id": "fe6111b7-5b58-44b0-be3a-0e52f5d35069",
+        "document": "Dashboard",
+        "metadata": {
+            "external": false,
+            "intent": "page_title",
+            "unique_name": "dashboard_dashboard_label_page_title_a353b4f0",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "get_by_text": "Dashboard",
+            "placeholder": "Dashboard",
+            "type": "ocr",
+            "page_name": "dashboard",
+            "element_id": "fe6111b7-5b58-44b0-be3a-0e52f5d35069",
+            "label_text": "Dashboard"
+        }
+    },
+    {
+        "id": "e2660127-d787-4393-a482-66947dcfdf81",
+        "document": "Welcome back! Here's your banking overview.",
+        "metadata": {
+            "unique_name": "dashboard_welcome_back!_heres_your_banking_overview._label_welcome_message_479a4097",
+            "type": "ocr",
+            "external": false,
+            "intent": "welcome_message",
+            "placeholder": "Welcome back! Here's your banking overview.",
+            "page_name": "dashboard",
+            "element_id": "e2660127-d787-4393-a482-66947dcfdf81",
+            "ocr_type": "label",
+            "get_by_text": "Welcome back! Here's your banking overview.",
+            "dom_matched": false,
+            "label_text": "Welcome back! Here's your banking overview."
+        }
+    },
+    {
+        "id": "51501189-4e74-41b9-b6da-987a9a839f87",
+        "document": "Total Customers",
+        "metadata": {
+            "ocr_type": "label",
+            "get_by_text": "Total Customers",
+            "external": false,
+            "label_text": "Total Customers",
+            "intent": "total_customers",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "placeholder": "Total Customers",
+            "element_id": "51501189-4e74-41b9-b6da-987a9a839f87",
+            "type": "ocr",
+            "unique_name": "dashboard_total_customers_label_total_customers_228048fb"
+        }
+    },
+    {
+        "id": "e46b7f1c-c443-45db-912e-43c546fe068d",
+        "document": "2,847",
+        "metadata": {
+            "get_by_text": "2,847",
+            "placeholder": "2,847",
+            "unique_name": "dashboard_2,847_label_total_customers_value_6d9c1e09",
+            "element_id": "e46b7f1c-c443-45db-912e-43c546fe068d",
+            "label_text": "2,847",
+            "intent": "total_customers_value",
+            "external": false,
+            "ocr_type": "label",
+            "page_name": "dashboard",
+            "type": "ocr",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "754d67d0-6559-4e6a-8f28-a97134bbc10f",
+        "document": "Active Loans",
+        "metadata": {
+            "unique_name": "dashboard_active_loans_label_active_loans_3dfc1d95",
+            "type": "ocr",
+            "placeholder": "Active Loans",
+            "external": false,
+            "label_text": "Active Loans",
+            "ocr_type": "label",
+            "get_by_text": "Active Loans",
+            "page_name": "dashboard",
+            "dom_matched": false,
+            "element_id": "754d67d0-6559-4e6a-8f28-a97134bbc10f",
+            "intent": "active_loans"
+        }
+    },
+    {
+        "id": "b449e2aa-16c0-442c-bc74-179c54c09378",
+        "document": "$45.2M",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "label_text": "$45.2M",
+            "get_by_text": "$45.2M",
+            "ocr_type": "label",
+            "placeholder": "$45.2M",
+            "intent": "active_loans_value",
+            "unique_name": "dashboard_$45.2m_label_active_loans_value_e93e7652",
+            "external": false,
+            "element_id": "b449e2aa-16c0-442c-bc74-179c54c09378",
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "74c7e9d8-4ec9-4da5-a7b6-7d178729f85d",
+        "document": "Monthly Transactions",
+        "metadata": {
+            "intent": "monthly_transactions",
+            "label_text": "Monthly Transactions",
+            "get_by_text": "Monthly Transactions",
+            "dom_matched": false,
+            "unique_name": "dashboard_monthly_transactions_label_monthly_transactions_914c549d",
+            "page_name": "dashboard",
+            "type": "ocr",
+            "element_id": "74c7e9d8-4ec9-4da5-a7b6-7d178729f85d",
+            "external": false,
+            "ocr_type": "label",
+            "placeholder": "Monthly Transactions"
+        }
+    },
+    {
+        "id": "b7db7fa6-1bb0-49bc-84bd-6a392ecff739",
+        "document": "18,394",
+        "metadata": {
+            "element_id": "b7db7fa6-1bb0-49bc-84bd-6a392ecff739",
+            "unique_name": "dashboard_18,394_label_monthly_transactions_value_fc666ffb",
+            "get_by_text": "18,394",
+            "label_text": "18,394",
+            "placeholder": "18,394",
+            "external": false,
+            "ocr_type": "label",
+            "intent": "monthly_transactions_value",
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "9d226a1f-3b4f-4a1c-8b4a-7a2fd9cf79c9",
+        "document": "Revenue Growth",
+        "metadata": {
+            "external": false,
+            "type": "ocr",
+            "get_by_text": "Revenue Growth",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "unique_name": "dashboard_revenue_growth_label_revenue_growth_bfb3b4b4",
+            "intent": "revenue_growth",
+            "placeholder": "Revenue Growth",
+            "element_id": "9d226a1f-3b4f-4a1c-8b4a-7a2fd9cf79c9",
+            "label_text": "Revenue Growth"
+        }
+    },
+    {
+        "id": "9b39d3eb-ace4-4812-88b7-7105876d6531",
+        "document": "4%",
+        "metadata": {
+            "type": "ocr",
+            "label_text": "4%",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_4%_label_revenue_growth_value_de36ce03",
+            "intent": "revenue_growth_value",
+            "element_id": "9b39d3eb-ace4-4812-88b7-7105876d6531",
+            "ocr_type": "label",
+            "get_by_text": "4%",
+            "dom_matched": false,
+            "external": false,
+            "placeholder": "4%"
+        }
+    },
+    {
+        "id": "2719b853-b04e-43ab-b4e5-9880b4baf57a",
+        "document": "Export Report",
+        "metadata": {
+            "placeholder": "Export Report",
+            "ocr_type": "button",
+            "intent": "export",
+            "page_name": "dashboard",
+            "element_id": "2719b853-b04e-43ab-b4e5-9880b4baf57a",
+            "type": "ocr",
+            "get_by_text": "Export Report",
+            "unique_name": "dashboard_export_report_button_export_ed26f6d4",
+            "dom_matched": false,
+            "external": false,
+            "label_text": "Export Report"
+        }
+    },
+    {
+        "id": "ec19b4f9-6cd7-432b-a516-b6b6a804b28a",
+        "document": "Loan Portfolio Trend",
+        "metadata": {
+            "get_by_text": "Loan Portfolio Trend",
+            "dom_matched": false,
+            "type": "ocr",
+            "placeholder": "Loan Portfolio Trend",
+            "element_id": "ec19b4f9-6cd7-432b-a516-b6b6a804b28a",
+            "ocr_type": "label",
+            "page_name": "dashboard",
+            "external": false,
+            "label_text": "Loan Portfolio Trend",
+            "intent": "loan_portfolio_trend",
+            "unique_name": "dashboard_loan_portfolio_trend_label_loan_portfolio_trend_16637d4f"
+        }
+    },
+    {
+        "id": "eefdc81a-f3bb-4988-a13b-c59f1516172e",
+        "document": "Monthly loan disbursements over the last 6 months",
+        "metadata": {
+            "label_text": "Monthly loan disbursements over the last 6 months",
+            "type": "ocr",
+            "intent": "loan_portfolio_description",
+            "placeholder": "Monthly loan disbursements over the last 6 months",
+            "unique_name": "dashboard_monthly_loan_disbursements_over_the_last_6_months_label_loan_portfolio_description_179404d2",
+            "dom_matched": false,
+            "get_by_text": "Monthly loan disbursements over the last 6 months",
+            "ocr_type": "label",
+            "element_id": "eefdc81a-f3bb-4988-a13b-c59f1516172e",
+            "page_name": "dashboard",
+            "external": false
+        }
+    },
+    {
+        "id": "566f2f07-8d6c-4eb4-814d-fe9ff1ef96b5",
+        "document": "Customer Distribution",
+        "metadata": {
+            "page_name": "dashboard",
+            "get_by_text": "Customer Distribution",
+            "unique_name": "dashboard_customer_distribution_label_customer_distribution_28babd8d",
+            "placeholder": "Customer Distribution",
+            "external": false,
+            "label_text": "Customer Distribution",
+            "dom_matched": false,
+            "type": "ocr",
+            "ocr_type": "label",
+            "intent": "customer_distribution",
+            "element_id": "566f2f07-8d6c-4eb4-814d-fe9ff1ef96b5"
+        }
+    },
+    {
+        "id": "94543a4a-3be0-4ac3-a63a-ee736da203fc",
+        "document": "Customer segments by account type",
+        "metadata": {
+            "dom_matched": false,
+            "placeholder": "Customer segments by account type",
+            "element_id": "94543a4a-3be0-4ac3-a63a-ee736da203fc",
+            "unique_name": "dashboard_customer_segments_by_account_type_label_customer_distribution_description_6bb14ee4",
+            "type": "ocr",
+            "get_by_text": "Customer segments by account type",
+            "page_name": "dashboard",
+            "external": false,
+            "ocr_type": "label",
+            "label_text": "Customer segments by account type",
+            "intent": "customer_distribution_description"
+        }
+    },
+    {
+        "id": "26e6f30a-7516-47d0-a717-53551fee8afa",
+        "document": "Recent Activities",
+        "metadata": {
+            "unique_name": "dashboard_recent_activities_label_recent_activities_cdc77597",
+            "intent": "recent_activities",
+            "dom_matched": false,
+            "label_text": "Recent Activities",
+            "page_name": "dashboard",
+            "external": false,
+            "placeholder": "Recent Activities",
+            "get_by_text": "Recent Activities",
+            "ocr_type": "label",
+            "type": "ocr",
+            "element_id": "26e6f30a-7516-47d0-a717-53551fee8afa"
+        }
+    },
+    {
+        "id": "29b524a5-ef27-424d-96a0-3eb05eca8822",
+        "document": "Latest customer interactions and transactions",
+        "metadata": {
+            "label_text": "Latest customer interactions and transactions",
+            "get_by_text": "Latest customer interactions and transactions",
+            "intent": "recent_activities_description",
+            "page_name": "dashboard",
+            "element_id": "29b524a5-ef27-424d-96a0-3eb05eca8822",
+            "placeholder": "Latest customer interactions and transactions",
+            "external": false,
+            "type": "ocr",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "unique_name": "dashboard_latest_customer_interactions_and_transactions_label_recent_activities_description_425a612e"
+        }
+    },
+    {
+        "id": "bddd6c63-04b8-4717-8491-dbabe64e25f8",
+        "document": "Sarah Johnson",
+        "metadata": {
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "element_id": "bddd6c63-04b8-4717-8491-dbabe64e25f8",
+            "label_text": "Sarah Johnson",
+            "placeholder": "Sarah Johnson",
+            "get_by_text": "Sarah Johnson",
+            "intent": "recent_activity_user",
+            "unique_name": "dashboard_sarah_johnson_label_recent_activity_user_83be4551",
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "35266659-f7d9-4615-9809-27e668a40a11",
+        "document": "Loan Application Approved",
+        "metadata": {
+            "label_text": "Loan Application Approved",
+            "ocr_type": "label",
+            "get_by_text": "Loan Application Approved",
+            "intent": "recent_activity_description",
+            "placeholder": "Loan Application Approved",
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "external": false,
+            "element_id": "35266659-f7d9-4615-9809-27e668a40a11",
+            "unique_name": "dashboard_loan_application_approved_label_recent_activity_description_9696f002"
+        }
+    },
+    {
+        "id": "df350293-b561-48df-9bc0-eda7b8524834",
+        "document": "Michael Chen",
+        "metadata": {
+            "external": false,
+            "type": "ocr",
+            "label_text": "Michael Chen",
+            "dom_matched": false,
+            "intent": "recent_activity_user",
+            "unique_name": "dashboard_michael_chen_label_recent_activity_user_70395558",
+            "ocr_type": "label",
+            "page_name": "dashboard",
+            "element_id": "df350293-b561-48df-9bc0-eda7b8524834",
+            "placeholder": "Michael Chen",
+            "get_by_text": "Michael Chen"
+        }
+    },
+    {
+        "id": "261701b8-bd45-41e6-be98-7a5ee237c90e",
+        "document": "",
+        "metadata": {
+            "get_by_text": "",
+            "dom_matched": false,
+            "intent": "recent_activity_description",
+            "external": false,
+            "unique_name": "dashboard_label_recent_activity_description_e2ee0ccc",
+            "label_text": "",
+            "ocr_type": "label",
+            "element_id": "261701b8-bd45-41e6-be98-7a5ee237c90e",
+            "page_name": "dashboard",
+            "placeholder": "",
             "type": "ocr"
         }
     },
     {
-        "id": "8afb2db8-f0e2-4f6b-805a-14ab6bbd0beb",
-        "document": "Tasks",
+        "id": "995a1d10-05d2-4914-92f9-b5a6ca372ed6",
+        "document": "$250,000",
         "metadata": {
-            "external": false,
-            "intent": "navigation",
-            "placeholder": "Tasks",
-            "get_by_text": "Tasks",
-            "dom_matched": false,
-            "ocr_type": "button",
-            "unique_name": "dashboard_tasks_button_navigation_cde2a4d6",
+            "ocr_type": "label",
+            "unique_name": "dashboard_$250,000_label_recent_activity_value_91add15c",
+            "element_id": "995a1d10-05d2-4914-92f9-b5a6ca372ed6",
             "type": "ocr",
+            "external": false,
+            "get_by_text": "$250,000",
+            "label_text": "$250,000",
+            "placeholder": "$250,000",
+            "intent": "recent_activity_value",
             "page_name": "dashboard",
-            "element_id": "8afb2db8-f0e2-4f6b-805a-14ab6bbd0beb",
-            "label_text": "Tasks"
+            "dom_matched": false
         }
     },
     {
-        "id": "60e74aa6-7c38-4b0e-8030-5e84d7e143ae",
-        "document": "Reports",
+        "id": "01a5cc09-ce60-4f55-9e92-e4c4494bc834",
+        "document": "Edit with",
+        "metadata": {
+            "intent": "edit_tool",
+            "placeholder": "Edit with",
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "element_id": "01a5cc09-ce60-4f55-9e92-e4c4494bc834",
+            "label_text": "Edit with",
+            "external": false,
+            "unique_name": "dashboard_edit_with_label_edit_tool_e1025d09",
+            "ocr_type": "label",
+            "get_by_text": "Edit with"
+        }
+    },
+    {
+        "id": "50a898e4-51bc-42c4-82d9-7b038a0bf40e",
+        "document": "Lovable",
+        "metadata": {
+            "intent": "edit_tool",
+            "placeholder": "Lovable",
+            "page_name": "dashboard",
+            "type": "ocr",
+            "dom_matched": false,
+            "label_text": "Lovable",
+            "unique_name": "dashboard_lovable_button_edit_tool_2de51406",
+            "external": false,
+            "get_by_text": "Lovable",
+            "element_id": "50a898e4-51bc-42c4-82d9-7b038a0bf40e",
+            "ocr_type": "button"
+        }
+    }
+]
+
+
+# === FILE: data\stored\20250726_151339_customers.json ===
+[
+    {
+        "id": "38657081-c699-44a6-ab88-0f10f54c0593",
+        "document": "",
         "metadata": {
             "ocr_type": "button",
+            "label_text": "",
+            "element_id": "38657081-c699-44a6-ab88-0f10f54c0593",
+            "unique_name": "customers_button_navigation_6ab61bef",
             "external": false,
-            "page_name": "dashboard",
-            "element_id": "60e74aa6-7c38-4b0e-8030-5e84d7e143ae",
-            "label_text": "Reports",
+            "type": "ocr",
             "dom_matched": false,
-            "get_by_text": "Reports",
-            "placeholder": "Reports",
-            "unique_name": "dashboard_reports_button_navigation_578fb659",
+            "get_by_text": "",
+            "intent": "navigation",
+            "placeholder": "",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "7c70ce16-c61f-4d53-b57c-72849ffb0c78",
+        "document": "Dashboard",
+        "metadata": {
+            "placeholder": "Dashboard",
+            "ocr_type": "button",
+            "external": false,
+            "label_text": "Dashboard",
+            "dom_matched": false,
+            "unique_name": "customers_dashboard_button_navigation_fb22376c",
+            "get_by_text": "Dashboard",
+            "page_name": "customers",
+            "element_id": "7c70ce16-c61f-4d53-b57c-72849ffb0c78",
             "type": "ocr",
             "intent": "navigation"
         }
     },
     {
-        "id": "1e4f2b83-18ff-4afd-8c56-33aff1eac5df",
-        "document": "Analytics",
-        "metadata": {
-            "page_name": "dashboard",
-            "ocr_type": "button",
-            "label_text": "Analytics",
-            "intent": "navigation",
-            "external": false,
-            "dom_matched": false,
-            "placeholder": "Analytics",
-            "get_by_text": "Analytics",
-            "type": "ocr",
-            "element_id": "1e4f2b83-18ff-4afd-8c56-33aff1eac5df",
-            "unique_name": "dashboard_analytics_button_navigation_49884ab5"
-        }
-    },
-    {
-        "id": "4d90e13d-cdbc-4497-bf66-42183c9de626",
-        "document": "Settings",
-        "metadata": {
-            "page_name": "dashboard",
-            "ocr_type": "button",
-            "placeholder": "Settings",
-            "label_text": "Settings",
-            "unique_name": "dashboard_settings_button_navigation_7a36fd5d",
-            "type": "ocr",
-            "external": false,
-            "intent": "navigation",
-            "dom_matched": false,
-            "element_id": "4d90e13d-cdbc-4497-bf66-42183c9de626",
-            "get_by_text": "Settings"
-        }
-    },
-    {
-        "id": "2c4be266-7b6e-47ed-bfdf-f808734c6291",
-        "document": "Search customers, loans, transactions...",
-        "metadata": {
-            "unique_name": "dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968",
-            "external": false,
-            "dom_matched": false,
-            "ocr_type": "textbox",
-            "page_name": "dashboard",
-            "element_id": "2c4be266-7b6e-47ed-bfdf-f808734c6291",
-            "type": "ocr",
-            "intent": "search",
-            "placeholder": "Search customers, loans, transactions...",
-            "get_by_text": "Search customers, loans, transactions...",
-            "label_text": "Search customers, loans, transactions..."
-        }
-    },
-    {
-        "id": "8c6d3f0b-955c-472d-ab5a-43cacc56b472",
-        "document": "Dashboard",
-        "metadata": {
-            "page_name": "dashboard",
-            "unique_name": "dashboard_dashboard_label_page_title_a353b4f0",
-            "get_by_text": "Dashboard",
-            "intent": "page_title",
-            "placeholder": "Dashboard",
-            "element_id": "8c6d3f0b-955c-472d-ab5a-43cacc56b472",
-            "ocr_type": "label",
-            "label_text": "Dashboard",
-            "external": false,
-            "dom_matched": false,
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "f1671fdc-9388-49f6-aedd-831750d12fde",
-        "document": "Welcome back! Here's your banking overview.",
-        "metadata": {
-            "dom_matched": false,
-            "page_name": "dashboard",
-            "ocr_type": "label",
-            "unique_name": "dashboard_welcome_back!_heres_your_banking_overview._label_greeting_bd321dde",
-            "external": false,
-            "element_id": "f1671fdc-9388-49f6-aedd-831750d12fde",
-            "label_text": "Welcome back! Here's your banking overview.",
-            "type": "ocr",
-            "placeholder": "Welcome back! Here's your banking overview.",
-            "intent": "greeting",
-            "get_by_text": "Welcome back! Here's your banking overview."
-        }
-    },
-    {
-        "id": "74724d85-83a9-45e8-a2ff-6eb5fb22a54e",
-        "document": "Total Customers",
-        "metadata": {
-            "ocr_type": "label",
-            "placeholder": "Total Customers",
-            "intent": "total_customers",
-            "label_text": "Total Customers",
-            "page_name": "dashboard",
-            "unique_name": "dashboard_total_customers_label_total_customers_228048fb",
-            "type": "ocr",
-            "external": false,
-            "get_by_text": "Total Customers",
-            "element_id": "74724d85-83a9-45e8-a2ff-6eb5fb22a54e",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "68811e44-6121-4c9c-b78f-4f25d6c81bda",
-        "document": "2,847",
-        "metadata": {
-            "placeholder": "2,847",
-            "external": false,
-            "intent": "total_customers_value",
-            "dom_matched": false,
-            "ocr_type": "label",
-            "label_text": "2,847",
-            "type": "ocr",
-            "get_by_text": "2,847",
-            "page_name": "dashboard",
-            "element_id": "68811e44-6121-4c9c-b78f-4f25d6c81bda",
-            "unique_name": "dashboard_2,847_label_total_customers_value_6d9c1e09"
-        }
-    },
-    {
-        "id": "571ff346-de79-4319-83b4-a2a10324394d",
-        "document": "Active Loans",
-        "metadata": {
-            "dom_matched": false,
-            "get_by_text": "Active Loans",
-            "intent": "active_loans",
-            "type": "ocr",
-            "external": false,
-            "page_name": "dashboard",
-            "label_text": "Active Loans",
-            "ocr_type": "label",
-            "placeholder": "Active Loans",
-            "unique_name": "dashboard_active_loans_label_active_loans_3dfc1d95",
-            "element_id": "571ff346-de79-4319-83b4-a2a10324394d"
-        }
-    },
-    {
-        "id": "b8fc57fe-e0bf-4011-8cc5-5d9c932aafff",
-        "document": "$45.2M",
-        "metadata": {
-            "type": "ocr",
-            "unique_name": "dashboard_$45.2m_label_active_loans_value_e93e7652",
-            "page_name": "dashboard",
-            "external": false,
-            "element_id": "b8fc57fe-e0bf-4011-8cc5-5d9c932aafff",
-            "placeholder": "$45.2M",
-            "label_text": "$45.2M",
-            "intent": "active_loans_value",
-            "ocr_type": "label",
-            "get_by_text": "$45.2M",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "4e01b38b-aee2-4b7c-9138-3cd7f11b976e",
-        "document": "Monthly Transactions",
-        "metadata": {
-            "ocr_type": "label",
-            "external": false,
-            "type": "ocr",
-            "placeholder": "Monthly Transactions",
-            "element_id": "4e01b38b-aee2-4b7c-9138-3cd7f11b976e",
-            "unique_name": "dashboard_monthly_transactions_label_monthly_transactions_914c549d",
-            "get_by_text": "Monthly Transactions",
-            "intent": "monthly_transactions",
-            "label_text": "Monthly Transactions",
-            "page_name": "dashboard",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "88caa2ab-15b5-4d35-bcb4-aa43b473ccf6",
-        "document": "18,394",
-        "metadata": {
-            "ocr_type": "label",
-            "external": false,
-            "unique_name": "dashboard_18,394_label_monthly_transactions_value_fc666ffb",
-            "intent": "monthly_transactions_value",
-            "label_text": "18,394",
-            "placeholder": "18,394",
-            "get_by_text": "18,394",
-            "dom_matched": false,
-            "page_name": "dashboard",
-            "type": "ocr",
-            "element_id": "88caa2ab-15b5-4d35-bcb4-aa43b473ccf6"
-        }
-    },
-    {
-        "id": "33ff5dd1-844b-4a65-a7ed-43ce4474255a",
-        "document": "Revenue Growth",
-        "metadata": {
-            "get_by_text": "Revenue Growth",
-            "intent": "revenue_growth",
-            "element_id": "33ff5dd1-844b-4a65-a7ed-43ce4474255a",
-            "unique_name": "dashboard_revenue_growth_label_revenue_growth_bfb3b4b4",
-            "placeholder": "Revenue Growth",
-            "page_name": "dashboard",
-            "label_text": "Revenue Growth",
-            "ocr_type": "label",
-            "external": false,
-            "dom_matched": false,
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "404f96d7-b2b8-4809-ab65-974aa4036605",
-        "document": "23.4%",
-        "metadata": {
-            "type": "ocr",
-            "external": false,
-            "label_text": "23.4%",
-            "ocr_type": "label",
-            "placeholder": "23.4%",
-            "page_name": "dashboard",
-            "get_by_text": "23.4%",
-            "intent": "revenue_growth_value",
-            "element_id": "404f96d7-b2b8-4809-ab65-974aa4036605",
-            "unique_name": "dashboard_23.4%_label_revenue_growth_value_76b81799",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "098ea3ef-7be3-46cb-93a8-2de04060bc75",
-        "document": "Loan Portfolio Trend",
-        "metadata": {
-            "label_text": "Loan Portfolio Trend",
-            "unique_name": "dashboard_loan_portfolio_trend_label_loan_portfolio_trend_16637d4f",
-            "ocr_type": "label",
-            "type": "ocr",
-            "element_id": "098ea3ef-7be3-46cb-93a8-2de04060bc75",
-            "intent": "loan_portfolio_trend",
-            "dom_matched": false,
-            "get_by_text": "Loan Portfolio Trend",
-            "external": false,
-            "placeholder": "Loan Portfolio Trend",
-            "page_name": "dashboard"
-        }
-    },
-    {
-        "id": "4f8456dc-a4a3-44be-a072-2b426cceeefc",
-        "document": "Monthly loan disbursements over the last 6 months",
-        "metadata": {
-            "element_id": "4f8456dc-a4a3-44be-a072-2b426cceeefc",
-            "placeholder": "Monthly loan disbursements over the last 6 months",
-            "label_text": "Monthly loan disbursements over the last 6 months",
-            "dom_matched": false,
-            "page_name": "dashboard",
-            "unique_name": "dashboard_monthly_loan_disbursements_over_the_last_6_months_label_loan_portfolio_info_f2592b48",
-            "type": "ocr",
-            "ocr_type": "label",
-            "intent": "loan_portfolio_info",
-            "external": false,
-            "get_by_text": "Monthly loan disbursements over the last 6 months"
-        }
-    },
-    {
-        "id": "720c6109-7746-4ce3-8139-417fbe6f7abb",
-        "document": "Customer Distribution",
-        "metadata": {
-            "intent": "customer_distribution",
-            "external": false,
-            "type": "ocr",
-            "label_text": "Customer Distribution",
-            "page_name": "dashboard",
-            "ocr_type": "label",
-            "element_id": "720c6109-7746-4ce3-8139-417fbe6f7abb",
-            "unique_name": "dashboard_customer_distribution_label_customer_distribution_28babd8d",
-            "dom_matched": false,
-            "get_by_text": "Customer Distribution",
-            "placeholder": "Customer Distribution"
-        }
-    },
-    {
-        "id": "7bbec092-a855-4d99-a866-9952f9983dc0",
-        "document": "Customer segments by account type",
-        "metadata": {
-            "placeholder": "Customer segments by account type",
-            "element_id": "7bbec092-a855-4d99-a866-9952f9983dc0",
-            "type": "ocr",
-            "unique_name": "dashboard_customer_segments_by_account_type_label_customer_distribution_info_737296be",
-            "ocr_type": "label",
-            "external": false,
-            "intent": "customer_distribution_info",
-            "page_name": "dashboard",
-            "dom_matched": false,
-            "label_text": "Customer segments by account type",
-            "get_by_text": "Customer segments by account type"
-        }
-    },
-    {
-        "id": "5062a83d-b1de-4698-a542-542802993c06",
-        "document": "Premium 35%",
-        "metadata": {
-            "unique_name": "dashboard_premium_35%_label_premium_segment_a6240e39",
-            "dom_matched": false,
-            "placeholder": "Premium 35%",
-            "type": "ocr",
-            "ocr_type": "label",
-            "label_text": "Premium 35%",
-            "intent": "premium_segment",
-            "element_id": "5062a83d-b1de-4698-a542-542802993c06",
-            "external": false,
-            "page_name": "dashboard",
-            "get_by_text": "Premium 35%"
-        }
-    },
-    {
-        "id": "e09dae8c-37e3-404e-be1c-a7e0bfe19db1",
-        "document": "Standard 45%",
-        "metadata": {
-            "intent": "standard_segment",
-            "label_text": "Standard 45%",
-            "ocr_type": "label",
-            "get_by_text": "Standard 45%",
-            "page_name": "dashboard",
-            "element_id": "e09dae8c-37e3-404e-be1c-a7e0bfe19db1",
-            "external": false,
-            "unique_name": "dashboard_standard_45%_label_standard_segment_ddbf0b0b",
-            "dom_matched": false,
-            "placeholder": "Standard 45%",
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "b9f7b9e1-ab30-414b-b458-d128891d501b",
-        "document": "Basic 20%",
-        "metadata": {
-            "label_text": "Basic 20%",
-            "intent": "basic_segment",
-            "dom_matched": false,
-            "page_name": "dashboard",
-            "placeholder": "Basic 20%",
-            "element_id": "b9f7b9e1-ab30-414b-b458-d128891d501b",
-            "ocr_type": "label",
-            "unique_name": "dashboard_basic_20%_label_basic_segment_6072a081",
-            "external": false,
-            "get_by_text": "Basic 20%",
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "fae35b5f-94ee-4d48-9e20-f44332f2c873",
-        "document": "Recent Activities",
-        "metadata": {
-            "element_id": "fae35b5f-94ee-4d48-9e20-f44332f2c873",
-            "unique_name": "dashboard_recent_activities_label_recent_activities_cdc77597",
-            "page_name": "dashboard",
-            "external": false,
-            "label_text": "Recent Activities",
-            "dom_matched": false,
-            "type": "ocr",
-            "intent": "recent_activities",
-            "placeholder": "Recent Activities",
-            "get_by_text": "Recent Activities",
-            "ocr_type": "label"
-        }
-    },
-    {
-        "id": "aa135803-5245-40e6-85bf-9c69a2363d70",
-        "document": "Latest customer interactions and transactions",
-        "metadata": {
-            "element_id": "aa135803-5245-40e6-85bf-9c69a2363d70",
-            "unique_name": "dashboard_latest_customer_interactions_and_transactions_label_recent_activities_info_3c2c88ee",
-            "label_text": "Latest customer interactions and transactions",
-            "dom_matched": false,
-            "ocr_type": "label",
-            "type": "ocr",
-            "intent": "recent_activities_info",
-            "external": false,
-            "placeholder": "Latest customer interactions and transactions",
-            "get_by_text": "Latest customer interactions and transactions",
-            "page_name": "dashboard"
-        }
-    },
-    {
-        "id": "27c562cd-90ef-4cee-9299-cc3a318c3832",
-        "document": "Sarah Johnson",
-        "metadata": {
-            "dom_matched": false,
-            "type": "ocr",
-            "element_id": "27c562cd-90ef-4cee-9299-cc3a318c3832",
-            "page_name": "dashboard",
-            "external": false,
-            "intent": "customer_name",
-            "unique_name": "dashboard_sarah_johnson_label_customer_name_bed9585e",
-            "ocr_type": "label",
-            "placeholder": "Sarah Johnson",
-            "label_text": "Sarah Johnson",
-            "get_by_text": "Sarah Johnson"
-        }
-    },
-    {
-        "id": "a82518dd-0096-472d-ad0d-0aa26021d6f9",
-        "document": "Loan Application Approved",
-        "metadata": {
-            "ocr_type": "label",
-            "element_id": "a82518dd-0096-472d-ad0d-0aa26021d6f9",
-            "external": false,
-            "unique_name": "dashboard_loan_application_approved_label_customer_activity_30eb3606",
-            "placeholder": "Loan Application Approved",
-            "page_name": "dashboard",
-            "intent": "customer_activity",
-            "type": "ocr",
-            "get_by_text": "Loan Application Approved",
-            "dom_matched": false,
-            "label_text": "Loan Application Approved"
-        }
-    },
-    {
-        "id": "7824477f-1ef4-4d19-b6eb-f5444d63f552",
-        "document": "Michael Chen",
-        "metadata": {
-            "type": "ocr",
-            "intent": "customer_name",
-            "label_text": "Michael Chen",
-            "dom_matched": false,
-            "element_id": "7824477f-1ef4-4d19-b6eb-f5444d63f552",
-            "ocr_type": "label",
-            "external": false,
-            "get_by_text": "Michael Chen",
-            "placeholder": "Michael Chen",
-            "page_name": "dashboard",
-            "unique_name": "dashboard_michael_chen_label_customer_name_e126909a"
-        }
-    },
-    {
-        "id": "490dd3f7-0ed7-4b32-aae0-1f04dc2704f2",
-        "document": "$250,000",
-        "metadata": {
-            "intent": "transaction_amount",
-            "unique_name": "dashboard_$250,000_label_transaction_amount_14fd1f5f",
-            "placeholder": "$250,000",
-            "element_id": "490dd3f7-0ed7-4b32-aae0-1f04dc2704f2",
-            "get_by_text": "$250,000",
-            "type": "ocr",
-            "dom_matched": false,
-            "ocr_type": "label",
-            "external": false,
-            "label_text": "$250,000",
-            "page_name": "dashboard"
-        }
-    },
-    {
-        "id": "87d9f1ce-24f5-4650-9848-dcd5a3c67d00",
-        "document": "2 hours ago",
-        "metadata": {
-            "label_text": "2 hours ago",
-            "placeholder": "2 hours ago",
-            "intent": "transaction_time",
-            "element_id": "87d9f1ce-24f5-4650-9848-dcd5a3c67d00",
-            "ocr_type": "label",
-            "get_by_text": "2 hours ago",
-            "dom_matched": false,
-            "unique_name": "dashboard_2_hours_ago_label_transaction_time_a74efe28",
-            "page_name": "dashboard",
-            "external": false,
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "057e3ea8-b4eb-4806-bec1-7ca2e4bcd235",
-        "document": "John Doe",
-        "metadata": {
-            "element_id": "057e3ea8-b4eb-4806-bec1-7ca2e4bcd235",
-            "intent": "user_profile",
-            "dom_matched": false,
-            "get_by_text": "John Doe",
-            "label_text": "John Doe",
-            "ocr_type": "label",
-            "type": "ocr",
-            "page_name": "dashboard",
-            "external": false,
-            "placeholder": "John Doe",
-            "unique_name": "dashboard_john_doe_label_user_profile_fda748b0"
-        }
-    },
-    {
-        "id": "d5e11be9-371b-457c-8de3-9eda7d1536b2",
-        "document": "Export Report",
-        "metadata": {
-            "element_id": "d5e11be9-371b-457c-8de3-9eda7d1536b2",
-            "ocr_type": "button",
-            "page_name": "dashboard",
-            "external": false,
-            "dom_matched": false,
-            "label_text": "Export Report",
-            "placeholder": "Export Report",
-            "intent": "export",
-            "get_by_text": "Export Report",
-            "type": "ocr",
-            "unique_name": "dashboard_export_report_button_export_ed26f6d4"
-        }
-    },
-    {
-        "id": "b0c5e3fa-9a67-4022-8cf7-84fd4bedbb4e",
-        "document": "Edit with Lovable",
-        "metadata": {
-            "label_text": "Edit with Lovable",
-            "type": "ocr",
-            "element_id": "b0c5e3fa-9a67-4022-8cf7-84fd4bedbb4e",
-            "page_name": "dashboard",
-            "placeholder": "Edit with Lovable",
-            "ocr_type": "button",
-            "intent": "edit",
-            "dom_matched": false,
-            "external": false,
-            "get_by_text": "Edit with Lovable",
-            "unique_name": "dashboard_edit_with_lovable_button_edit_b50c07ed"
-        }
-    }
-]
-
-
-# === FILE: data\stored\20250726_002709_customers.json ===
-[
-    {
-        "id": "309628ed-2d6d-4088-abfd-92c8b609bacc",
-        "document": "Dashboard",
-        "metadata": {
-            "type": "ocr",
-            "intent": "navigation",
-            "element_id": "309628ed-2d6d-4088-abfd-92c8b609bacc",
-            "dom_matched": false,
-            "get_by_text": "Dashboard",
-            "page_name": "customers",
-            "ocr_type": "button",
-            "external": false,
-            "label_text": "Dashboard",
-            "unique_name": "customers_dashboard_button_navigation_fb22376c",
-            "placeholder": "Dashboard"
-        }
-    },
-    {
-        "id": "20bd49bb-8ac5-4563-b82e-db609e3f7fe2",
+        "id": "7695cca0-6637-4653-8803-35dac62b7e05",
         "document": "Customers",
         "metadata": {
-            "element_id": "20bd49bb-8ac5-4563-b82e-db609e3f7fe2",
-            "intent": "navigation",
-            "label_text": "Customers",
-            "external": false,
-            "unique_name": "customers_customers_button_navigation_62cd2bf8",
-            "ocr_type": "button",
-            "placeholder": "Customers",
-            "type": "ocr",
+            "page_name": "customers",
             "get_by_text": "Customers",
+            "intent": "navigation",
             "dom_matched": false,
-            "page_name": "customers"
+            "unique_name": "customers_customers_button_navigation_62cd2bf8",
+            "label_text": "Customers",
+            "type": "ocr",
+            "placeholder": "Customers",
+            "element_id": "7695cca0-6637-4653-8803-35dac62b7e05",
+            "external": false,
+            "ocr_type": "button"
         }
     },
     {
-        "id": "bca31ef3-24e3-45f8-8eeb-13979cbd99cc",
+        "id": "257efc0d-1658-41d9-9616-cdb735df4d96",
         "document": "Loans",
         "metadata": {
-            "type": "ocr",
-            "label_text": "Loans",
-            "ocr_type": "button",
-            "page_name": "customers",
-            "unique_name": "customers_loans_button_navigation_f083cd47",
-            "intent": "navigation",
             "external": false,
+            "get_by_text": "Loans",
+            "dom_matched": false,
+            "element_id": "257efc0d-1658-41d9-9616-cdb735df4d96",
             "placeholder": "Loans",
-            "element_id": "bca31ef3-24e3-45f8-8eeb-13979cbd99cc",
-            "dom_matched": false,
-            "get_by_text": "Loans"
-        }
-    },
-    {
-        "id": "e6f49eaf-7610-42c3-bf44-b1ab47887d66",
-        "document": "Transactions",
-        "metadata": {
-            "dom_matched": false,
-            "external": false,
-            "page_name": "customers",
-            "label_text": "Transactions",
-            "type": "ocr",
             "intent": "navigation",
-            "get_by_text": "Transactions",
+            "unique_name": "customers_loans_button_navigation_f083cd47",
+            "label_text": "Loans",
+            "page_name": "customers",
             "ocr_type": "button",
-            "element_id": "e6f49eaf-7610-42c3-bf44-b1ab47887d66",
-            "placeholder": "Transactions",
-            "unique_name": "customers_transactions_button_navigation_bb833203"
-        }
-    },
-    {
-        "id": "f7e0231f-88e2-4995-bc6f-cc2b73227f8e",
-        "document": "Tasks",
-        "metadata": {
-            "ocr_type": "button",
-            "element_id": "f7e0231f-88e2-4995-bc6f-cc2b73227f8e",
-            "get_by_text": "Tasks",
-            "placeholder": "Tasks",
-            "unique_name": "customers_tasks_button_navigation_63e52ff9",
-            "type": "ocr",
-            "intent": "navigation",
-            "external": false,
-            "label_text": "Tasks",
-            "page_name": "customers",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "114bf01f-7e00-440f-a7b6-85af8e1155e8",
-        "document": "Reports",
-        "metadata": {
-            "get_by_text": "Reports",
-            "placeholder": "Reports",
-            "intent": "navigation",
-            "ocr_type": "button",
-            "external": false,
-            "unique_name": "customers_reports_button_navigation_1dc35b9f",
-            "type": "ocr",
-            "label_text": "Reports",
-            "dom_matched": false,
-            "element_id": "114bf01f-7e00-440f-a7b6-85af8e1155e8",
-            "page_name": "customers"
-        }
-    },
-    {
-        "id": "df693e70-a44e-429b-bdc8-d17a27d13ab0",
-        "document": "Analytics",
-        "metadata": {
-            "label_text": "Analytics",
-            "external": false,
-            "placeholder": "Analytics",
-            "element_id": "df693e70-a44e-429b-bdc8-d17a27d13ab0",
-            "dom_matched": false,
-            "get_by_text": "Analytics",
-            "ocr_type": "button",
-            "intent": "navigation",
-            "type": "ocr",
-            "unique_name": "customers_analytics_button_navigation_8227d101",
-            "page_name": "customers"
-        }
-    },
-    {
-        "id": "8ee5ba83-17ce-47ed-a126-0c63a384538d",
-        "document": "Settings",
-        "metadata": {
-            "intent": "navigation",
-            "ocr_type": "button",
-            "element_id": "8ee5ba83-17ce-47ed-a126-0c63a384538d",
-            "page_name": "customers",
-            "get_by_text": "Settings",
-            "external": false,
-            "label_text": "Settings",
-            "unique_name": "customers_settings_button_navigation_9de99b8a",
-            "placeholder": "Settings",
-            "type": "ocr",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "774f2806-d59c-46f7-93f7-f697ce03d598",
-        "document": "Search customers, loans, transactions...",
-        "metadata": {
-            "placeholder": "Search customers, loans, transactions...",
-            "type": "ocr",
-            "intent": "search",
-            "ocr_type": "textbox",
-            "get_by_text": "Search customers, loans, transactions...",
-            "label_text": "Search customers, loans, transactions...",
-            "page_name": "customers",
-            "unique_name": "customers_search_customers,_loans,_transactions..._textbox_search_be73039f",
-            "dom_matched": false,
-            "element_id": "774f2806-d59c-46f7-93f7-f697ce03d598",
-            "external": false
-        }
-    },
-    {
-        "id": "93dd1685-02c9-493f-a652-6c8053655e8d",
-        "document": "Customers",
-        "metadata": {
-            "dom_matched": false,
-            "external": false,
-            "element_id": "93dd1685-02c9-493f-a652-6c8053655e8d",
-            "ocr_type": "label",
-            "get_by_text": "Customers",
-            "page_name": "customers",
-            "intent": "section_title",
-            "label_text": "Customers",
-            "unique_name": "customers_customers_label_section_title_2ec8510a",
-            "type": "ocr",
-            "placeholder": "Customers"
-        }
-    },
-    {
-        "id": "05c2accc-95d8-4e25-9f62-b0f486682d12",
-        "document": "Manage your customer relationships and accounts",
-        "metadata": {
-            "placeholder": "Manage your customer relationships and accounts",
-            "page_name": "customers",
-            "get_by_text": "Manage your customer relationships and accounts",
-            "external": false,
-            "element_id": "05c2accc-95d8-4e25-9f62-b0f486682d12",
-            "intent": "section_info",
-            "dom_matched": false,
-            "ocr_type": "label",
-            "type": "ocr",
-            "label_text": "Manage your customer relationships and accounts",
-            "unique_name": "customers_manage_your_customer_relationships_and_accounts_label_section_info_f20c0595"
-        }
-    },
-    {
-        "id": "a79d5ebd-261c-44a8-b390-8e5f3c0a862a",
-        "document": "Search customers...",
-        "metadata": {
-            "external": false,
-            "label_text": "Search customers...",
-            "type": "ocr",
-            "ocr_type": "textbox",
-            "intent": "search",
-            "dom_matched": false,
-            "page_name": "customers",
-            "element_id": "a79d5ebd-261c-44a8-b390-8e5f3c0a862a",
-            "get_by_text": "Search customers...",
-            "unique_name": "customers_search_customers..._textbox_search_85d3ce1f",
-            "placeholder": "Search customers..."
-        }
-    },
-    {
-        "id": "0d8aa085-3893-48eb-9211-67ddecf4a7a1",
-        "document": "Filters",
-        "metadata": {
-            "page_name": "customers",
-            "placeholder": "Filters",
-            "ocr_type": "button",
-            "element_id": "0d8aa085-3893-48eb-9211-67ddecf4a7a1",
-            "dom_matched": false,
-            "type": "ocr",
-            "external": false,
-            "label_text": "Filters",
-            "intent": "filter",
-            "unique_name": "customers_filters_button_filter_4c0a3d63",
-            "get_by_text": "Filters"
-        }
-    },
-    {
-        "id": "c1a64d93-604c-4582-a843-0115d5222c6e",
-        "document": "Customer List",
-        "metadata": {
-            "placeholder": "Customer List",
-            "intent": "section_title",
-            "page_name": "customers",
-            "unique_name": "customers_customer_list_label_section_title_ad47eb6a",
-            "dom_matched": false,
-            "type": "ocr",
-            "element_id": "c1a64d93-604c-4582-a843-0115d5222c6e",
-            "external": false,
-            "label_text": "Customer List",
-            "ocr_type": "label",
-            "get_by_text": "Customer List"
-        }
-    },
-    {
-        "id": "50c16c4c-fae2-4939-8b07-ca212c398be6",
-        "document": "3 customers found",
-        "metadata": {
-            "get_by_text": "3 customers found",
-            "unique_name": "customers_3_customers_found_label_section_info_f58e240e",
-            "placeholder": "3 customers found",
-            "type": "ocr",
-            "page_name": "customers",
-            "intent": "section_info",
-            "element_id": "50c16c4c-fae2-4939-8b07-ca212c398be6",
-            "dom_matched": false,
-            "label_text": "3 customers found",
-            "ocr_type": "label",
-            "external": false
-        }
-    },
-    {
-        "id": "5c1d49d3-c840-4d58-9580-7bb18efe9077",
-        "document": "Customer",
-        "metadata": {
-            "ocr_type": "label",
-            "external": false,
-            "placeholder": "Customer",
-            "get_by_text": "Customer",
-            "element_id": "5c1d49d3-c840-4d58-9580-7bb18efe9077",
-            "dom_matched": false,
-            "unique_name": "customers_customer_label_column_title_01dacf22",
-            "label_text": "Customer",
-            "page_name": "customers",
-            "intent": "column_title",
             "type": "ocr"
         }
     },
     {
-        "id": "b4bd62f9-b0bd-4d34-82e1-47ca8dd0ef0f",
+        "id": "387617de-1fb7-4fcc-b5b0-6a2c7c75af8f",
+        "document": "Transactions",
+        "metadata": {
+            "page_name": "customers",
+            "unique_name": "customers_transactions_button_navigation_bb833203",
+            "get_by_text": "Transactions",
+            "label_text": "Transactions",
+            "ocr_type": "button",
+            "intent": "navigation",
+            "element_id": "387617de-1fb7-4fcc-b5b0-6a2c7c75af8f",
+            "external": false,
+            "dom_matched": false,
+            "type": "ocr",
+            "placeholder": "Transactions"
+        }
+    },
+    {
+        "id": "0c1b8c7b-c218-44e9-929a-659bf6d860bf",
+        "document": "Tasks",
+        "metadata": {
+            "get_by_text": "Tasks",
+            "page_name": "customers",
+            "dom_matched": false,
+            "intent": "navigation",
+            "placeholder": "Tasks",
+            "ocr_type": "button",
+            "element_id": "0c1b8c7b-c218-44e9-929a-659bf6d860bf",
+            "label_text": "Tasks",
+            "type": "ocr",
+            "unique_name": "customers_tasks_button_navigation_63e52ff9",
+            "external": false
+        }
+    },
+    {
+        "id": "5d451e44-64af-4b69-afa5-1c33eb979bb7",
+        "document": "Reports",
+        "metadata": {
+            "label_text": "Reports",
+            "dom_matched": false,
+            "get_by_text": "Reports",
+            "ocr_type": "button",
+            "page_name": "customers",
+            "element_id": "5d451e44-64af-4b69-afa5-1c33eb979bb7",
+            "type": "ocr",
+            "unique_name": "customers_reports_button_navigation_1dc35b9f",
+            "external": false,
+            "placeholder": "Reports",
+            "intent": "navigation"
+        }
+    },
+    {
+        "id": "c5c02338-6b39-454e-b0c1-36f8a6075803",
+        "document": "Analytics",
+        "metadata": {
+            "label_text": "Analytics",
+            "placeholder": "Analytics",
+            "type": "ocr",
+            "element_id": "c5c02338-6b39-454e-b0c1-36f8a6075803",
+            "page_name": "customers",
+            "dom_matched": false,
+            "intent": "navigation",
+            "ocr_type": "button",
+            "get_by_text": "Analytics",
+            "unique_name": "customers_analytics_button_navigation_8227d101",
+            "external": false
+        }
+    },
+    {
+        "id": "715a03a7-141c-42a9-bf3c-c658a1375db2",
+        "document": "Settings",
+        "metadata": {
+            "dom_matched": false,
+            "label_text": "Settings",
+            "intent": "navigation",
+            "type": "ocr",
+            "element_id": "715a03a7-141c-42a9-bf3c-c658a1375db2",
+            "unique_name": "customers_settings_button_navigation_9de99b8a",
+            "get_by_text": "Settings",
+            "page_name": "customers",
+            "placeholder": "Settings",
+            "ocr_type": "button",
+            "external": false
+        }
+    },
+    {
+        "id": "7105e58b-74dd-40f0-9a30-58ee5246da4e",
+        "document": "Search customers, loans, transactions...",
+        "metadata": {
+            "element_id": "7105e58b-74dd-40f0-9a30-58ee5246da4e",
+            "type": "ocr",
+            "page_name": "customers",
+            "external": false,
+            "dom_matched": false,
+            "placeholder": "Search customers, loans, transactions...",
+            "get_by_text": "Search customers, loans, transactions...",
+            "unique_name": "customers_search_customers,_loans,_transactions..._textbox_search_be73039f",
+            "label_text": "Search customers, loans, transactions...",
+            "ocr_type": "textbox",
+            "intent": "search"
+        }
+    },
+    {
+        "id": "40c845b5-8970-4593-bf8d-2673a8dbabfc",
+        "document": "Customers",
+        "metadata": {
+            "placeholder": "Customers",
+            "external": false,
+            "get_by_text": "Customers",
+            "label_text": "Customers",
+            "dom_matched": false,
+            "type": "ocr",
+            "page_name": "customers",
+            "unique_name": "customers_customers_label_header_ab76000b",
+            "ocr_type": "label",
+            "element_id": "40c845b5-8970-4593-bf8d-2673a8dbabfc",
+            "intent": "header"
+        }
+    },
+    {
+        "id": "12637cc5-45e3-42f0-8814-324597a00630",
+        "document": "Manage your customer relationships and accounts",
+        "metadata": {
+            "type": "ocr",
+            "unique_name": "customers_manage_your_customer_relationships_and_accounts_label_subheader_e7e5084f",
+            "element_id": "12637cc5-45e3-42f0-8814-324597a00630",
+            "label_text": "Manage your customer relationships and accounts",
+            "page_name": "customers",
+            "ocr_type": "label",
+            "placeholder": "Manage your customer relationships and accounts",
+            "external": false,
+            "dom_matched": false,
+            "get_by_text": "Manage your customer relationships and accounts",
+            "intent": "subheader"
+        }
+    },
+    {
+        "id": "9675a87f-02e2-40ac-8474-c57ecc71c158",
+        "document": "Search customers...",
+        "metadata": {
+            "ocr_type": "textbox",
+            "intent": "search",
+            "placeholder": "Search customers...",
+            "unique_name": "customers_search_customers..._textbox_search_85d3ce1f",
+            "page_name": "customers",
+            "element_id": "9675a87f-02e2-40ac-8474-c57ecc71c158",
+            "label_text": "Search customers...",
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Search customers...",
+            "external": false
+        }
+    },
+    {
+        "id": "1d9037d4-c8c8-400e-b98a-c998c576c443",
+        "document": "Filters",
+        "metadata": {
+            "ocr_type": "button",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Filters",
+            "external": false,
+            "intent": "filter",
+            "get_by_text": "Filters",
+            "unique_name": "customers_filters_button_filter_4c0a3d63",
+            "page_name": "customers",
+            "placeholder": "Filters",
+            "element_id": "1d9037d4-c8c8-400e-b98a-c998c576c443"
+        }
+    },
+    {
+        "id": "eff3c1dd-6717-4f43-b625-b1f64dc2003a",
+        "document": "Customer List",
+        "metadata": {
+            "external": false,
+            "element_id": "eff3c1dd-6717-4f43-b625-b1f64dc2003a",
+            "type": "ocr",
+            "ocr_type": "label",
+            "page_name": "customers",
+            "label_text": "Customer List",
+            "intent": "section_header",
+            "unique_name": "customers_customer_list_label_section_header_93cd1f20",
+            "placeholder": "Customer List",
+            "get_by_text": "Customer List",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "33619458-ffbe-47ed-8685-527bbe9514cf",
+        "document": "3 customers found",
+        "metadata": {
+            "page_name": "customers",
+            "ocr_type": "label",
+            "type": "ocr",
+            "element_id": "33619458-ffbe-47ed-8685-527bbe9514cf",
+            "placeholder": "3 customers found",
+            "unique_name": "customers_3_customers_found_label_info_61b9a471",
+            "dom_matched": false,
+            "intent": "info",
+            "label_text": "3 customers found",
+            "get_by_text": "3 customers found",
+            "external": false
+        }
+    },
+    {
+        "id": "402309d6-48b7-4854-b40e-d45cb9feee7a",
+        "document": "Customer",
+        "metadata": {
+            "get_by_text": "Customer",
+            "external": false,
+            "element_id": "402309d6-48b7-4854-b40e-d45cb9feee7a",
+            "label_text": "Customer",
+            "page_name": "customers",
+            "placeholder": "Customer",
+            "unique_name": "customers_customer_label_column_header_cd74c3eb",
+            "type": "ocr",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "intent": "column_header"
+        }
+    },
+    {
+        "id": "e32b6975-ef80-4288-9ea6-85684f58a442",
         "document": "Account Type",
         "metadata": {
-            "external": false,
+            "element_id": "e32b6975-ef80-4288-9ea6-85684f58a442",
+            "placeholder": "Account Type",
+            "type": "ocr",
             "label_text": "Account Type",
             "ocr_type": "label",
-            "type": "ocr",
-            "placeholder": "Account Type",
-            "intent": "column_title",
-            "unique_name": "customers_account_type_label_column_title_1b2a9c41",
-            "element_id": "b4bd62f9-b0bd-4d34-82e1-47ca8dd0ef0f",
+            "unique_name": "customers_account_type_label_column_header_a712d19c",
+            "external": false,
             "get_by_text": "Account Type",
-            "page_name": "customers",
-            "dom_matched": false
+            "intent": "column_header",
+            "dom_matched": false,
+            "page_name": "customers"
         }
     },
     {
-        "id": "bb4c7a8b-9d59-438e-92bb-f3623abf712d",
+        "id": "416dec62-6344-4748-9b84-6f9bbf3cd6e6",
         "document": "Balance",
         "metadata": {
-            "element_id": "bb4c7a8b-9d59-438e-92bb-f3623abf712d",
-            "intent": "column_title",
-            "external": false,
-            "unique_name": "customers_balance_label_column_title_a5832ecf",
-            "placeholder": "Balance",
+            "page_name": "customers",
+            "intent": "column_header",
+            "ocr_type": "label",
+            "unique_name": "customers_balance_label_column_header_d6648fd2",
             "type": "ocr",
             "get_by_text": "Balance",
+            "external": false,
+            "element_id": "416dec62-6344-4748-9b84-6f9bbf3cd6e6",
             "label_text": "Balance",
-            "dom_matched": false,
-            "page_name": "customers",
-            "ocr_type": "label"
+            "placeholder": "Balance",
+            "dom_matched": false
         }
     },
     {
-        "id": "83f5daf6-e128-4686-8f4c-1d78377549ed",
+        "id": "0a918660-dc9e-401b-b76c-fd45bb9a7182",
         "document": "Status",
         "metadata": {
-            "intent": "column_title",
-            "placeholder": "Status",
-            "page_name": "customers",
-            "ocr_type": "label",
-            "dom_matched": false,
-            "label_text": "Status",
-            "type": "ocr",
-            "get_by_text": "Status",
-            "element_id": "83f5daf6-e128-4686-8f4c-1d78377549ed",
             "external": false,
-            "unique_name": "customers_status_label_column_title_b24a10b1"
+            "page_name": "customers",
+            "get_by_text": "Status",
+            "element_id": "0a918660-dc9e-401b-b76c-fd45bb9a7182",
+            "placeholder": "Status",
+            "unique_name": "customers_status_label_column_header_57a06b20",
+            "ocr_type": "label",
+            "intent": "column_header",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Status"
         }
     },
     {
-        "id": "bc540fc2-35a6-4fc2-9f1e-f1f2d93fab92",
+        "id": "3d481146-cb25-4159-a796-27d57ea12ad8",
         "document": "Join Date",
         "metadata": {
-            "placeholder": "Join Date",
-            "label_text": "Join Date",
-            "ocr_type": "label",
-            "page_name": "customers",
-            "unique_name": "customers_join_date_label_column_title_c808519b",
-            "external": false,
             "type": "ocr",
-            "intent": "column_title",
+            "unique_name": "customers_join_date_label_column_header_cb167d9a",
+            "page_name": "customers",
             "get_by_text": "Join Date",
-            "element_id": "bc540fc2-35a6-4fc2-9f1e-f1f2d93fab92",
-            "dom_matched": false
+            "label_text": "Join Date",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "placeholder": "Join Date",
+            "element_id": "3d481146-cb25-4159-a796-27d57ea12ad8",
+            "external": false,
+            "intent": "column_header"
         }
     },
     {
-        "id": "3c5c6f89-f2bb-492e-8fc1-7d36b18ead16",
+        "id": "045bf295-91b2-49b6-b36d-ec85dff9ff93",
         "document": "Actions",
         "metadata": {
-            "dom_matched": false,
-            "type": "ocr",
-            "element_id": "3c5c6f89-f2bb-492e-8fc1-7d36b18ead16",
-            "page_name": "customers",
             "get_by_text": "Actions",
-            "label_text": "Actions",
-            "placeholder": "Actions",
+            "element_id": "045bf295-91b2-49b6-b36d-ec85dff9ff93",
+            "external": false,
             "ocr_type": "label",
-            "unique_name": "customers_actions_label_column_title_32bd0b21",
-            "intent": "column_title",
-            "external": false
+            "intent": "column_header",
+            "dom_matched": false,
+            "unique_name": "customers_actions_label_column_header_177ddb69",
+            "type": "ocr",
+            "page_name": "customers",
+            "placeholder": "Actions",
+            "label_text": "Actions"
         }
     },
     {
-        "id": "653a8cfa-ac9d-460b-a3ba-82db13f134a2",
+        "id": "de35605e-d0b9-4489-b47a-942b5b464ca0",
         "document": "Sarah Johnson",
         "metadata": {
-            "placeholder": "Sarah Johnson",
-            "type": "ocr",
+            "unique_name": "customers_sarah_johnson_label_customer_name_91134cc9",
+            "dom_matched": false,
             "label_text": "Sarah Johnson",
             "get_by_text": "Sarah Johnson",
+            "type": "ocr",
+            "placeholder": "Sarah Johnson",
             "page_name": "customers",
+            "external": false,
             "ocr_type": "label",
             "intent": "customer_name",
+            "element_id": "de35605e-d0b9-4489-b47a-942b5b464ca0"
+        }
+    },
+    {
+        "id": "29e97aac-53bf-474a-bc7c-3d96431bd189",
+        "document": "sarah.johnson@email.com",
+        "metadata": {
+            "placeholder": "sarah.johnson@email.com",
+            "get_by_text": "sarah.johnson@email.com",
+            "element_id": "29e97aac-53bf-474a-bc7c-3d96431bd189",
+            "page_name": "customers",
+            "type": "ocr",
+            "intent": "customer_email",
             "external": false,
-            "element_id": "653a8cfa-ac9d-460b-a3ba-82db13f134a2",
-            "unique_name": "customers_sarah_johnson_label_customer_name_91134cc9",
+            "ocr_type": "label",
+            "unique_name": "customers_sarah.johnson@email.com_label_customer_email_ea79968a",
+            "label_text": "sarah.johnson@email.com",
             "dom_matched": false
         }
     },
     {
-        "id": "3d94e739-4944-49be-a16e-8112dea1a98e",
-        "document": "sarah.johnson@email.com",
+        "id": "b13f458a-8d84-4ea6-8763-2031599b7a88",
+        "document": "Premium",
         "metadata": {
-            "page_name": "customers",
-            "intent": "customer_email",
-            "dom_matched": false,
+            "intent": "account_type",
+            "placeholder": "Premium",
             "ocr_type": "label",
-            "placeholder": "sarah.johnson@email.com",
-            "element_id": "3d94e739-4944-49be-a16e-8112dea1a98e",
-            "unique_name": "customers_sarah.johnson@email.com_label_customer_email_ea79968a",
-            "get_by_text": "sarah.johnson@email.com",
+            "unique_name": "customers_premium_label_account_type_c1ae4279",
+            "dom_matched": false,
+            "page_name": "customers",
+            "label_text": "Premium",
+            "element_id": "b13f458a-8d84-4ea6-8763-2031599b7a88",
+            "get_by_text": "Premium",
             "type": "ocr",
-            "label_text": "sarah.johnson@email.com",
             "external": false
         }
     },
     {
-        "id": "89d170b1-1b95-4cff-99ea-777b396d7537",
-        "document": "Premium",
-        "metadata": {
-            "label_text": "Premium",
-            "get_by_text": "Premium",
-            "external": false,
-            "dom_matched": false,
-            "element_id": "89d170b1-1b95-4cff-99ea-777b396d7537",
-            "type": "ocr",
-            "placeholder": "Premium",
-            "ocr_type": "label",
-            "intent": "account_type",
-            "page_name": "customers",
-            "unique_name": "customers_premium_label_account_type_c1ae4279"
-        }
-    },
-    {
-        "id": "faa4af47-120b-4ccb-96de-b923777033d1",
+        "id": "bbbf68ac-5e0a-4a30-8f63-168e90940fa3",
         "document": "$1,45,000",
         "metadata": {
-            "external": false,
-            "get_by_text": "$1,45,000",
-            "intent": "balance",
-            "label_text": "$1,45,000",
             "placeholder": "$1,45,000",
-            "page_name": "customers",
+            "unique_name": "customers_$1,45,000_label_balance_dc74e6a8",
+            "intent": "balance",
+            "get_by_text": "$1,45,000",
+            "element_id": "bbbf68ac-5e0a-4a30-8f63-168e90940fa3",
+            "label_text": "$1,45,000",
+            "type": "ocr",
             "dom_matched": false,
             "ocr_type": "label",
-            "type": "ocr",
-            "unique_name": "customers_$1,45,000_label_balance_dc74e6a8",
-            "element_id": "faa4af47-120b-4ccb-96de-b923777033d1"
+            "external": false,
+            "page_name": "customers"
         }
     },
     {
-        "id": "4076a96d-bbbb-48c8-8f48-ab917a633f63",
+        "id": "aa089598-7d33-4557-8748-804c1065deb3",
         "document": "Active",
         "metadata": {
             "ocr_type": "label",
-            "external": false,
-            "get_by_text": "Active",
-            "placeholder": "Active",
             "page_name": "customers",
+            "placeholder": "Active",
+            "external": false,
             "unique_name": "customers_active_label_status_5fc1bbb1",
-            "type": "ocr",
-            "label_text": "Active",
-            "element_id": "4076a96d-bbbb-48c8-8f48-ab917a633f63",
             "intent": "status",
-            "dom_matched": false
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Active",
+            "label_text": "Active",
+            "element_id": "aa089598-7d33-4557-8748-804c1065deb3"
         }
     },
     {
-        "id": "3cac8707-0f0b-4ca6-91d3-7d2bd81d292e",
+        "id": "98ea9a03-dfc9-45b2-a1d8-7197a3f73067",
         "document": "2023-01-15",
         "metadata": {
             "page_name": "customers",
             "type": "ocr",
+            "placeholder": "2023-01-15",
             "get_by_text": "2023-01-15",
-            "label_text": "2023-01-15",
-            "ocr_type": "label",
+            "element_id": "98ea9a03-dfc9-45b2-a1d8-7197a3f73067",
+            "unique_name": "customers_2023-01-15_label_join_date_13b4a3e0",
             "dom_matched": false,
-            "element_id": "3cac8707-0f0b-4ca6-91d3-7d2bd81d292e",
+            "ocr_type": "label",
             "external": false,
             "intent": "join_date",
-            "unique_name": "customers_2023-01-15_label_join_date_13b4a3e0",
-            "placeholder": "2023-01-15"
+            "label_text": "2023-01-15"
         }
     },
     {
-        "id": "75779459-17da-47c4-8bc7-d618201b18af",
+        "id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+        "document": "",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "customers",
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "external": false,
+            "ocr_type": "button",
+            "intent": "view_action",
+            "element_id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+            "get_by_text": "",
+            "placeholder": "",
+            "label_text": ""
+        }
+    },
+    {
+        "id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+        "document": "",
+        "metadata": {
+            "label_text": "",
+            "element_id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+            "intent": "edit_action",
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "button",
+            "get_by_text": "",
+            "dom_matched": false,
+            "unique_name": "customers_button_edit_action_d3d0df61",
+            "page_name": "customers",
+            "placeholder": ""
+        }
+    },
+    {
+        "id": "e65dd83c-241c-41b5-b5a9-ed5165e974da",
         "document": "Michael Chen",
         "metadata": {
             "ocr_type": "label",
-            "external": false,
-            "get_by_text": "Michael Chen",
             "page_name": "customers",
             "type": "ocr",
-            "label_text": "Michael Chen",
-            "intent": "customer_name",
-            "dom_matched": false,
-            "element_id": "75779459-17da-47c4-8bc7-d618201b18af",
             "unique_name": "customers_michael_chen_label_customer_name_8dbd8345",
-            "placeholder": "Michael Chen"
+            "placeholder": "Michael Chen",
+            "intent": "customer_name",
+            "get_by_text": "Michael Chen",
+            "label_text": "Michael Chen",
+            "element_id": "e65dd83c-241c-41b5-b5a9-ed5165e974da",
+            "dom_matched": false,
+            "external": false
         }
     },
     {
-        "id": "bd3c1deb-e603-4a2c-ae2a-2176a0ffe5b3",
+        "id": "8d4ba95e-d5b3-46d2-9f85-0abe1d65945f",
         "document": "michael.chen@email.com",
         "metadata": {
-            "intent": "customer_email",
-            "unique_name": "customers_michael.chen@email.com_label_customer_email_8f50f16b",
-            "element_id": "bd3c1deb-e603-4a2c-ae2a-2176a0ffe5b3",
-            "ocr_type": "label",
-            "placeholder": "michael.chen@email.com",
-            "dom_matched": false,
-            "get_by_text": "michael.chen@email.com",
             "label_text": "michael.chen@email.com",
+            "placeholder": "michael.chen@email.com",
+            "page_name": "customers",
+            "element_id": "8d4ba95e-d5b3-46d2-9f85-0abe1d65945f",
+            "dom_matched": false,
             "external": false,
+            "get_by_text": "michael.chen@email.com",
+            "ocr_type": "label",
+            "unique_name": "customers_michael.chen@email.com_label_customer_email_8f50f16b",
             "type": "ocr",
-            "page_name": "customers"
+            "intent": "customer_email"
         }
     },
     {
-        "id": "77445a00-49c1-490e-a53a-af669c3cdb86",
+        "id": "a643f356-2cf1-44ed-835f-85dd1cb62402",
         "document": "Standard",
         "metadata": {
-            "external": false,
-            "dom_matched": false,
             "get_by_text": "Standard",
-            "label_text": "Standard",
             "intent": "account_type",
-            "element_id": "77445a00-49c1-490e-a53a-af669c3cdb86",
-            "ocr_type": "label",
+            "label_text": "Standard",
             "page_name": "customers",
+            "ocr_type": "label",
             "type": "ocr",
+            "dom_matched": false,
             "unique_name": "customers_standard_label_account_type_ef9be216",
+            "external": false,
+            "element_id": "a643f356-2cf1-44ed-835f-85dd1cb62402",
             "placeholder": "Standard"
         }
     },
     {
-        "id": "70705bfa-e8a6-4364-9992-b98a8eb1469e",
+        "id": "df13ee85-1d3b-494b-9e54-27d4a8375f38",
         "document": "$52,000",
         "metadata": {
-            "type": "ocr",
-            "page_name": "customers",
-            "placeholder": "$52,000",
-            "label_text": "$52,000",
+            "element_id": "df13ee85-1d3b-494b-9e54-27d4a8375f38",
+            "external": false,
             "get_by_text": "$52,000",
-            "intent": "balance",
-            "dom_matched": false,
-            "ocr_type": "label",
             "unique_name": "customers_$52,000_label_balance_b6e2bd67",
-            "element_id": "70705bfa-e8a6-4364-9992-b98a8eb1469e",
-            "external": false
-        }
-    },
-    {
-        "id": "4076a96d-bbbb-48c8-8f48-ab917a633f63",
-        "document": "Active",
-        "metadata": {
-            "placeholder": "Active",
-            "unique_name": "customers_active_label_status_5fc1bbb1",
-            "page_name": "customers",
-            "get_by_text": "Active",
-            "dom_matched": false,
-            "ocr_type": "label",
-            "label_text": "Active",
-            "intent": "status",
-            "external": false,
-            "type": "ocr",
-            "element_id": "4076a96d-bbbb-48c8-8f48-ab917a633f63"
-        }
-    },
-    {
-        "id": "b6970c1c-a72b-45ac-8ee7-08d45b13c685",
-        "document": "2023-03-22",
-        "metadata": {
-            "dom_matched": false,
-            "placeholder": "2023-03-22",
-            "label_text": "2023-03-22",
-            "intent": "join_date",
-            "type": "ocr",
-            "unique_name": "customers_2023-03-22_label_join_date_363240e3",
-            "element_id": "b6970c1c-a72b-45ac-8ee7-08d45b13c685",
-            "external": false,
-            "page_name": "customers",
-            "get_by_text": "2023-03-22",
-            "ocr_type": "label"
-        }
-    },
-    {
-        "id": "46090a45-c88b-4916-a77b-887b94b589fb",
-        "document": "Emma Davis",
-        "metadata": {
-            "label_text": "Emma Davis",
-            "element_id": "46090a45-c88b-4916-a77b-887b94b589fb",
-            "placeholder": "Emma Davis",
-            "page_name": "customers",
-            "intent": "customer_name",
-            "dom_matched": false,
-            "get_by_text": "Emma Davis",
-            "ocr_type": "label",
-            "type": "ocr",
-            "unique_name": "customers_emma_davis_label_customer_name_671b9ccd",
-            "external": false
-        }
-    },
-    {
-        "id": "5cc819f3-3bbd-4481-8d3e-17fffb105bdf",
-        "document": "emma.davis@email.com",
-        "metadata": {
-            "label_text": "emma.davis@email.com",
-            "element_id": "5cc819f3-3bbd-4481-8d3e-17fffb105bdf",
-            "page_name": "customers",
-            "get_by_text": "emma.davis@email.com",
-            "dom_matched": false,
-            "type": "ocr",
-            "unique_name": "customers_emma.davis@email.com_label_customer_email_1680f20b",
-            "placeholder": "emma.davis@email.com",
-            "intent": "customer_email",
-            "external": false,
-            "ocr_type": "label"
-        }
-    },
-    {
-        "id": "89d170b1-1b95-4cff-99ea-777b396d7537",
-        "document": "Premium",
-        "metadata": {
-            "label_text": "Premium",
-            "page_name": "customers",
-            "placeholder": "Premium",
-            "element_id": "89d170b1-1b95-4cff-99ea-777b396d7537",
-            "type": "ocr",
-            "dom_matched": false,
-            "intent": "account_type",
-            "get_by_text": "Premium",
-            "unique_name": "customers_premium_label_account_type_c1ae4279",
-            "ocr_type": "label",
-            "external": false
-        }
-    },
-    {
-        "id": "a01bc09c-e53b-4f5c-b2da-249f20278981",
-        "document": "$89,000",
-        "metadata": {
-            "label_text": "$89,000",
+            "placeholder": "$52,000",
             "intent": "balance",
+            "label_text": "$52,000",
+            "page_name": "customers",
+            "dom_matched": false,
             "ocr_type": "label",
-            "type": "ocr",
-            "get_by_text": "$89,000",
-            "placeholder": "$89,000",
-            "dom_matched": false,
-            "unique_name": "customers_$89,000_label_balance_f3422319",
-            "external": false,
-            "page_name": "customers",
-            "element_id": "a01bc09c-e53b-4f5c-b2da-249f20278981"
-        }
-    },
-    {
-        "id": "4076a96d-bbbb-48c8-8f48-ab917a633f63",
-        "document": "Active",
-        "metadata": {
-            "get_by_text": "Active",
-            "intent": "status",
-            "placeholder": "Active",
-            "label_text": "Active",
-            "element_id": "4076a96d-bbbb-48c8-8f48-ab917a633f63",
-            "page_name": "customers",
-            "unique_name": "customers_active_label_status_5fc1bbb1",
-            "external": false,
-            "type": "ocr",
-            "ocr_type": "label",
-            "dom_matched": false
-        }
-    },
-    {
-        "id": "dac99e90-0ff1-4ac9-affe-21973e5a3077",
-        "document": "2022-11-08",
-        "metadata": {
-            "page_name": "customers",
-            "external": false,
-            "ocr_type": "label",
-            "label_text": "2022-11-08",
-            "unique_name": "customers_2022-11-08_label_join_date_bcd7c000",
-            "element_id": "dac99e90-0ff1-4ac9-affe-21973e5a3077",
-            "dom_matched": false,
-            "type": "ocr",
-            "intent": "join_date",
-            "placeholder": "2022-11-08",
-            "get_by_text": "2022-11-08"
-        }
-    },
-    {
-        "id": "79b8da41-7405-465a-9f42-5b1956ff0493",
-        "document": "Export",
-        "metadata": {
-            "dom_matched": false,
-            "type": "ocr",
-            "unique_name": "customers_export_button_export_ec306f18",
-            "label_text": "Export",
-            "get_by_text": "Export",
-            "intent": "export",
-            "ocr_type": "button",
-            "element_id": "79b8da41-7405-465a-9f42-5b1956ff0493",
-            "external": false,
-            "placeholder": "Export",
-            "page_name": "customers"
-        }
-    },
-    {
-        "id": "b2df1a97-8c07-4a86-97ac-01708b14b26f",
-        "document": "New Customer",
-        "metadata": {
-            "placeholder": "New Customer",
-            "page_name": "customers",
-            "element_id": "b2df1a97-8c07-4a86-97ac-01708b14b26f",
-            "label_text": "New Customer",
-            "get_by_text": "New Customer",
-            "unique_name": "customers_new_customer_button_add_customer_33383326",
-            "dom_matched": false,
-            "external": false,
-            "intent": "add_customer",
-            "ocr_type": "button",
             "type": "ocr"
         }
     },
     {
-        "id": "6faace7c-eb5d-4af7-b2d7-70fbca0bac4d",
-        "document": "John Doe",
+        "id": "aa089598-7d33-4557-8748-804c1065deb3",
+        "document": "Active",
         "metadata": {
+            "page_name": "customers",
+            "unique_name": "customers_active_label_status_5fc1bbb1",
+            "ocr_type": "label",
+            "intent": "status",
+            "placeholder": "Active",
+            "element_id": "aa089598-7d33-4557-8748-804c1065deb3",
+            "external": false,
+            "label_text": "Active",
             "dom_matched": false,
             "type": "ocr",
-            "unique_name": "customers_john_doe_label_user_profile_63c68727",
-            "label_text": "John Doe",
-            "placeholder": "John Doe",
-            "external": false,
-            "ocr_type": "label",
-            "intent": "user_profile",
-            "element_id": "6faace7c-eb5d-4af7-b2d7-70fbca0bac4d",
-            "get_by_text": "John Doe",
-            "page_name": "customers"
+            "get_by_text": "Active"
         }
     },
     {
-        "id": "4c170f65-d26d-4d63-8b92-52422bdbb393",
-        "document": "Edit with Loveable",
+        "id": "5988d487-3cb4-4859-97e4-bc403115037e",
+        "document": "2023-03-22",
         "metadata": {
-            "label_text": "Edit with Loveable",
-            "element_id": "4c170f65-d26d-4d63-8b92-52422bdbb393",
-            "ocr_type": "button",
-            "intent": "edit_tool",
-            "unique_name": "customers_edit_with_loveable_button_edit_tool_782582ad",
-            "dom_matched": false,
+            "label_text": "2023-03-22",
+            "get_by_text": "2023-03-22",
             "external": false,
-            "placeholder": "Edit with Loveable",
-            "type": "ocr",
+            "placeholder": "2023-03-22",
+            "dom_matched": false,
+            "intent": "join_date",
             "page_name": "customers",
-            "get_by_text": "Edit with Loveable"
+            "ocr_type": "label",
+            "element_id": "5988d487-3cb4-4859-97e4-bc403115037e",
+            "type": "ocr",
+            "unique_name": "customers_2023-03-22_label_join_date_363240e3"
+        }
+    },
+    {
+        "id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+        "document": "",
+        "metadata": {
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "dom_matched": false,
+            "get_by_text": "",
+            "page_name": "customers",
+            "ocr_type": "button",
+            "intent": "view_action",
+            "type": "ocr",
+            "placeholder": "",
+            "external": false,
+            "element_id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+            "label_text": ""
+        }
+    },
+    {
+        "id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+        "document": "",
+        "metadata": {
+            "dom_matched": false,
+            "element_id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+            "page_name": "customers",
+            "unique_name": "customers_button_edit_action_d3d0df61",
+            "label_text": "",
+            "ocr_type": "button",
+            "get_by_text": "",
+            "external": false,
+            "intent": "edit_action",
+            "placeholder": "",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "e72a7f93-47e0-49ae-b7ea-b598c4626734",
+        "document": "Emma Davis",
+        "metadata": {
+            "ocr_type": "label",
+            "element_id": "e72a7f93-47e0-49ae-b7ea-b598c4626734",
+            "unique_name": "customers_emma_davis_label_customer_name_671b9ccd",
+            "dom_matched": false,
+            "type": "ocr",
+            "external": false,
+            "get_by_text": "Emma Davis",
+            "label_text": "Emma Davis",
+            "page_name": "customers",
+            "intent": "customer_name",
+            "placeholder": "Emma Davis"
+        }
+    },
+    {
+        "id": "80627a11-a898-4ba8-8b1e-f6ed9788a791",
+        "document": "emma.davis@email.com",
+        "metadata": {
+            "page_name": "customers",
+            "type": "ocr",
+            "element_id": "80627a11-a898-4ba8-8b1e-f6ed9788a791",
+            "get_by_text": "emma.davis@email.com",
+            "unique_name": "customers_emma.davis@email.com_label_customer_email_1680f20b",
+            "intent": "customer_email",
+            "external": false,
+            "dom_matched": false,
+            "label_text": "emma.davis@email.com",
+            "ocr_type": "label",
+            "placeholder": "emma.davis@email.com"
+        }
+    },
+    {
+        "id": "b13f458a-8d84-4ea6-8763-2031599b7a88",
+        "document": "Premium",
+        "metadata": {
+            "ocr_type": "label",
+            "placeholder": "Premium",
+            "element_id": "b13f458a-8d84-4ea6-8763-2031599b7a88",
+            "label_text": "Premium",
+            "type": "ocr",
+            "get_by_text": "Premium",
+            "page_name": "customers",
+            "external": false,
+            "unique_name": "customers_premium_label_account_type_c1ae4279",
+            "intent": "account_type",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "62c9875c-f7fb-452f-b16f-92beb73b460c",
+        "document": "$89,000",
+        "metadata": {
+            "page_name": "customers",
+            "type": "ocr",
+            "external": false,
+            "element_id": "62c9875c-f7fb-452f-b16f-92beb73b460c",
+            "intent": "balance",
+            "label_text": "$89,000",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "get_by_text": "$89,000",
+            "placeholder": "$89,000",
+            "unique_name": "customers_$89,000_label_balance_f3422319"
+        }
+    },
+    {
+        "id": "aa089598-7d33-4557-8748-804c1065deb3",
+        "document": "Active",
+        "metadata": {
+            "dom_matched": false,
+            "page_name": "customers",
+            "ocr_type": "label",
+            "unique_name": "customers_active_label_status_5fc1bbb1",
+            "element_id": "aa089598-7d33-4557-8748-804c1065deb3",
+            "external": false,
+            "get_by_text": "Active",
+            "label_text": "Active",
+            "intent": "status",
+            "type": "ocr",
+            "placeholder": "Active"
+        }
+    },
+    {
+        "id": "bbce3c3b-1ea4-4fd5-b9e6-6b70bdbb2f88",
+        "document": "2022-11-08",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "customers",
+            "element_id": "bbce3c3b-1ea4-4fd5-b9e6-6b70bdbb2f88",
+            "ocr_type": "label",
+            "unique_name": "customers_2022-11-08_label_join_date_bcd7c000",
+            "placeholder": "2022-11-08",
+            "label_text": "2022-11-08",
+            "get_by_text": "2022-11-08",
+            "external": false,
+            "intent": "join_date"
+        }
+    },
+    {
+        "id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+        "document": "",
+        "metadata": {
+            "intent": "view_action",
+            "placeholder": "",
+            "type": "ocr",
+            "ocr_type": "button",
+            "page_name": "customers",
+            "label_text": "",
+            "element_id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "get_by_text": "",
+            "external": false,
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+        "document": "",
+        "metadata": {
+            "unique_name": "customers_button_edit_action_d3d0df61",
+            "dom_matched": false,
+            "element_id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+            "placeholder": "",
+            "page_name": "customers",
+            "ocr_type": "button",
+            "external": false,
+            "intent": "edit_action",
+            "label_text": "",
+            "get_by_text": "",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "8b718123-3555-41a3-b5b5-e784c99a698d",
+        "document": "Export",
+        "metadata": {
+            "ocr_type": "button",
+            "external": false,
+            "element_id": "8b718123-3555-41a3-b5b5-e784c99a698d",
+            "intent": "export",
+            "type": "ocr",
+            "placeholder": "Export",
+            "page_name": "customers",
+            "dom_matched": false,
+            "label_text": "Export",
+            "get_by_text": "Export",
+            "unique_name": "customers_export_button_export_ec306f18"
+        }
+    },
+    {
+        "id": "6461e89d-cf66-4832-a8ea-d9761a631529",
+        "document": "New Customer",
+        "metadata": {
+            "ocr_type": "button",
+            "get_by_text": "New Customer",
+            "label_text": "New Customer",
+            "page_name": "customers",
+            "unique_name": "customers_new_customer_button_add_customer_33383326",
+            "type": "ocr",
+            "placeholder": "New Customer",
+            "external": false,
+            "element_id": "6461e89d-cf66-4832-a8ea-d9761a631529",
+            "dom_matched": false,
+            "intent": "add_customer"
+        }
+    },
+    {
+        "id": "632cc2eb-760f-4589-941f-5fe5665afdb2",
+        "document": "Edit with",
+        "metadata": {
+            "type": "ocr",
+            "element_id": "632cc2eb-760f-4589-941f-5fe5665afdb2",
+            "placeholder": "Edit with",
+            "unique_name": "customers_edit_with_label_footer_ca0fec1e",
+            "label_text": "Edit with",
+            "get_by_text": "Edit with",
+            "external": false,
+            "dom_matched": false,
+            "page_name": "customers",
+            "ocr_type": "label",
+            "intent": "footer"
+        }
+    },
+    {
+        "id": "076ae535-1ec4-4d8e-ac1b-aaa6ad79f1d3",
+        "document": "Lovable",
+        "metadata": {
+            "element_id": "076ae535-1ec4-4d8e-ac1b-aaa6ad79f1d3",
+            "unique_name": "customers_lovable_label_footer_brand_301dffac",
+            "external": false,
+            "ocr_type": "label",
+            "placeholder": "Lovable",
+            "type": "ocr",
+            "intent": "footer_brand",
+            "get_by_text": "Lovable",
+            "label_text": "Lovable",
+            "dom_matched": false,
+            "page_name": "customers"
         }
     }
 ]
 
 
-# === FILE: data\stored\20250726_002725_customers_2.json ===
+# === FILE: data\stored\20250726_151348_customers_2.json ===
 [
     {
-        "id": "67835d96-9a88-41a8-8e0a-473f245bb6a8",
+        "id": "95bf0180-6790-4215-91b5-f687892ec5fd",
         "document": "Add New Customer",
         "metadata": {
-            "get_by_text": "Add New Customer",
-            "element_id": "67835d96-9a88-41a8-8e0a-473f245bb6a8",
-            "unique_name": "customers_add_new_customer_label_form_title_2b3b0780",
             "external": false,
             "label_text": "Add New Customer",
-            "placeholder": "Add New Customer",
-            "dom_matched": false,
+            "element_id": "95bf0180-6790-4215-91b5-f687892ec5fd",
+            "get_by_text": "Add New Customer",
             "intent": "form_title",
+            "type": "ocr",
+            "dom_matched": false,
+            "placeholder": "Add New Customer",
+            "unique_name": "customers_add_new_customer_label_form_title_2b3b0780",
             "page_name": "customers",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "1ae4070a-51bc-4a91-98fa-a080f1141adb",
+        "document": "Enter the customer details to create a new account.",
+        "metadata": {
+            "intent": "form_instruction",
+            "placeholder": "Enter the customer details to create a new account.",
+            "label_text": "Enter the customer details to create a new account.",
+            "element_id": "1ae4070a-51bc-4a91-98fa-a080f1141adb",
             "ocr_type": "label",
+            "page_name": "customers",
+            "unique_name": "customers_enter_the_customer_details_to_create_a_new_account._label_form_instruction_4e368c65",
+            "external": false,
+            "get_by_text": "Enter the customer details to create a new account.",
+            "dom_matched": false,
             "type": "ocr"
         }
     },
     {
-        "id": "17690711-078c-4a3a-abad-0d50017e8479",
-        "document": "Enter the customer details to create a new account.",
-        "metadata": {
-            "dom_matched": false,
-            "element_id": "17690711-078c-4a3a-abad-0d50017e8479",
-            "placeholder": "Enter the customer details to create a new account.",
-            "type": "ocr",
-            "intent": "form_instructions",
-            "get_by_text": "Enter the customer details to create a new account.",
-            "ocr_type": "label",
-            "unique_name": "customers_enter_the_customer_details_to_create_a_new_account._label_form_instructions_474d0863",
-            "label_text": "Enter the customer details to create a new account.",
-            "external": false,
-            "page_name": "customers"
-        }
-    },
-    {
-        "id": "95573110-d3af-4efd-818c-acb1bc62ec8a",
+        "id": "7563fa40-7908-413b-8842-5a205b83fbb0",
         "document": "Full Name",
         "metadata": {
-            "unique_name": "customers_full_name_label_full_name_label_7fa7eb35",
             "ocr_type": "label",
-            "get_by_text": "Full Name",
             "intent": "full_name_label",
-            "dom_matched": false,
-            "label_text": "Full Name",
-            "element_id": "95573110-d3af-4efd-818c-acb1bc62ec8a",
-            "page_name": "customers",
+            "external": false,
             "placeholder": "Full Name",
+            "get_by_text": "Full Name",
+            "element_id": "7563fa40-7908-413b-8842-5a205b83fbb0",
             "type": "ocr",
-            "external": false
+            "unique_name": "customers_full_name_label_full_name_label_7fa7eb35",
+            "dom_matched": false,
+            "page_name": "customers",
+            "label_text": "Full Name"
         }
     },
     {
-        "id": "1806c4cd-9e8d-4014-93b2-ad395c429225",
+        "id": "4fc76c41-e666-4be8-bdfd-434f0120ad48",
         "document": "",
         "metadata": {
-            "placeholder": "",
-            "type": "ocr",
+            "page_name": "customers",
             "external": false,
-            "dom_matched": false,
-            "element_id": "1806c4cd-9e8d-4014-93b2-ad395c429225",
             "intent": "full_name_input",
-            "get_by_text": "",
-            "label_text": "",
             "ocr_type": "textbox",
-            "unique_name": "customers_textbox_full_name_input_b5555c13",
+            "type": "ocr",
+            "element_id": "4fc76c41-e666-4be8-bdfd-434f0120ad48",
+            "label_text": "",
+            "placeholder": "",
+            "get_by_text": "",
+            "dom_matched": false,
+            "unique_name": "customers_textbox_full_name_input_b5555c13"
+        }
+    },
+    {
+        "id": "c5b03e6c-7ece-4075-ac3f-8fd0f3e641f7",
+        "document": "Email",
+        "metadata": {
+            "placeholder": "Email",
+            "ocr_type": "label",
+            "external": false,
+            "unique_name": "customers_email_label_email_label_1e22d7f0",
+            "get_by_text": "Email",
+            "label_text": "Email",
+            "dom_matched": false,
+            "intent": "email_label",
+            "element_id": "c5b03e6c-7ece-4075-ac3f-8fd0f3e641f7",
+            "page_name": "customers",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "f120a144-ff93-416c-91dc-6af41aa86bb6",
+        "document": "",
+        "metadata": {
+            "get_by_text": "",
+            "type": "ocr",
+            "ocr_type": "textbox",
+            "label_text": "",
+            "intent": "email_input",
+            "element_id": "f120a144-ff93-416c-91dc-6af41aa86bb6",
+            "dom_matched": false,
+            "unique_name": "customers_textbox_email_input_b7f01675",
+            "external": false,
+            "placeholder": "",
             "page_name": "customers"
         }
     },
     {
-        "id": "35cff473-02bb-4298-9ba7-7f1fc0891977",
-        "document": "Email",
+        "id": "d146407e-2129-4572-8e7c-bfecdc8f619a",
+        "document": "Phone Number",
         "metadata": {
-            "intent": "email_label",
-            "get_by_text": "Email",
-            "element_id": "35cff473-02bb-4298-9ba7-7f1fc0891977",
-            "page_name": "customers",
-            "label_text": "Email",
-            "external": false,
-            "dom_matched": false,
-            "ocr_type": "label",
-            "placeholder": "Email",
             "type": "ocr",
-            "unique_name": "customers_email_label_email_label_1e22d7f0"
+            "placeholder": "Phone Number",
+            "element_id": "d146407e-2129-4572-8e7c-bfecdc8f619a",
+            "intent": "phone_number_label",
+            "page_name": "customers",
+            "unique_name": "customers_phone_number_label_phone_number_label_03e465fd",
+            "dom_matched": false,
+            "external": false,
+            "label_text": "Phone Number",
+            "ocr_type": "label",
+            "get_by_text": "Phone Number"
         }
     },
     {
-        "id": "ba88f12a-f1fd-4861-924a-6be1c4f0882a",
+        "id": "b6b33ed1-7a9a-4819-955b-c7a58242cc7e",
         "document": "",
         "metadata": {
-            "unique_name": "customers_textbox_email_input_b7f01675",
+            "element_id": "b6b33ed1-7a9a-4819-955b-c7a58242cc7e",
             "placeholder": "",
+            "ocr_type": "textbox",
+            "intent": "phone_number_input",
+            "dom_matched": false,
+            "unique_name": "customers_textbox_phone_number_input_bb72a72b",
+            "page_name": "customers",
+            "external": false,
+            "label_text": "",
+            "get_by_text": "",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "1b06e63a-6e85-49f0-81b1-5cf05a84cb54",
+        "document": "Account Type",
+        "metadata": {
+            "intent": "account_type_label",
+            "type": "ocr",
+            "ocr_type": "label",
+            "placeholder": "Account Type",
+            "dom_matched": false,
+            "label_text": "Account Type",
+            "external": false,
+            "element_id": "1b06e63a-6e85-49f0-81b1-5cf05a84cb54",
+            "page_name": "customers",
+            "unique_name": "customers_account_type_label_account_type_label_a1b76de7",
+            "get_by_text": "Account Type"
+        }
+    },
+    {
+        "id": "83de4a69-5821-4d05-8918-c11403dece47",
+        "document": "Select account type",
+        "metadata": {
             "external": false,
             "dom_matched": false,
+            "ocr_type": "select",
+            "element_id": "83de4a69-5821-4d05-8918-c11403dece47",
+            "label_text": "Select account type",
             "type": "ocr",
-            "get_by_text": "",
-            "intent": "email_input",
             "page_name": "customers",
-            "element_id": "ba88f12a-f1fd-4861-924a-6be1c4f0882a",
+            "intent": "account_type_select",
+            "placeholder": "Select account type",
+            "unique_name": "customers_select_account_type_select_account_type_select_739bf8ef",
+            "get_by_text": "Select account type"
+        }
+    },
+    {
+        "id": "23679824-8cbe-4cd7-bc8e-9e60a319a45f",
+        "document": "Address",
+        "metadata": {
+            "page_name": "customers",
+            "dom_matched": false,
+            "get_by_text": "Address",
+            "external": false,
+            "unique_name": "customers_address_label_address_label_bfa99020",
+            "ocr_type": "label",
+            "element_id": "23679824-8cbe-4cd7-bc8e-9e60a319a45f",
+            "intent": "address_label",
+            "type": "ocr",
+            "placeholder": "Address",
+            "label_text": "Address"
+        }
+    },
+    {
+        "id": "22921c87-15c6-4cbf-a35a-42ce97a26fcb",
+        "document": "",
+        "metadata": {
+            "page_name": "customers",
+            "get_by_text": "",
+            "external": false,
+            "element_id": "22921c87-15c6-4cbf-a35a-42ce97a26fcb",
+            "type": "ocr",
+            "unique_name": "customers_textbox_address_input_0da1bba0",
+            "intent": "address_input",
             "label_text": "",
+            "placeholder": "",
+            "dom_matched": false,
             "ocr_type": "textbox"
         }
     },
     {
-        "id": "8d679f12-86b7-4605-94f6-bf65e2725bd3",
-        "document": "Phone Number",
-        "metadata": {
-            "unique_name": "customers_phone_number_label_phone_number_label_03e465fd",
-            "dom_matched": false,
-            "get_by_text": "Phone Number",
-            "type": "ocr",
-            "label_text": "Phone Number",
-            "ocr_type": "label",
-            "external": false,
-            "placeholder": "Phone Number",
-            "intent": "phone_number_label",
-            "element_id": "8d679f12-86b7-4605-94f6-bf65e2725bd3",
-            "page_name": "customers"
-        }
-    },
-    {
-        "id": "d5c001b8-c11f-4a94-bd5e-7460a5c95538",
-        "document": "",
-        "metadata": {
-            "placeholder": "",
-            "label_text": "",
-            "dom_matched": false,
-            "element_id": "d5c001b8-c11f-4a94-bd5e-7460a5c95538",
-            "page_name": "customers",
-            "external": false,
-            "intent": "phone_number_input",
-            "type": "ocr",
-            "get_by_text": "",
-            "ocr_type": "textbox",
-            "unique_name": "customers_textbox_phone_number_input_bb72a72b"
-        }
-    },
-    {
-        "id": "9d7f0411-0bc2-4525-89da-cc53ebe635af",
-        "document": "Account Type",
-        "metadata": {
-            "intent": "account_type_label",
-            "ocr_type": "label",
-            "label_text": "Account Type",
-            "dom_matched": false,
-            "get_by_text": "Account Type",
-            "placeholder": "Account Type",
-            "external": false,
-            "page_name": "customers",
-            "type": "ocr",
-            "unique_name": "customers_account_type_label_account_type_label_a1b76de7",
-            "element_id": "9d7f0411-0bc2-4525-89da-cc53ebe635af"
-        }
-    },
-    {
-        "id": "71759ee2-9129-4a57-97c6-b519db2ae691",
-        "document": "Select account type",
-        "metadata": {
-            "dom_matched": false,
-            "ocr_type": "select",
-            "page_name": "customers",
-            "placeholder": "Select account type",
-            "get_by_text": "Select account type",
-            "external": false,
-            "unique_name": "customers_select_account_type_select_account_type_select_739bf8ef",
-            "label_text": "Select account type",
-            "type": "ocr",
-            "intent": "account_type_select",
-            "element_id": "71759ee2-9129-4a57-97c6-b519db2ae691"
-        }
-    },
-    {
-        "id": "380c32ef-d5c1-4f0e-ad2c-656fe6e2b0d7",
-        "document": "Address",
-        "metadata": {
-            "get_by_text": "Address",
-            "type": "ocr",
-            "label_text": "Address",
-            "intent": "address_label",
-            "dom_matched": false,
-            "placeholder": "Address",
-            "external": false,
-            "element_id": "380c32ef-d5c1-4f0e-ad2c-656fe6e2b0d7",
-            "page_name": "customers",
-            "unique_name": "customers_address_label_address_label_bfa99020",
-            "ocr_type": "label"
-        }
-    },
-    {
-        "id": "02ee4dfa-9b2d-4b28-a4cf-ad0c265f9a76",
-        "document": "",
-        "metadata": {
-            "external": false,
-            "ocr_type": "textbox",
-            "label_text": "",
-            "element_id": "02ee4dfa-9b2d-4b28-a4cf-ad0c265f9a76",
-            "page_name": "customers",
-            "intent": "address_input",
-            "placeholder": "",
-            "dom_matched": false,
-            "get_by_text": "",
-            "unique_name": "customers_textbox_address_input_0da1bba0",
-            "type": "ocr"
-        }
-    },
-    {
-        "id": "4cde8a1f-4149-4b30-90be-f69f4dffc46e",
+        "id": "3c0da3bc-1298-40e7-8cf9-b78acd1d2c6d",
         "document": "Occupation",
         "metadata": {
-            "type": "ocr",
-            "external": false,
-            "placeholder": "Occupation",
-            "get_by_text": "Occupation",
-            "element_id": "4cde8a1f-4149-4b30-90be-f69f4dffc46e",
-            "dom_matched": false,
             "unique_name": "customers_occupation_label_occupation_label_78041ebe",
+            "page_name": "customers",
+            "type": "ocr",
+            "get_by_text": "Occupation",
+            "ocr_type": "label",
+            "dom_matched": false,
             "label_text": "Occupation",
             "intent": "occupation_label",
-            "page_name": "customers",
-            "ocr_type": "label"
+            "element_id": "3c0da3bc-1298-40e7-8cf9-b78acd1d2c6d",
+            "external": false,
+            "placeholder": "Occupation"
         }
     },
     {
-        "id": "224b8c87-ed8a-49eb-90dd-bb7846f0783a",
+        "id": "14bde66a-1b44-45b4-9e19-9883caf63b1d",
         "document": "",
         "metadata": {
-            "element_id": "224b8c87-ed8a-49eb-90dd-bb7846f0783a",
-            "external": false,
-            "page_name": "customers",
-            "intent": "occupation_input",
             "get_by_text": "",
-            "placeholder": "",
-            "ocr_type": "textbox",
+            "page_name": "customers",
             "label_text": "",
+            "external": false,
+            "ocr_type": "textbox",
+            "element_id": "14bde66a-1b44-45b4-9e19-9883caf63b1d",
+            "intent": "occupation_input",
             "dom_matched": false,
+            "placeholder": "",
             "unique_name": "customers_textbox_occupation_input_7c88216e",
             "type": "ocr"
         }
     },
     {
-        "id": "f1c8d3a4-cd3c-4883-98dc-b6214ed6db25",
+        "id": "a072d846-062f-47ae-b0df-f77d359425ff",
         "document": "Annual Income",
         "metadata": {
-            "external": false,
-            "page_name": "customers",
-            "dom_matched": false,
-            "placeholder": "Annual Income",
-            "type": "ocr",
-            "ocr_type": "label",
-            "element_id": "f1c8d3a4-cd3c-4883-98dc-b6214ed6db25",
-            "intent": "annual_income_label",
             "get_by_text": "Annual Income",
+            "element_id": "a072d846-062f-47ae-b0df-f77d359425ff",
             "label_text": "Annual Income",
-            "unique_name": "customers_annual_income_label_annual_income_label_41327b0b"
+            "ocr_type": "label",
+            "page_name": "customers",
+            "placeholder": "Annual Income",
+            "intent": "annual_income_label",
+            "external": false,
+            "unique_name": "customers_annual_income_label_annual_income_label_41327b0b",
+            "dom_matched": false,
+            "type": "ocr"
         }
     },
     {
-        "id": "9b7d8b0d-20ac-4d25-89e8-c7640f2a7ec3",
+        "id": "9e6119b3-2d6c-4445-ad07-3a0e72a48f71",
         "document": "",
         "metadata": {
-            "get_by_text": "",
-            "element_id": "9b7d8b0d-20ac-4d25-89e8-c7640f2a7ec3",
             "placeholder": "",
             "label_text": "",
-            "intent": "annual_income_input",
-            "page_name": "customers",
-            "external": false,
+            "ocr_type": "textbox",
             "type": "ocr",
+            "external": false,
+            "page_name": "customers",
             "unique_name": "customers_textbox_annual_income_input_7b960691",
             "dom_matched": false,
-            "ocr_type": "textbox"
+            "intent": "annual_income_input",
+            "get_by_text": "",
+            "element_id": "9e6119b3-2d6c-4445-ad07-3a0e72a48f71"
         }
     },
     {
-        "id": "a2a3a40d-c1a8-48be-98da-cd37427bb16f",
+        "id": "eff18cd5-3b5d-48a6-ac2d-58b76784ba58",
         "document": "Initial Deposit",
         "metadata": {
-            "type": "ocr",
-            "unique_name": "customers_initial_deposit_label_initial_deposit_label_a98dd99a",
-            "intent": "initial_deposit_label",
-            "get_by_text": "Initial Deposit",
             "external": false,
+            "intent": "initial_deposit_label",
+            "element_id": "eff18cd5-3b5d-48a6-ac2d-58b76784ba58",
             "dom_matched": false,
+            "unique_name": "customers_initial_deposit_label_initial_deposit_label_a98dd99a",
             "placeholder": "Initial Deposit",
-            "ocr_type": "label",
-            "element_id": "a2a3a40d-c1a8-48be-98da-cd37427bb16f",
+            "get_by_text": "Initial Deposit",
+            "label_text": "Initial Deposit",
+            "type": "ocr",
             "page_name": "customers",
-            "label_text": "Initial Deposit"
+            "ocr_type": "label"
         }
     },
     {
-        "id": "93a378f6-9597-4b58-b027-de701be68c9c",
+        "id": "94288828-20cd-438f-85b1-8970413e0a2b",
         "document": "",
         "metadata": {
-            "dom_matched": false,
-            "page_name": "customers",
-            "element_id": "93a378f6-9597-4b58-b027-de701be68c9c",
-            "type": "ocr",
             "unique_name": "customers_textbox_initial_deposit_input_842f44e3",
-            "label_text": "",
-            "get_by_text": "",
-            "external": false,
-            "ocr_type": "textbox",
             "intent": "initial_deposit_input",
-            "placeholder": ""
+            "element_id": "94288828-20cd-438f-85b1-8970413e0a2b",
+            "get_by_text": "",
+            "page_name": "customers",
+            "label_text": "",
+            "type": "ocr",
+            "ocr_type": "textbox",
+            "dom_matched": false,
+            "placeholder": "",
+            "external": false
         }
     },
     {
-        "id": "aca41d5b-2231-4a7c-88f2-45c62ee4ab50",
+        "id": "b13ea0e7-0235-41be-842d-5b83fb617804",
         "document": "Cancel",
         "metadata": {
             "intent": "cancel",
-            "element_id": "aca41d5b-2231-4a7c-88f2-45c62ee4ab50",
-            "type": "ocr",
-            "ocr_type": "button",
-            "placeholder": "Cancel",
-            "dom_matched": false,
-            "get_by_text": "Cancel",
+            "unique_name": "customers_cancel_button_cancel_71a3913d",
             "external": false,
-            "label_text": "Cancel",
+            "get_by_text": "Cancel",
+            "dom_matched": false,
+            "type": "ocr",
+            "element_id": "b13ea0e7-0235-41be-842d-5b83fb617804",
             "page_name": "customers",
-            "unique_name": "customers_cancel_button_cancel_71a3913d"
+            "label_text": "Cancel",
+            "ocr_type": "button",
+            "placeholder": "Cancel"
         }
     },
     {
-        "id": "eb8778de-4b42-48ee-84d7-ce17dce1b9e9",
+        "id": "a4c9805f-fad4-42ca-b8e6-d9235a0ebafa",
         "document": "Add Customer",
         "metadata": {
-            "element_id": "eb8778de-4b42-48ee-84d7-ce17dce1b9e9",
-            "placeholder": "Add Customer",
-            "unique_name": "customers_add_customer_button_submit_bce56d38",
+            "get_by_text": "Add Customer",
+            "page_name": "customers",
             "dom_matched": false,
             "external": false,
-            "page_name": "customers",
-            "ocr_type": "button",
-            "label_text": "Add Customer",
-            "get_by_text": "Add Customer",
+            "unique_name": "customers_add_customer_button_submit_bce56d38",
             "type": "ocr",
+            "label_text": "Add Customer",
+            "element_id": "a4c9805f-fad4-42ca-b8e6-d9235a0ebafa",
+            "placeholder": "Add Customer",
+            "ocr_type": "button",
             "intent": "submit"
         }
     }
 ]
-
-
-# === FILE: generated_runs\src\__init__.py ===
-
 
 
 # === FILE: generated_runs\src\data\test_data.json ===
@@ -6355,1764 +6458,1475 @@ def patch_page_with_smartai(page, metadata):
 
 
 
-# === FILE: generated_runs\src\logs\__init__.py ===
-
-
-
-# === FILE: generated_runs\src\logs\dynamic_steps\dynamic_steps_1.md ===
-# Dynamic Steps
-
-
-
-
-# === FILE: generated_runs\src\logs\prompts\prompt_1.md ===
-You are a senior QA automation engineer tasked to write Playwright Python tests for the following user stories:
-"""Given I am on the CRM dashboard on https://preview--bank-buddy-crm-react.lovable.app/
-When I click the "Customers" tab,
-And I click the "Add Customer" button,
-And I enter "John Doe" in the Full Name field,
-And I enter "john.doe@example.com" in the Email field,
-And I enter "1234567890" in the Phone Number field,
-And I select "Standard" for Account Type,
-And I enter "123 Main St, Anytown, USA" in the Address field,
-And I enter "Software Engineer" in the Occupation field,
-And I enter "75000" in the Annual Income field,
-And I enter "1000" in the Initial Deposit field,
-And I click the "Add Customer" button,
-Then the customer should be added successfully."""
-
-⚠️ IMPORTANT CONSTRAINTS:
-- ONLY use functions that are explicitly listed in the 'Page Object Methods' section below.
-- NEVER invent, guess, or generate any method names that are not in the list.
-- If a certain step is not supported by the listed methods, SKIP that step.
-- Do NOT invent method names (e.g., `verify_order_success`) that are not in the list below.
-- Go to the site URL first for each test function. 
-
-Rules:
-- For each user story, generate one **positive**, one **negative**, and one **edge case** test function. These must cover:
-  * Positive: The standard expected flow.
-  * Negative: A flow with invalid or missing data, expecting failure or error.
-  * Edge case: A boundary or unusual condition (e.g. blank, very long, special characters).
-- Name test functions as test_positive_<feature>, test_negative_<feature>, and test_edge_<feature>.
-- Inside each test function each page methods should pass 'page' as first default parameter.
-- The tests must cover the entire end-to-end scenario for the story.
-- Use ONLY the functions imported from the Page Object Model (POM) files (see below). **Do NOT use any classes or class-based page objects.**
-- Never import or use anything from 'page_objects' or use lines like 'LoginPage(page)'.
-- Each test function must use the 'page' object and call the imported functions, e.g. 'fill_username(page, "value")'.
-- Do NOT define or generate any new helper functions/methods—use only those already defined.
-- **Do NOT generate any import statements.** (Imports will be handled automatically outside the code block.)
-- Do NOT use markdown, comments, or explanations—output ONLY valid Python code, starting directly with the test function(s).
-
-Site URL: https://www.saucedemo.com
-
-Page Object Methods:
-# dashboard:
-- def def click_dashboard(page):
-- def def click_customers(page):
-- def def click_loans(page):
-- def def click_transactions(page):
-- def def click_tasks(page):
-- def def click_reports(page):
-- def def click_analytics(page):
-- def def click_settings(page):
-- def def enter_search_customers_loans_transactions(page, value):
-- def def verify_dashboard_visible(page):
-- def def verify_welcome_back_here_s_your_banking_overview_visible(page):
-- def def verify_total_customers_visible(page):
-- def def verify_2_847_visible(page):
-- def def verify_active_loans_visible(page):
-- def def verify_45_2m_visible(page):
-- def def verify_monthly_transactions_visible(page):
-- def def verify_18_394_visible(page):
-- def def verify_revenue_growth_visible(page):
-- def def verify_23_4_visible(page):
-- def def verify_loan_portfolio_trend_visible(page):
-- def def verify_monthly_loan_disbursements_over_the_last_6_months_visible(page):
-- def def verify_customer_distribution_visible(page):
-- def def verify_customer_segments_by_account_type_visible(page):
-- def def verify_premium_35_visible(page):
-- def def verify_standard_45_visible(page):
-- def def verify_basic_20_visible(page):
-- def def verify_recent_activities_visible(page):
-- def def verify_latest_customer_interactions_and_transactions_visible(page):
-- def def verify_sarah_johnson_visible(page):
-- def def verify_loan_application_approved_visible(page):
-- def def verify_michael_chen_visible(page):
-- def def verify_250_000_visible(page):
-- def def verify_2_hours_ago_visible(page):
-- def def verify_john_doe_visible(page):
-- def def click_export_report(page):
-- def def click_edit_with_lovable(page):
-# customers:
-- def def click_dashboard(page):
-- def def click_customers(page):
-- def def click_loans(page):
-- def def click_transactions(page):
-- def def click_tasks(page):
-- def def click_reports(page):
-- def def click_analytics(page):
-- def def click_settings(page):
-- def def enter_search_customers_loans_transactions(page, value):
-- def def verify_customers_visible(page):
-- def def verify_manage_your_customer_relationships_and_accounts_visible(page):
-- def def enter_search_customers(page, value):
-- def def click_filters(page):
-- def def verify_customer_list_visible(page):
-- def def verify_3_customers_found_visible(page):
-- def def verify_customer_visible(page):
-- def def verify_account_type_visible(page):
-- def def verify_balance_visible(page):
-- def def verify_status_visible(page):
-- def def verify_join_date_visible(page):
-- def def verify_actions_visible(page):
-- def def verify_sarah_johnson_visible(page):
-- def def verify_sarah_johnson_email_com_visible(page):
-- def def verify_premium_visible(page):
-- def def verify_1_45_000_visible(page):
-- def def verify_active_visible(page):
-- def def verify_2023_01_15_visible(page):
-- def def verify_michael_chen_visible(page):
-- def def verify_michael_chen_email_com_visible(page):
-- def def verify_standard_visible(page):
-- def def verify_52_000_visible(page):
-- def def verify_2023_03_22_visible(page):
-- def def verify_emma_davis_visible(page):
-- def def verify_emma_davis_email_com_visible(page):
-- def def verify_89_000_visible(page):
-- def def verify_2022_11_08_visible(page):
-- def def click_export(page):
-- def def click_new_customer(page):
-- def def verify_john_doe_visible(page):
-- def def click_edit_with_loveable(page):
-- def def verify_add_new_customer_visible(page):
-- def def verify_enter_the_customer_details_to_create_a_new_account_visible(page):
-- def def verify_full_name_visible(page):
-- def def enter_full_name_input(page, value):
-- def def verify_email_visible(page):
-- def def enter_email_input(page, value):
-- def def verify_phone_number_visible(page):
-- def def enter_phone_number_input(page, value):
-- def def verify_account_type_visible(page):
-- def def select_select_account_type(page, value):
-- def def verify_address_visible(page):
-- def def enter_address_input(page, value):
-- def def verify_occupation_visible(page):
-- def def enter_occupation_input(page, value):
-- def def verify_annual_income_visible(page):
-- def def enter_annual_income_input(page, value):
-- def def verify_initial_deposit_visible(page):
-- def def enter_initial_deposit_input(page, value):
-- def def click_cancel(page):
-- def def click_add_customer(page):
-
-Additional Hints:
-
-
-Generate the code for all three cases below.
-
-
-# === FILE: generated_runs\src\logs\test_output\test_output_1.py ===
-def test_positive_add_customer(page):
-    page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-    click_customers(page)
-    click_new_customer(page)
-    enter_full_name_input(page, "John Doe")
-    enter_email_input(page, "john.doe@example.com")
-    enter_phone_number_input(page, "1234567890")
-    select_select_account_type(page, "Standard")
-    enter_address_input(page, "123 Main St, Anytown, USA")
-    enter_occupation_input(page, "Software Engineer")
-    enter_annual_income_input(page, "75000")
-    enter_initial_deposit_input(page, "1000")
-    click_add_customer(page)
-    verify_john_doe_visible(page)
-
-def test_negative_add_customer(page):
-    page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-    click_customers(page)
-    click_new_customer(page)
-    enter_full_name_input(page, "")  # Missing full name
-    enter_email_input(page, "john.doe@example.com")
-    enter_phone_number_input(page, "1234567890")
-    select_select_account_type(page, "Standard")
-    enter_address_input(page, "123 Main St, Anytown, USA")
-    enter_occupation_input(page, "Software Engineer")
-    enter_annual_income_input(page, "75000")
-    enter_initial_deposit_input(page, "1000")
-    click_add_customer(page)
-
-def test_edge_add_customer(page):
-    page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-    click_customers(page)
-    click_new_customer(page)
-    enter_full_name_input(page, "J")  # Edge case: Single character full name
-    enter_email_input(page, "john.doe@example.com")
-    enter_phone_number_input(page, "1234567890")
-    select_select_account_type(page, "Standard")
-    enter_address_input(page, "123 Main St, Anytown, USA")
-    enter_occupation_input(page, "Software Engineer")
-    enter_annual_income_input(page, "75000")
-    enter_initial_deposit_input(page, "1000")
-    click_add_customer(page)
-
-
 # === FILE: generated_runs\src\metadata\before_enrichment.json ===
 [
   {
-    "get_by_text": "Dashboard",
-    "placeholder": "Dashboard",
+    "unique_name": "dashboard_button_navigation_34c032c8",
+    "ocr_type": "button",
+    "intent": "navigation",
+    "get_by_text": "",
+    "placeholder": "",
+    "external": false,
     "dom_matched": false,
     "type": "ocr",
-    "ocr_type": "button",
-    "unique_name": "dashboard_dashboard_button_navigation_83914516",
-    "label_text": "Dashboard",
-    "intent": "navigation",
-    "external": false,
-    "element_id": "c37aff00-06f2-4615-88fd-406ce9b66177",
+    "element_id": "1233c562-20f0-4202-90fd-663914b09c9d",
+    "label_text": "",
     "page_name": "dashboard"
   },
   {
-    "external": false,
+    "unique_name": "dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968",
+    "ocr_type": "textbox",
+    "get_by_text": "Search customers, loans, transactions...",
     "dom_matched": false,
-    "label_text": "Customers",
-    "ocr_type": "button",
-    "element_id": "a0201464-4d7d-431d-91b0-c57d7587cb8b",
+    "intent": "search",
+    "label_text": "Search customers, loans, transactions...",
+    "element_id": "0da341dd-0730-4547-b6b2-b2d3f0cc8a1a",
+    "type": "ocr",
+    "external": false,
+    "placeholder": "Search customers, loans, transactions...",
+    "page_name": "dashboard"
+  },
+  {
     "intent": "navigation",
+    "ocr_type": "button",
+    "label_text": "Dashboard",
+    "dom_matched": false,
+    "placeholder": "Dashboard",
+    "page_name": "dashboard",
+    "get_by_text": "Dashboard",
+    "unique_name": "dashboard_dashboard_button_navigation_83914516",
+    "external": false,
+    "element_id": "fcab9ebe-5767-462d-8cfb-82bd3348f3f9",
+    "type": "ocr"
+  },
+  {
+    "label_text": "Customers",
+    "page_name": "dashboard",
+    "dom_matched": false,
     "unique_name": "dashboard_customers_button_navigation_bb4303b6",
+    "external": false,
+    "intent": "navigation",
+    "placeholder": "Customers",
+    "element_id": "45394f62-91b9-4529-adae-5627e4313b4c",
     "type": "ocr",
     "get_by_text": "Customers",
-    "placeholder": "Customers",
-    "page_name": "dashboard"
-  },
-  {
-    "label_text": "Loans",
-    "external": false,
-    "intent": "navigation",
-    "unique_name": "dashboard_loans_button_navigation_42436e2a",
-    "placeholder": "Loans",
-    "page_name": "dashboard",
-    "element_id": "38759ddb-7b10-46f8-8cc0-f5663623221e",
-    "get_by_text": "Loans",
-    "dom_matched": false,
-    "type": "ocr",
     "ocr_type": "button"
   },
   {
-    "external": false,
-    "label_text": "Transactions",
-    "placeholder": "Transactions",
-    "element_id": "592ac771-9883-4b3a-9710-d1967aa6ad9b",
-    "dom_matched": false,
-    "get_by_text": "Transactions",
-    "type": "ocr",
-    "ocr_type": "button",
+    "label_text": "Loans",
     "intent": "navigation",
+    "ocr_type": "button",
+    "external": false,
+    "dom_matched": false,
     "page_name": "dashboard",
-    "unique_name": "dashboard_transactions_button_navigation_f0479a72"
+    "placeholder": "Loans",
+    "unique_name": "dashboard_loans_button_navigation_42436e2a",
+    "element_id": "24e6ff1a-d33a-4ba8-a5a6-be626370a5dd",
+    "type": "ocr",
+    "get_by_text": "Loans"
   },
   {
-    "page_name": "dashboard",
-    "ocr_type": "button",
-    "unique_name": "dashboard_tasks_button_navigation_cde2a4d6",
-    "element_id": "8afb2db8-f0e2-4f6b-805a-14ab6bbd0beb",
-    "dom_matched": false,
-    "type": "ocr",
-    "label_text": "Tasks",
-    "intent": "navigation",
     "external": false,
+    "get_by_text": "Transactions",
+    "label_text": "Transactions",
+    "type": "ocr",
+    "intent": "navigation",
+    "element_id": "c8b402b6-f1f8-4c0e-ae27-ccab631cd424",
+    "ocr_type": "button",
+    "unique_name": "dashboard_transactions_button_navigation_f0479a72",
+    "page_name": "dashboard",
+    "dom_matched": false,
+    "placeholder": "Transactions"
+  },
+  {
+    "unique_name": "dashboard_tasks_button_navigation_cde2a4d6",
+    "page_name": "dashboard",
+    "intent": "navigation",
+    "element_id": "560d2d8f-c76a-4d45-9a08-a11877b31d9e",
+    "type": "ocr",
+    "external": false,
+    "dom_matched": false,
     "placeholder": "Tasks",
+    "ocr_type": "button",
+    "label_text": "Tasks",
     "get_by_text": "Tasks"
   },
   {
-    "ocr_type": "button",
     "unique_name": "dashboard_reports_button_navigation_578fb659",
-    "page_name": "dashboard",
     "placeholder": "Reports",
-    "element_id": "60e74aa6-7c38-4b0e-8030-5e84d7e143ae",
+    "dom_matched": false,
+    "element_id": "b95730ff-2fe4-44c4-baf5-ad976c203079",
+    "ocr_type": "button",
+    "page_name": "dashboard",
     "label_text": "Reports",
+    "type": "ocr",
     "intent": "navigation",
     "external": false,
-    "dom_matched": false,
-    "type": "ocr",
     "get_by_text": "Reports"
   },
   {
+    "intent": "navigation",
     "type": "ocr",
-    "dom_matched": false,
-    "ocr_type": "button",
-    "element_id": "1e4f2b83-18ff-4afd-8c56-33aff1eac5df",
     "get_by_text": "Analytics",
     "placeholder": "Analytics",
-    "page_name": "dashboard",
-    "label_text": "Analytics",
     "unique_name": "dashboard_analytics_button_navigation_49884ab5",
-    "intent": "navigation",
-    "external": false
-  },
-  {
+    "page_name": "dashboard",
+    "element_id": "16d843ef-d207-41e4-884a-80192b4cd287",
+    "external": false,
     "ocr_type": "button",
-    "page_name": "dashboard",
-    "element_id": "4d90e13d-cdbc-4497-bf66-42183c9de626",
-    "intent": "navigation",
+    "label_text": "Analytics",
+    "dom_matched": false
+  },
+  {
     "dom_matched": false,
-    "label_text": "Settings",
+    "external": false,
     "type": "ocr",
-    "unique_name": "dashboard_settings_button_navigation_7a36fd5d",
     "get_by_text": "Settings",
-    "external": false,
-    "placeholder": "Settings"
-  },
-  {
-    "external": false,
-    "placeholder": "Search customers, loans, transactions...",
-    "ocr_type": "textbox",
-    "dom_matched": false,
-    "page_name": "dashboard",
-    "element_id": "2c4be266-7b6e-47ed-bfdf-f808734c6291",
-    "unique_name": "dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968",
-    "get_by_text": "Search customers, loans, transactions...",
-    "label_text": "Search customers, loans, transactions...",
-    "type": "ocr",
-    "intent": "search"
-  },
-  {
-    "type": "ocr",
-    "page_name": "dashboard",
-    "ocr_type": "label",
-    "intent": "page_title",
-    "element_id": "8c6d3f0b-955c-472d-ab5a-43cacc56b472",
-    "unique_name": "dashboard_dashboard_label_page_title_a353b4f0",
-    "get_by_text": "Dashboard",
-    "dom_matched": false,
-    "label_text": "Dashboard",
-    "external": false,
-    "placeholder": "Dashboard"
-  },
-  {
-    "dom_matched": false,
-    "unique_name": "dashboard_welcome_back!_heres_your_banking_overview._label_greeting_bd321dde",
-    "placeholder": "Welcome back! Here's your banking overview.",
-    "label_text": "Welcome back! Here's your banking overview.",
-    "page_name": "dashboard",
-    "element_id": "f1671fdc-9388-49f6-aedd-831750d12fde",
-    "get_by_text": "Welcome back! Here's your banking overview.",
-    "intent": "greeting",
-    "ocr_type": "label",
-    "type": "ocr",
-    "external": false
-  },
-  {
-    "get_by_text": "Total Customers",
-    "placeholder": "Total Customers",
-    "external": false,
-    "element_id": "74724d85-83a9-45e8-a2ff-6eb5fb22a54e",
-    "type": "ocr",
-    "dom_matched": false,
-    "label_text": "Total Customers",
-    "unique_name": "dashboard_total_customers_label_total_customers_228048fb",
-    "intent": "total_customers",
-    "page_name": "dashboard",
-    "ocr_type": "label"
-  },
-  {
-    "element_id": "68811e44-6121-4c9c-b78f-4f25d6c81bda",
-    "label_text": "2,847",
-    "page_name": "dashboard",
-    "placeholder": "2,847",
-    "type": "ocr",
-    "get_by_text": "2,847",
-    "ocr_type": "label",
-    "external": false,
-    "dom_matched": false,
-    "unique_name": "dashboard_2,847_label_total_customers_value_6d9c1e09",
-    "intent": "total_customers_value"
-  },
-  {
-    "dom_matched": false,
-    "external": false,
-    "ocr_type": "label",
-    "placeholder": "Active Loans",
-    "intent": "active_loans",
-    "get_by_text": "Active Loans",
-    "type": "ocr",
-    "element_id": "571ff346-de79-4319-83b4-a2a10324394d",
-    "unique_name": "dashboard_active_loans_label_active_loans_3dfc1d95",
-    "page_name": "dashboard",
-    "label_text": "Active Loans"
-  },
-  {
-    "placeholder": "$45.2M",
-    "element_id": "b8fc57fe-e0bf-4011-8cc5-5d9c932aafff",
-    "dom_matched": false,
-    "external": false,
-    "label_text": "$45.2M",
-    "type": "ocr",
-    "ocr_type": "label",
-    "intent": "active_loans_value",
-    "get_by_text": "$45.2M",
-    "unique_name": "dashboard_$45.2m_label_active_loans_value_e93e7652",
+    "placeholder": "Settings",
+    "ocr_type": "button",
+    "element_id": "fd2f64e0-9d2a-4bb1-9af2-7c439720110f",
+    "intent": "navigation",
+    "unique_name": "dashboard_settings_button_navigation_7a36fd5d",
+    "label_text": "Settings",
     "page_name": "dashboard"
   },
   {
-    "element_id": "4e01b38b-aee2-4b7c-9138-3cd7f11b976e",
-    "unique_name": "dashboard_monthly_transactions_label_monthly_transactions_914c549d",
-    "ocr_type": "label",
-    "get_by_text": "Monthly Transactions",
-    "label_text": "Monthly Transactions",
-    "external": false,
-    "placeholder": "Monthly Transactions",
-    "dom_matched": false,
-    "page_name": "dashboard",
     "type": "ocr",
-    "intent": "monthly_transactions"
+    "get_by_text": "Dashboard",
+    "intent": "page_title",
+    "label_text": "Dashboard",
+    "external": false,
+    "unique_name": "dashboard_dashboard_label_page_title_a353b4f0",
+    "page_name": "dashboard",
+    "dom_matched": false,
+    "placeholder": "Dashboard",
+    "element_id": "fe6111b7-5b58-44b0-be3a-0e52f5d35069",
+    "ocr_type": "label"
   },
   {
+    "unique_name": "dashboard_welcome_back!_heres_your_banking_overview._label_welcome_message_479a4097",
+    "dom_matched": false,
+    "external": false,
+    "get_by_text": "Welcome back! Here's your banking overview.",
+    "ocr_type": "label",
+    "page_name": "dashboard",
+    "element_id": "e2660127-d787-4393-a482-66947dcfdf81",
+    "intent": "welcome_message",
+    "placeholder": "Welcome back! Here's your banking overview.",
+    "label_text": "Welcome back! Here's your banking overview.",
+    "type": "ocr"
+  },
+  {
+    "placeholder": "Total Customers",
+    "unique_name": "dashboard_total_customers_label_total_customers_228048fb",
+    "label_text": "Total Customers",
+    "type": "ocr",
+    "external": false,
+    "get_by_text": "Total Customers",
+    "element_id": "51501189-4e74-41b9-b6da-987a9a839f87",
+    "intent": "total_customers",
+    "ocr_type": "label",
+    "page_name": "dashboard",
+    "dom_matched": false
+  },
+  {
+    "external": false,
+    "element_id": "e46b7f1c-c443-45db-912e-43c546fe068d",
+    "ocr_type": "label",
+    "intent": "total_customers_value",
+    "label_text": "2,847",
+    "get_by_text": "2,847",
+    "page_name": "dashboard",
+    "dom_matched": false,
+    "unique_name": "dashboard_2,847_label_total_customers_value_6d9c1e09",
+    "type": "ocr",
+    "placeholder": "2,847"
+  },
+  {
+    "element_id": "754d67d0-6559-4e6a-8f28-a97134bbc10f",
+    "external": false,
+    "placeholder": "Active Loans",
+    "page_name": "dashboard",
+    "get_by_text": "Active Loans",
+    "dom_matched": false,
+    "type": "ocr",
+    "label_text": "Active Loans",
+    "ocr_type": "label",
+    "intent": "active_loans",
+    "unique_name": "dashboard_active_loans_label_active_loans_3dfc1d95"
+  },
+  {
+    "ocr_type": "label",
+    "external": false,
+    "type": "ocr",
+    "element_id": "b449e2aa-16c0-442c-bc74-179c54c09378",
+    "unique_name": "dashboard_$45.2m_label_active_loans_value_e93e7652",
+    "dom_matched": false,
+    "label_text": "$45.2M",
+    "placeholder": "$45.2M",
+    "get_by_text": "$45.2M",
+    "page_name": "dashboard",
+    "intent": "active_loans_value"
+  },
+  {
+    "external": false,
+    "unique_name": "dashboard_monthly_transactions_label_monthly_transactions_914c549d",
+    "ocr_type": "label",
+    "intent": "monthly_transactions",
+    "placeholder": "Monthly Transactions",
+    "element_id": "74c7e9d8-4ec9-4da5-a7b6-7d178729f85d",
+    "label_text": "Monthly Transactions",
+    "type": "ocr",
+    "page_name": "dashboard",
+    "dom_matched": false,
+    "get_by_text": "Monthly Transactions"
+  },
+  {
+    "ocr_type": "label",
+    "element_id": "b7db7fa6-1bb0-49bc-84bd-6a392ecff739",
     "placeholder": "18,394",
-    "label_text": "18,394",
-    "intent": "monthly_transactions_value",
-    "element_id": "88caa2ab-15b5-4d35-bcb4-aa43b473ccf6",
     "dom_matched": false,
     "unique_name": "dashboard_18,394_label_monthly_transactions_value_fc666ffb",
-    "type": "ocr",
+    "intent": "monthly_transactions_value",
     "external": false,
     "get_by_text": "18,394",
     "page_name": "dashboard",
-    "ocr_type": "label"
+    "label_text": "18,394",
+    "type": "ocr"
   },
   {
-    "unique_name": "dashboard_revenue_growth_label_revenue_growth_bfb3b4b4",
-    "element_id": "33ff5dd1-844b-4a65-a7ed-43ce4474255a",
     "intent": "revenue_growth",
-    "ocr_type": "label",
-    "type": "ocr",
-    "external": false,
     "get_by_text": "Revenue Growth",
+    "external": false,
+    "type": "ocr",
+    "unique_name": "dashboard_revenue_growth_label_revenue_growth_bfb3b4b4",
+    "ocr_type": "label",
+    "page_name": "dashboard",
     "label_text": "Revenue Growth",
     "dom_matched": false,
-    "placeholder": "Revenue Growth",
+    "element_id": "9d226a1f-3b4f-4a1c-8b4a-7a2fd9cf79c9",
+    "placeholder": "Revenue Growth"
+  },
+  {
+    "intent": "revenue_growth_value",
+    "dom_matched": false,
+    "ocr_type": "label",
+    "unique_name": "dashboard_4%_label_revenue_growth_value_de36ce03",
+    "element_id": "9b39d3eb-ace4-4812-88b7-7105876d6531",
+    "placeholder": "4%",
+    "page_name": "dashboard",
+    "type": "ocr",
+    "label_text": "4%",
+    "external": false,
+    "get_by_text": "4%"
+  },
+  {
+    "dom_matched": false,
+    "type": "ocr",
+    "ocr_type": "button",
+    "element_id": "2719b853-b04e-43ab-b4e5-9880b4baf57a",
+    "external": false,
+    "label_text": "Export Report",
+    "unique_name": "dashboard_export_report_button_export_ed26f6d4",
+    "intent": "export",
+    "page_name": "dashboard",
+    "placeholder": "Export Report",
+    "get_by_text": "Export Report"
+  },
+  {
+    "type": "ocr",
+    "page_name": "dashboard",
+    "label_text": "Loan Portfolio Trend",
+    "dom_matched": false,
+    "unique_name": "dashboard_loan_portfolio_trend_label_loan_portfolio_trend_16637d4f",
+    "placeholder": "Loan Portfolio Trend",
+    "get_by_text": "Loan Portfolio Trend",
+    "intent": "loan_portfolio_trend",
+    "ocr_type": "label",
+    "element_id": "ec19b4f9-6cd7-432b-a516-b6b6a804b28a",
+    "external": false
+  },
+  {
+    "placeholder": "Monthly loan disbursements over the last 6 months",
+    "dom_matched": false,
+    "unique_name": "dashboard_monthly_loan_disbursements_over_the_last_6_months_label_loan_portfolio_description_179404d2",
+    "element_id": "eefdc81a-f3bb-4988-a13b-c59f1516172e",
+    "page_name": "dashboard",
+    "external": false,
+    "ocr_type": "label",
+    "type": "ocr",
+    "intent": "loan_portfolio_description",
+    "get_by_text": "Monthly loan disbursements over the last 6 months",
+    "label_text": "Monthly loan disbursements over the last 6 months"
+  },
+  {
+    "external": false,
+    "element_id": "566f2f07-8d6c-4eb4-814d-fe9ff1ef96b5",
+    "placeholder": "Customer Distribution",
+    "unique_name": "dashboard_customer_distribution_label_customer_distribution_28babd8d",
+    "label_text": "Customer Distribution",
+    "page_name": "dashboard",
+    "ocr_type": "label",
+    "dom_matched": false,
+    "type": "ocr",
+    "get_by_text": "Customer Distribution",
+    "intent": "customer_distribution"
+  },
+  {
+    "intent": "customer_distribution_description",
+    "ocr_type": "label",
+    "external": false,
+    "placeholder": "Customer segments by account type",
+    "type": "ocr",
+    "unique_name": "dashboard_customer_segments_by_account_type_label_customer_distribution_description_6bb14ee4",
+    "label_text": "Customer segments by account type",
+    "get_by_text": "Customer segments by account type",
+    "dom_matched": false,
+    "element_id": "94543a4a-3be0-4ac3-a63a-ee736da203fc",
     "page_name": "dashboard"
   },
   {
-    "element_id": "404f96d7-b2b8-4809-ab65-974aa4036605",
-    "get_by_text": "23.4%",
     "ocr_type": "label",
-    "intent": "revenue_growth_value",
-    "type": "ocr",
+    "label_text": "Recent Activities",
+    "dom_matched": false,
+    "placeholder": "Recent Activities",
     "external": false,
-    "page_name": "dashboard",
-    "unique_name": "dashboard_23.4%_label_revenue_growth_value_76b81799",
-    "label_text": "23.4%",
-    "dom_matched": false,
-    "placeholder": "23.4%"
-  },
-  {
-    "label_text": "Loan Portfolio Trend",
-    "get_by_text": "Loan Portfolio Trend",
-    "type": "ocr",
-    "page_name": "dashboard",
-    "external": false,
-    "intent": "loan_portfolio_trend",
-    "unique_name": "dashboard_loan_portfolio_trend_label_loan_portfolio_trend_16637d4f",
-    "ocr_type": "label",
-    "element_id": "098ea3ef-7be3-46cb-93a8-2de04060bc75",
-    "placeholder": "Loan Portfolio Trend",
-    "dom_matched": false
-  },
-  {
-    "unique_name": "dashboard_monthly_loan_disbursements_over_the_last_6_months_label_loan_portfolio_info_f2592b48",
-    "element_id": "4f8456dc-a4a3-44be-a072-2b426cceeefc",
-    "placeholder": "Monthly loan disbursements over the last 6 months",
-    "label_text": "Monthly loan disbursements over the last 6 months",
-    "ocr_type": "label",
-    "external": false,
-    "intent": "loan_portfolio_info",
-    "get_by_text": "Monthly loan disbursements over the last 6 months",
-    "page_name": "dashboard",
-    "dom_matched": false,
-    "type": "ocr"
-  },
-  {
-    "label_text": "Customer Distribution",
-    "intent": "customer_distribution",
-    "type": "ocr",
-    "placeholder": "Customer Distribution",
-    "dom_matched": false,
-    "page_name": "dashboard",
-    "external": false,
-    "unique_name": "dashboard_customer_distribution_label_customer_distribution_28babd8d",
-    "get_by_text": "Customer Distribution",
-    "element_id": "720c6109-7746-4ce3-8139-417fbe6f7abb",
-    "ocr_type": "label"
-  },
-  {
-    "unique_name": "dashboard_customer_segments_by_account_type_label_customer_distribution_info_737296be",
-    "type": "ocr",
-    "placeholder": "Customer segments by account type",
-    "intent": "customer_distribution_info",
-    "dom_matched": false,
-    "label_text": "Customer segments by account type",
-    "element_id": "7bbec092-a855-4d99-a866-9952f9983dc0",
-    "get_by_text": "Customer segments by account type",
-    "ocr_type": "label",
-    "page_name": "dashboard",
-    "external": false
-  },
-  {
-    "ocr_type": "label",
-    "unique_name": "dashboard_premium_35%_label_premium_segment_a6240e39",
-    "type": "ocr",
-    "get_by_text": "Premium 35%",
-    "external": false,
-    "page_name": "dashboard",
-    "intent": "premium_segment",
-    "dom_matched": false,
-    "placeholder": "Premium 35%",
-    "element_id": "5062a83d-b1de-4698-a542-542802993c06",
-    "label_text": "Premium 35%"
-  },
-  {
-    "placeholder": "Standard 45%",
-    "type": "ocr",
-    "label_text": "Standard 45%",
-    "intent": "standard_segment",
-    "element_id": "e09dae8c-37e3-404e-be1c-a7e0bfe19db1",
-    "external": false,
-    "dom_matched": false,
-    "page_name": "dashboard",
-    "get_by_text": "Standard 45%",
-    "ocr_type": "label",
-    "unique_name": "dashboard_standard_45%_label_standard_segment_ddbf0b0b"
-  },
-  {
-    "external": false,
-    "dom_matched": false,
-    "label_text": "Basic 20%",
-    "unique_name": "dashboard_basic_20%_label_basic_segment_6072a081",
-    "ocr_type": "label",
-    "intent": "basic_segment",
-    "page_name": "dashboard",
-    "placeholder": "Basic 20%",
-    "get_by_text": "Basic 20%",
-    "type": "ocr",
-    "element_id": "b9f7b9e1-ab30-414b-b458-d128891d501b"
-  },
-  {
-    "dom_matched": false,
-    "type": "ocr",
+    "get_by_text": "Recent Activities",
+    "unique_name": "dashboard_recent_activities_label_recent_activities_cdc77597",
     "page_name": "dashboard",
     "intent": "recent_activities",
-    "get_by_text": "Recent Activities",
-    "element_id": "fae35b5f-94ee-4d48-9e20-f44332f2c873",
-    "unique_name": "dashboard_recent_activities_label_recent_activities_cdc77597",
-    "label_text": "Recent Activities",
-    "external": false,
-    "placeholder": "Recent Activities",
-    "ocr_type": "label"
+    "type": "ocr",
+    "element_id": "26e6f30a-7516-47d0-a717-53551fee8afa"
   },
   {
-    "unique_name": "dashboard_latest_customer_interactions_and_transactions_label_recent_activities_info_3c2c88ee",
-    "intent": "recent_activities_info",
-    "label_text": "Latest customer interactions and transactions",
-    "external": false,
-    "type": "ocr",
-    "dom_matched": false,
+    "unique_name": "dashboard_latest_customer_interactions_and_transactions_label_recent_activities_description_425a612e",
     "get_by_text": "Latest customer interactions and transactions",
-    "element_id": "aa135803-5245-40e6-85bf-9c69a2363d70",
     "ocr_type": "label",
+    "element_id": "29b524a5-ef27-424d-96a0-3eb05eca8822",
+    "placeholder": "Latest customer interactions and transactions",
+    "dom_matched": false,
+    "external": false,
+    "intent": "recent_activities_description",
     "page_name": "dashboard",
-    "placeholder": "Latest customer interactions and transactions"
+    "type": "ocr",
+    "label_text": "Latest customer interactions and transactions"
   },
   {
-    "unique_name": "dashboard_sarah_johnson_label_customer_name_bed9585e",
-    "element_id": "27c562cd-90ef-4cee-9299-cc3a318c3832",
+    "type": "ocr",
+    "unique_name": "dashboard_sarah_johnson_label_recent_activity_user_83be4551",
     "external": false,
+    "ocr_type": "label",
     "placeholder": "Sarah Johnson",
-    "get_by_text": "Sarah Johnson",
-    "dom_matched": false,
-    "type": "ocr",
-    "ocr_type": "label",
+    "page_name": "dashboard",
+    "intent": "recent_activity_user",
     "label_text": "Sarah Johnson",
-    "page_name": "dashboard",
-    "intent": "customer_name"
-  },
-  {
-    "unique_name": "dashboard_loan_application_approved_label_customer_activity_30eb3606",
-    "label_text": "Loan Application Approved",
-    "ocr_type": "label",
-    "page_name": "dashboard",
-    "intent": "customer_activity",
-    "placeholder": "Loan Application Approved",
-    "type": "ocr",
-    "external": false,
-    "element_id": "a82518dd-0096-472d-ad0d-0aa26021d6f9",
-    "dom_matched": false,
-    "get_by_text": "Loan Application Approved"
-  },
-  {
-    "label_text": "Michael Chen",
-    "external": false,
-    "get_by_text": "Michael Chen",
-    "type": "ocr",
-    "intent": "customer_name",
-    "page_name": "dashboard",
-    "element_id": "7824477f-1ef4-4d19-b6eb-f5444d63f552",
-    "ocr_type": "label",
-    "unique_name": "dashboard_michael_chen_label_customer_name_e126909a",
-    "placeholder": "Michael Chen",
+    "get_by_text": "Sarah Johnson",
+    "element_id": "bddd6c63-04b8-4717-8491-dbabe64e25f8",
     "dom_matched": false
   },
   {
-    "element_id": "490dd3f7-0ed7-4b32-aae0-1f04dc2704f2",
+    "unique_name": "dashboard_loan_application_approved_label_recent_activity_description_9696f002",
+    "placeholder": "Loan Application Approved",
     "external": false,
-    "intent": "transaction_amount",
-    "page_name": "dashboard",
-    "get_by_text": "$250,000",
-    "placeholder": "$250,000",
     "ocr_type": "label",
+    "label_text": "Loan Application Approved",
     "dom_matched": false,
-    "unique_name": "dashboard_$250,000_label_transaction_amount_14fd1f5f",
-    "type": "ocr",
-    "label_text": "$250,000"
-  },
-  {
-    "ocr_type": "label",
-    "dom_matched": false,
-    "element_id": "87d9f1ce-24f5-4650-9848-dcd5a3c67d00",
-    "intent": "transaction_time",
+    "get_by_text": "Loan Application Approved",
+    "intent": "recent_activity_description",
     "page_name": "dashboard",
-    "label_text": "2 hours ago",
-    "get_by_text": "2 hours ago",
-    "external": false,
-    "type": "ocr",
-    "unique_name": "dashboard_2_hours_ago_label_transaction_time_a74efe28",
-    "placeholder": "2 hours ago"
-  },
-  {
-    "intent": "user_profile",
-    "type": "ocr",
-    "placeholder": "John Doe",
-    "page_name": "dashboard",
-    "unique_name": "dashboard_john_doe_label_user_profile_fda748b0",
-    "get_by_text": "John Doe",
-    "element_id": "057e3ea8-b4eb-4806-bec1-7ca2e4bcd235",
-    "label_text": "John Doe",
-    "dom_matched": false,
-    "external": false,
-    "ocr_type": "label"
-  },
-  {
-    "page_name": "dashboard",
-    "external": false,
-    "get_by_text": "Export Report",
-    "ocr_type": "button",
-    "dom_matched": false,
-    "unique_name": "dashboard_export_report_button_export_ed26f6d4",
-    "type": "ocr",
-    "element_id": "d5e11be9-371b-457c-8de3-9eda7d1536b2",
-    "label_text": "Export Report",
-    "placeholder": "Export Report",
-    "intent": "export"
-  },
-  {
-    "get_by_text": "Edit with Lovable",
-    "dom_matched": false,
-    "label_text": "Edit with Lovable",
-    "element_id": "b0c5e3fa-9a67-4022-8cf7-84fd4bedbb4e",
-    "external": false,
-    "page_name": "dashboard",
-    "type": "ocr",
-    "placeholder": "Edit with Lovable",
-    "ocr_type": "button",
-    "unique_name": "dashboard_edit_with_lovable_button_edit_b50c07ed",
-    "intent": "edit"
-  },
-  {
-    "get_by_text": "Dashboard",
-    "page_name": "customers",
-    "dom_matched": false,
-    "ocr_type": "button",
-    "element_id": "309628ed-2d6d-4088-abfd-92c8b609bacc",
-    "external": false,
-    "intent": "navigation",
-    "unique_name": "customers_dashboard_button_navigation_fb22376c",
-    "label_text": "Dashboard",
-    "type": "ocr",
-    "placeholder": "Dashboard"
-  },
-  {
-    "page_name": "customers",
-    "get_by_text": "Customers",
-    "intent": "navigation",
-    "ocr_type": "button",
-    "dom_matched": false,
-    "unique_name": "customers_customers_button_navigation_62cd2bf8",
-    "external": false,
-    "element_id": "20bd49bb-8ac5-4563-b82e-db609e3f7fe2",
-    "label_text": "Customers",
-    "placeholder": "Customers",
+    "element_id": "35266659-f7d9-4615-9809-27e668a40a11",
     "type": "ocr"
   },
   {
-    "element_id": "bca31ef3-24e3-45f8-8eeb-13979cbd99cc",
     "type": "ocr",
-    "label_text": "Loans",
-    "placeholder": "Loans",
-    "unique_name": "customers_loans_button_navigation_f083cd47",
-    "page_name": "customers",
-    "get_by_text": "Loans",
-    "intent": "navigation",
+    "ocr_type": "label",
+    "placeholder": "Michael Chen",
+    "element_id": "df350293-b561-48df-9bc0-eda7b8524834",
+    "label_text": "Michael Chen",
+    "page_name": "dashboard",
+    "unique_name": "dashboard_michael_chen_label_recent_activity_user_70395558",
+    "get_by_text": "Michael Chen",
+    "intent": "recent_activity_user",
     "dom_matched": false,
-    "ocr_type": "button",
     "external": false
   },
   {
-    "placeholder": "Transactions",
-    "element_id": "e6f49eaf-7610-42c3-bf44-b1ab47887d66",
-    "type": "ocr",
-    "intent": "navigation",
-    "unique_name": "customers_transactions_button_navigation_bb833203",
-    "page_name": "customers",
-    "get_by_text": "Transactions",
-    "ocr_type": "button",
-    "dom_matched": false,
+    "ocr_type": "label",
+    "page_name": "dashboard",
     "external": false,
-    "label_text": "Transactions"
+    "element_id": "261701b8-bd45-41e6-be98-7a5ee237c90e",
+    "type": "ocr",
+    "unique_name": "dashboard_label_recent_activity_description_e2ee0ccc",
+    "dom_matched": false,
+    "intent": "recent_activity_description",
+    "placeholder": "",
+    "get_by_text": "",
+    "label_text": ""
   },
   {
-    "get_by_text": "Tasks",
-    "page_name": "customers",
-    "placeholder": "Tasks",
-    "element_id": "f7e0231f-88e2-4995-bc6f-cc2b73227f8e",
+    "get_by_text": "$250,000",
+    "page_name": "dashboard",
     "type": "ocr",
-    "external": false,
-    "ocr_type": "button",
-    "label_text": "Tasks",
-    "intent": "navigation",
     "dom_matched": false,
-    "unique_name": "customers_tasks_button_navigation_63e52ff9"
+    "element_id": "995a1d10-05d2-4914-92f9-b5a6ca372ed6",
+    "label_text": "$250,000",
+    "placeholder": "$250,000",
+    "ocr_type": "label",
+    "intent": "recent_activity_value",
+    "unique_name": "dashboard_$250,000_label_recent_activity_value_91add15c",
+    "external": false
   },
   {
-    "element_id": "114bf01f-7e00-440f-a7b6-85af8e1155e8",
     "type": "ocr",
-    "unique_name": "customers_reports_button_navigation_1dc35b9f",
+    "ocr_type": "label",
     "external": false,
-    "intent": "navigation",
-    "placeholder": "Reports",
-    "label_text": "Reports",
-    "page_name": "customers",
+    "element_id": "01a5cc09-ce60-4f55-9e92-e4c4494bc834",
+    "placeholder": "Edit with",
+    "intent": "edit_tool",
+    "get_by_text": "Edit with",
+    "label_text": "Edit with",
     "dom_matched": false,
-    "get_by_text": "Reports",
+    "page_name": "dashboard",
+    "unique_name": "dashboard_edit_with_label_edit_tool_e1025d09"
+  },
+  {
+    "ocr_type": "button",
+    "external": false,
+    "get_by_text": "Lovable",
+    "label_text": "Lovable",
+    "type": "ocr",
+    "element_id": "50a898e4-51bc-42c4-82d9-7b038a0bf40e",
+    "dom_matched": false,
+    "intent": "edit_tool",
+    "unique_name": "dashboard_lovable_button_edit_tool_2de51406",
+    "page_name": "dashboard",
+    "placeholder": "Lovable"
+  },
+  {
+    "unique_name": "customers_button_navigation_6ab61bef",
+    "external": false,
+    "placeholder": "",
+    "page_name": "customers",
+    "element_id": "38657081-c699-44a6-ab88-0f10f54c0593",
+    "dom_matched": false,
+    "get_by_text": "",
+    "type": "ocr",
+    "label_text": "",
+    "intent": "navigation",
     "ocr_type": "button"
   },
   {
-    "label_text": "Analytics",
+    "get_by_text": "Dashboard",
     "ocr_type": "button",
-    "get_by_text": "Analytics",
+    "page_name": "customers",
+    "label_text": "Dashboard",
+    "element_id": "7c70ce16-c61f-4d53-b57c-72849ffb0c78",
+    "external": false,
     "intent": "navigation",
+    "unique_name": "customers_dashboard_button_navigation_fb22376c",
     "type": "ocr",
-    "element_id": "df693e70-a44e-429b-bdc8-d17a27d13ab0",
-    "page_name": "customers",
-    "unique_name": "customers_analytics_button_navigation_8227d101",
-    "external": false,
-    "placeholder": "Analytics",
-    "dom_matched": false
-  },
-  {
-    "element_id": "8ee5ba83-17ce-47ed-a126-0c63a384538d",
-    "type": "ocr",
-    "intent": "navigation",
-    "external": false,
-    "page_name": "customers",
-    "unique_name": "customers_settings_button_navigation_9de99b8a",
-    "placeholder": "Settings",
-    "label_text": "Settings",
-    "ocr_type": "button",
-    "get_by_text": "Settings",
-    "dom_matched": false
-  },
-  {
-    "external": false,
-    "ocr_type": "textbox",
-    "element_id": "774f2806-d59c-46f7-93f7-f697ce03d598",
-    "placeholder": "Search customers, loans, transactions...",
-    "type": "ocr",
-    "page_name": "customers",
-    "unique_name": "customers_search_customers,_loans,_transactions..._textbox_search_be73039f",
-    "get_by_text": "Search customers, loans, transactions...",
-    "intent": "search",
     "dom_matched": false,
-    "label_text": "Search customers, loans, transactions..."
+    "placeholder": "Dashboard"
   },
   {
-    "type": "ocr",
-    "external": false,
-    "intent": "section_title",
-    "unique_name": "customers_customers_label_section_title_2ec8510a",
+    "intent": "navigation",
     "get_by_text": "Customers",
+    "type": "ocr",
+    "unique_name": "customers_customers_button_navigation_62cd2bf8",
+    "element_id": "7695cca0-6637-4653-8803-35dac62b7e05",
     "label_text": "Customers",
-    "ocr_type": "label",
+    "placeholder": "Customers",
     "page_name": "customers",
-    "dom_matched": false,
-    "element_id": "93dd1685-02c9-493f-a652-6c8053655e8d",
-    "placeholder": "Customers"
+    "ocr_type": "button",
+    "external": false,
+    "dom_matched": false
   },
   {
-    "label_text": "Manage your customer relationships and accounts",
     "dom_matched": false,
-    "intent": "section_info",
-    "page_name": "customers",
-    "ocr_type": "label",
     "external": false,
-    "get_by_text": "Manage your customer relationships and accounts",
+    "placeholder": "Loans",
     "type": "ocr",
-    "placeholder": "Manage your customer relationships and accounts",
-    "unique_name": "customers_manage_your_customer_relationships_and_accounts_label_section_info_f20c0595",
-    "element_id": "05c2accc-95d8-4e25-9f62-b0f486682d12"
+    "ocr_type": "button",
+    "label_text": "Loans",
+    "element_id": "257efc0d-1658-41d9-9616-cdb735df4d96",
+    "page_name": "customers",
+    "unique_name": "customers_loans_button_navigation_f083cd47",
+    "intent": "navigation",
+    "get_by_text": "Loans"
   },
   {
-    "external": false,
+    "get_by_text": "Transactions",
+    "element_id": "387617de-1fb7-4fcc-b5b0-6a2c7c75af8f",
+    "intent": "navigation",
     "dom_matched": false,
-    "ocr_type": "textbox",
-    "placeholder": "Search customers...",
-    "intent": "search",
-    "get_by_text": "Search customers...",
+    "ocr_type": "button",
+    "unique_name": "customers_transactions_button_navigation_bb833203",
+    "label_text": "Transactions",
     "type": "ocr",
-    "element_id": "a79d5ebd-261c-44a8-b390-8e5f3c0a862a",
-    "unique_name": "customers_search_customers..._textbox_search_85d3ce1f",
-    "label_text": "Search customers...",
+    "external": false,
+    "placeholder": "Transactions",
     "page_name": "customers"
   },
   {
+    "intent": "navigation",
+    "get_by_text": "Tasks",
+    "placeholder": "Tasks",
+    "label_text": "Tasks",
+    "type": "ocr",
+    "unique_name": "customers_tasks_button_navigation_63e52ff9",
+    "ocr_type": "button",
+    "dom_matched": false,
+    "external": false,
     "page_name": "customers",
+    "element_id": "0c1b8c7b-c218-44e9-929a-659bf6d860bf"
+  },
+  {
+    "dom_matched": false,
     "ocr_type": "button",
     "external": false,
-    "element_id": "0d8aa085-3893-48eb-9211-67ddecf4a7a1",
-    "label_text": "Filters",
-    "placeholder": "Filters",
-    "type": "ocr",
-    "intent": "filter",
-    "unique_name": "customers_filters_button_filter_4c0a3d63",
-    "get_by_text": "Filters",
-    "dom_matched": false
+    "element_id": "5d451e44-64af-4b69-afa5-1c33eb979bb7",
+    "get_by_text": "Reports",
+    "label_text": "Reports",
+    "intent": "navigation",
+    "placeholder": "Reports",
+    "unique_name": "customers_reports_button_navigation_1dc35b9f",
+    "page_name": "customers",
+    "type": "ocr"
   },
   {
-    "unique_name": "customers_customer_list_label_section_title_ad47eb6a",
-    "external": false,
-    "page_name": "customers",
-    "get_by_text": "Customer List",
-    "type": "ocr",
     "dom_matched": false,
+    "element_id": "c5c02338-6b39-454e-b0c1-36f8a6075803",
+    "type": "ocr",
+    "ocr_type": "button",
+    "unique_name": "customers_analytics_button_navigation_8227d101",
+    "get_by_text": "Analytics",
+    "external": false,
+    "intent": "navigation",
+    "label_text": "Analytics",
+    "page_name": "customers",
+    "placeholder": "Analytics"
+  },
+  {
+    "intent": "navigation",
+    "unique_name": "customers_settings_button_navigation_9de99b8a",
+    "page_name": "customers",
+    "external": false,
+    "dom_matched": false,
+    "label_text": "Settings",
+    "placeholder": "Settings",
+    "element_id": "715a03a7-141c-42a9-bf3c-c658a1375db2",
+    "get_by_text": "Settings",
+    "type": "ocr",
+    "ocr_type": "button"
+  },
+  {
+    "external": false,
+    "type": "ocr",
+    "get_by_text": "Search customers, loans, transactions...",
+    "page_name": "customers",
+    "unique_name": "customers_search_customers,_loans,_transactions..._textbox_search_be73039f",
+    "label_text": "Search customers, loans, transactions...",
+    "intent": "search",
+    "element_id": "7105e58b-74dd-40f0-9a30-58ee5246da4e",
+    "placeholder": "Search customers, loans, transactions...",
+    "dom_matched": false,
+    "ocr_type": "textbox"
+  },
+  {
+    "intent": "header",
+    "label_text": "Customers",
+    "page_name": "customers",
+    "type": "ocr",
+    "placeholder": "Customers",
+    "unique_name": "customers_customers_label_header_ab76000b",
+    "external": false,
     "ocr_type": "label",
-    "intent": "section_title",
-    "placeholder": "Customer List",
-    "element_id": "c1a64d93-604c-4582-a843-0115d5222c6e",
-    "label_text": "Customer List"
+    "dom_matched": false,
+    "element_id": "40c845b5-8970-4593-bf8d-2673a8dbabfc",
+    "get_by_text": "Customers"
   },
   {
-    "get_by_text": "3 customers found",
+    "ocr_type": "label",
     "dom_matched": false,
+    "get_by_text": "Manage your customer relationships and accounts",
     "external": false,
-    "placeholder": "3 customers found",
-    "element_id": "50c16c4c-fae2-4939-8b07-ca212c398be6",
+    "intent": "subheader",
+    "placeholder": "Manage your customer relationships and accounts",
     "page_name": "customers",
-    "intent": "section_info",
+    "element_id": "12637cc5-45e3-42f0-8814-324597a00630",
+    "unique_name": "customers_manage_your_customer_relationships_and_accounts_label_subheader_e7e5084f",
+    "label_text": "Manage your customer relationships and accounts",
+    "type": "ocr"
+  },
+  {
+    "get_by_text": "Search customers...",
+    "type": "ocr",
+    "external": false,
+    "element_id": "9675a87f-02e2-40ac-8474-c57ecc71c158",
+    "dom_matched": false,
+    "ocr_type": "textbox",
+    "placeholder": "Search customers...",
+    "label_text": "Search customers...",
+    "unique_name": "customers_search_customers..._textbox_search_85d3ce1f",
+    "intent": "search",
+    "page_name": "customers"
+  },
+  {
+    "type": "ocr",
+    "page_name": "customers",
+    "label_text": "Filters",
+    "unique_name": "customers_filters_button_filter_4c0a3d63",
+    "placeholder": "Filters",
+    "get_by_text": "Filters",
+    "intent": "filter",
+    "ocr_type": "button",
+    "external": false,
+    "dom_matched": false,
+    "element_id": "1d9037d4-c8c8-400e-b98a-c998c576c443"
+  },
+  {
+    "dom_matched": false,
+    "unique_name": "customers_customer_list_label_section_header_93cd1f20",
+    "type": "ocr",
+    "placeholder": "Customer List",
+    "ocr_type": "label",
+    "label_text": "Customer List",
+    "element_id": "eff3c1dd-6717-4f43-b625-b1f64dc2003a",
+    "external": false,
+    "get_by_text": "Customer List",
+    "page_name": "customers",
+    "intent": "section_header"
+  },
+  {
+    "placeholder": "3 customers found",
     "type": "ocr",
     "label_text": "3 customers found",
-    "ocr_type": "label",
-    "unique_name": "customers_3_customers_found_label_section_info_f58e240e"
-  },
-  {
-    "element_id": "5c1d49d3-c840-4d58-9580-7bb18efe9077",
+    "unique_name": "customers_3_customers_found_label_info_61b9a471",
+    "element_id": "33619458-ffbe-47ed-8685-527bbe9514cf",
+    "page_name": "customers",
+    "dom_matched": false,
+    "get_by_text": "3 customers found",
+    "intent": "info",
     "external": false,
-    "label_text": "Customer",
-    "type": "ocr",
-    "intent": "column_title",
-    "page_name": "customers",
-    "dom_matched": false,
-    "ocr_type": "label",
-    "get_by_text": "Customer",
-    "placeholder": "Customer",
-    "unique_name": "customers_customer_label_column_title_01dacf22"
+    "ocr_type": "label"
   },
   {
-    "type": "ocr",
-    "label_text": "Account Type",
-    "get_by_text": "Account Type",
-    "unique_name": "customers_account_type_label_column_title_1b2a9c41",
-    "placeholder": "Account Type",
-    "intent": "column_title",
     "dom_matched": false,
-    "ocr_type": "label",
     "page_name": "customers",
-    "element_id": "b4bd62f9-b0bd-4d34-82e1-47ca8dd0ef0f",
+    "intent": "column_header",
+    "type": "ocr",
+    "placeholder": "Customer",
+    "get_by_text": "Customer",
+    "element_id": "402309d6-48b7-4854-b40e-d45cb9feee7a",
+    "ocr_type": "label",
+    "unique_name": "customers_customer_label_column_header_cd74c3eb",
+    "label_text": "Customer",
     "external": false
   },
   {
-    "page_name": "customers",
-    "get_by_text": "Balance",
-    "placeholder": "Balance",
+    "label_text": "Account Type",
+    "element_id": "e32b6975-ef80-4288-9ea6-85684f58a442",
     "ocr_type": "label",
-    "dom_matched": false,
-    "intent": "column_title",
-    "type": "ocr",
+    "get_by_text": "Account Type",
     "external": false,
-    "unique_name": "customers_balance_label_column_title_a5832ecf",
+    "page_name": "customers",
+    "type": "ocr",
+    "dom_matched": false,
+    "intent": "column_header",
+    "placeholder": "Account Type",
+    "unique_name": "customers_account_type_label_column_header_a712d19c"
+  },
+  {
+    "element_id": "416dec62-6344-4748-9b84-6f9bbf3cd6e6",
+    "ocr_type": "label",
+    "intent": "column_header",
+    "unique_name": "customers_balance_label_column_header_d6648fd2",
+    "page_name": "customers",
     "label_text": "Balance",
-    "element_id": "bb4c7a8b-9d59-438e-92bb-f3623abf712d"
-  },
-  {
-    "ocr_type": "label",
-    "label_text": "Status",
-    "get_by_text": "Status",
-    "element_id": "83f5daf6-e128-4686-8f4c-1d78377549ed",
+    "dom_matched": false,
+    "external": false,
     "type": "ocr",
-    "page_name": "customers",
-    "dom_matched": false,
-    "unique_name": "customers_status_label_column_title_b24a10b1",
-    "external": false,
-    "intent": "column_title",
-    "placeholder": "Status"
+    "get_by_text": "Balance",
+    "placeholder": "Balance"
   },
   {
-    "intent": "column_title",
-    "element_id": "bc540fc2-35a6-4fc2-9f1e-f1f2d93fab92",
-    "placeholder": "Join Date",
-    "dom_matched": false,
+    "intent": "column_header",
     "page_name": "customers",
     "external": false,
-    "get_by_text": "Join Date",
+    "placeholder": "Status",
+    "type": "ocr",
+    "get_by_text": "Status",
+    "dom_matched": false,
+    "unique_name": "customers_status_label_column_header_57a06b20",
+    "label_text": "Status",
+    "element_id": "0a918660-dc9e-401b-b76c-fd45bb9a7182",
+    "ocr_type": "label"
+  },
+  {
+    "type": "ocr",
+    "external": false,
+    "unique_name": "customers_join_date_label_column_header_cb167d9a",
+    "element_id": "3d481146-cb25-4159-a796-27d57ea12ad8",
+    "dom_matched": false,
     "ocr_type": "label",
     "label_text": "Join Date",
-    "type": "ocr",
-    "unique_name": "customers_join_date_label_column_title_c808519b"
+    "intent": "column_header",
+    "page_name": "customers",
+    "get_by_text": "Join Date",
+    "placeholder": "Join Date"
   },
   {
     "page_name": "customers",
-    "ocr_type": "label",
     "placeholder": "Actions",
-    "external": false,
-    "element_id": "3c5c6f89-f2bb-492e-8fc1-7d36b18ead16",
-    "label_text": "Actions",
-    "dom_matched": false,
-    "unique_name": "customers_actions_label_column_title_32bd0b21",
     "type": "ocr",
-    "intent": "column_title",
-    "get_by_text": "Actions"
+    "external": false,
+    "unique_name": "customers_actions_label_column_header_177ddb69",
+    "get_by_text": "Actions",
+    "element_id": "045bf295-91b2-49b6-b36d-ec85dff9ff93",
+    "dom_matched": false,
+    "ocr_type": "label",
+    "intent": "column_header",
+    "label_text": "Actions"
+  },
+  {
+    "placeholder": "Sarah Johnson",
+    "element_id": "de35605e-d0b9-4489-b47a-942b5b464ca0",
+    "page_name": "customers",
+    "type": "ocr",
+    "external": false,
+    "dom_matched": false,
+    "unique_name": "customers_sarah_johnson_label_customer_name_91134cc9",
+    "get_by_text": "Sarah Johnson",
+    "label_text": "Sarah Johnson",
+    "intent": "customer_name",
+    "ocr_type": "label"
+  },
+  {
+    "intent": "customer_email",
+    "type": "ocr",
+    "ocr_type": "label",
+    "get_by_text": "sarah.johnson@email.com",
+    "page_name": "customers",
+    "unique_name": "customers_sarah.johnson@email.com_label_customer_email_ea79968a",
+    "dom_matched": false,
+    "placeholder": "sarah.johnson@email.com",
+    "element_id": "29e97aac-53bf-474a-bc7c-3d96431bd189",
+    "label_text": "sarah.johnson@email.com",
+    "external": false
+  },
+  {
+    "element_id": "b13f458a-8d84-4ea6-8763-2031599b7a88",
+    "unique_name": "customers_premium_label_account_type_c1ae4279",
+    "label_text": "Premium",
+    "ocr_type": "label",
+    "page_name": "customers",
+    "get_by_text": "Premium",
+    "type": "ocr",
+    "external": false,
+    "placeholder": "Premium",
+    "intent": "account_type",
+    "dom_matched": false
+  },
+  {
+    "element_id": "bbbf68ac-5e0a-4a30-8f63-168e90940fa3",
+    "unique_name": "customers_$1,45,000_label_balance_dc74e6a8",
+    "placeholder": "$1,45,000",
+    "type": "ocr",
+    "intent": "balance",
+    "get_by_text": "$1,45,000",
+    "label_text": "$1,45,000",
+    "page_name": "customers",
+    "ocr_type": "label",
+    "external": false,
+    "dom_matched": false
+  },
+  {
+    "ocr_type": "label",
+    "intent": "status",
+    "label_text": "Active",
+    "type": "ocr",
+    "element_id": "aa089598-7d33-4557-8748-804c1065deb3",
+    "placeholder": "Active",
+    "unique_name": "customers_active_label_status_5fc1bbb1",
+    "page_name": "customers",
+    "external": false,
+    "dom_matched": false,
+    "get_by_text": "Active"
+  },
+  {
+    "unique_name": "customers_2023-01-15_label_join_date_13b4a3e0",
+    "placeholder": "2023-01-15",
+    "get_by_text": "2023-01-15",
+    "type": "ocr",
+    "external": false,
+    "page_name": "customers",
+    "ocr_type": "label",
+    "dom_matched": false,
+    "label_text": "2023-01-15",
+    "intent": "join_date",
+    "element_id": "98ea9a03-dfc9-45b2-a1d8-7197a3f73067"
+  },
+  {
+    "get_by_text": "",
+    "type": "ocr",
+    "label_text": "",
+    "dom_matched": false,
+    "placeholder": "",
+    "unique_name": "customers_button_view_action_cc60ce91",
+    "page_name": "customers",
+    "ocr_type": "button",
+    "external": false,
+    "element_id": "3530b22b-4b27-40ed-8c8c-36b4191b6990",
+    "intent": "view_action"
   },
   {
     "dom_matched": false,
-    "external": false,
-    "intent": "customer_name",
-    "ocr_type": "label",
     "page_name": "customers",
-    "placeholder": "Sarah Johnson",
-    "element_id": "653a8cfa-ac9d-460b-a3ba-82db13f134a2",
-    "unique_name": "customers_sarah_johnson_label_customer_name_91134cc9",
-    "label_text": "Sarah Johnson",
+    "element_id": "10c0c6b4-6bd0-4fc2-b751-5a623dda8f79",
+    "unique_name": "customers_button_edit_action_d3d0df61",
     "type": "ocr",
-    "get_by_text": "Sarah Johnson"
+    "external": false,
+    "get_by_text": "",
+    "placeholder": "",
+    "intent": "edit_action",
+    "ocr_type": "button",
+    "label_text": ""
+  },
+  {
+    "type": "ocr",
+    "external": false,
+    "get_by_text": "Michael Chen",
+    "ocr_type": "label",
+    "unique_name": "customers_michael_chen_label_customer_name_8dbd8345",
+    "element_id": "e65dd83c-241c-41b5-b5a9-ed5165e974da",
+    "placeholder": "Michael Chen",
+    "page_name": "customers",
+    "label_text": "Michael Chen",
+    "dom_matched": false,
+    "intent": "customer_name"
+  },
+  {
+    "ocr_type": "label",
+    "placeholder": "michael.chen@email.com",
+    "label_text": "michael.chen@email.com",
+    "page_name": "customers",
+    "intent": "customer_email",
+    "element_id": "8d4ba95e-d5b3-46d2-9f85-0abe1d65945f",
+    "type": "ocr",
+    "external": false,
+    "dom_matched": false,
+    "get_by_text": "michael.chen@email.com",
+    "unique_name": "customers_michael.chen@email.com_label_customer_email_8f50f16b"
+  },
+  {
+    "intent": "account_type",
+    "page_name": "customers",
+    "label_text": "Standard",
+    "type": "ocr",
+    "external": false,
+    "placeholder": "Standard",
+    "ocr_type": "label",
+    "element_id": "a643f356-2cf1-44ed-835f-85dd1cb62402",
+    "unique_name": "customers_standard_label_account_type_ef9be216",
+    "dom_matched": false,
+    "get_by_text": "Standard"
+  },
+  {
+    "external": false,
+    "dom_matched": false,
+    "element_id": "df13ee85-1d3b-494b-9e54-27d4a8375f38",
+    "placeholder": "$52,000",
+    "unique_name": "customers_$52,000_label_balance_b6e2bd67",
+    "type": "ocr",
+    "page_name": "customers",
+    "ocr_type": "label",
+    "intent": "balance",
+    "label_text": "$52,000",
+    "get_by_text": "$52,000"
+  },
+  {
+    "external": false,
+    "unique_name": "customers_2023-03-22_label_join_date_363240e3",
+    "dom_matched": false,
+    "get_by_text": "2023-03-22",
+    "ocr_type": "label",
+    "type": "ocr",
+    "intent": "join_date",
+    "element_id": "5988d487-3cb4-4859-97e4-bc403115037e",
+    "label_text": "2023-03-22",
+    "placeholder": "2023-03-22",
+    "page_name": "customers"
+  },
+  {
+    "intent": "customer_name",
+    "unique_name": "customers_emma_davis_label_customer_name_671b9ccd",
+    "type": "ocr",
+    "element_id": "e72a7f93-47e0-49ae-b7ea-b598c4626734",
+    "ocr_type": "label",
+    "get_by_text": "Emma Davis",
+    "external": false,
+    "placeholder": "Emma Davis",
+    "dom_matched": false,
+    "page_name": "customers",
+    "label_text": "Emma Davis"
   },
   {
     "intent": "customer_email",
     "ocr_type": "label",
-    "external": false,
-    "get_by_text": "sarah.johnson@email.com",
-    "type": "ocr",
-    "placeholder": "sarah.johnson@email.com",
-    "element_id": "3d94e739-4944-49be-a16e-8112dea1a98e",
-    "dom_matched": false,
-    "unique_name": "customers_sarah.johnson@email.com_label_customer_email_ea79968a",
-    "label_text": "sarah.johnson@email.com",
-    "page_name": "customers"
-  },
-  {
-    "unique_name": "customers_premium_label_account_type_c1ae4279",
-    "page_name": "customers",
-    "external": false,
-    "label_text": "Premium",
-    "get_by_text": "Premium",
-    "intent": "account_type",
-    "dom_matched": false,
-    "type": "ocr",
-    "ocr_type": "label",
-    "placeholder": "Premium",
-    "element_id": "89d170b1-1b95-4cff-99ea-777b396d7537"
-  },
-  {
-    "external": false,
-    "intent": "balance",
-    "type": "ocr",
-    "element_id": "faa4af47-120b-4ccb-96de-b923777033d1",
-    "get_by_text": "$1,45,000",
-    "ocr_type": "label",
-    "page_name": "customers",
-    "dom_matched": false,
-    "label_text": "$1,45,000",
-    "placeholder": "$1,45,000",
-    "unique_name": "customers_$1,45,000_label_balance_dc74e6a8"
-  },
-  {
-    "external": false,
-    "type": "ocr",
-    "unique_name": "customers_active_label_status_5fc1bbb1",
-    "page_name": "customers",
-    "label_text": "Active",
-    "ocr_type": "label",
-    "placeholder": "Active",
-    "get_by_text": "Active",
-    "dom_matched": false,
-    "intent": "status",
-    "element_id": "4076a96d-bbbb-48c8-8f48-ab917a633f63"
-  },
-  {
-    "type": "ocr",
-    "label_text": "2023-01-15",
-    "intent": "join_date",
-    "page_name": "customers",
-    "unique_name": "customers_2023-01-15_label_join_date_13b4a3e0",
-    "get_by_text": "2023-01-15",
-    "ocr_type": "label",
-    "element_id": "3cac8707-0f0b-4ca6-91d3-7d2bd81d292e",
-    "dom_matched": false,
-    "external": false,
-    "placeholder": "2023-01-15"
-  },
-  {
-    "intent": "customer_name",
-    "dom_matched": false,
-    "external": false,
-    "page_name": "customers",
-    "placeholder": "Michael Chen",
-    "unique_name": "customers_michael_chen_label_customer_name_8dbd8345",
-    "label_text": "Michael Chen",
-    "get_by_text": "Michael Chen",
-    "type": "ocr",
-    "ocr_type": "label",
-    "element_id": "75779459-17da-47c4-8bc7-d618201b18af"
-  },
-  {
-    "label_text": "michael.chen@email.com",
-    "get_by_text": "michael.chen@email.com",
-    "ocr_type": "label",
-    "external": false,
-    "page_name": "customers",
-    "unique_name": "customers_michael.chen@email.com_label_customer_email_8f50f16b",
-    "element_id": "bd3c1deb-e603-4a2c-ae2a-2176a0ffe5b3",
-    "placeholder": "michael.chen@email.com",
-    "dom_matched": false,
-    "type": "ocr",
-    "intent": "customer_email"
-  },
-  {
-    "page_name": "customers",
-    "label_text": "Standard",
-    "get_by_text": "Standard",
-    "external": false,
-    "element_id": "77445a00-49c1-490e-a53a-af669c3cdb86",
-    "placeholder": "Standard",
-    "dom_matched": false,
-    "intent": "account_type",
-    "type": "ocr",
-    "ocr_type": "label",
-    "unique_name": "customers_standard_label_account_type_ef9be216"
-  },
-  {
-    "intent": "balance",
-    "element_id": "70705bfa-e8a6-4364-9992-b98a8eb1469e",
-    "label_text": "$52,000",
-    "type": "ocr",
-    "dom_matched": false,
-    "page_name": "customers",
-    "unique_name": "customers_$52,000_label_balance_b6e2bd67",
-    "get_by_text": "$52,000",
-    "external": false,
-    "ocr_type": "label",
-    "placeholder": "$52,000"
-  },
-  {
-    "type": "ocr",
-    "ocr_type": "label",
-    "element_id": "b6970c1c-a72b-45ac-8ee7-08d45b13c685",
-    "intent": "join_date",
-    "label_text": "2023-03-22",
-    "dom_matched": false,
-    "unique_name": "customers_2023-03-22_label_join_date_363240e3",
-    "external": false,
-    "page_name": "customers",
-    "placeholder": "2023-03-22",
-    "get_by_text": "2023-03-22"
-  },
-  {
-    "ocr_type": "label",
-    "placeholder": "Emma Davis",
-    "external": false,
-    "get_by_text": "Emma Davis",
-    "type": "ocr",
-    "element_id": "46090a45-c88b-4916-a77b-887b94b589fb",
-    "page_name": "customers",
-    "unique_name": "customers_emma_davis_label_customer_name_671b9ccd",
-    "intent": "customer_name",
-    "dom_matched": false,
-    "label_text": "Emma Davis"
-  },
-  {
-    "label_text": "emma.davis@email.com",
-    "get_by_text": "emma.davis@email.com",
-    "type": "ocr",
-    "element_id": "5cc819f3-3bbd-4481-8d3e-17fffb105bdf",
-    "dom_matched": false,
-    "page_name": "customers",
-    "placeholder": "emma.davis@email.com",
     "unique_name": "customers_emma.davis@email.com_label_customer_email_1680f20b",
-    "external": false,
-    "ocr_type": "label",
-    "intent": "customer_email"
+    "type": "ocr",
+    "placeholder": "emma.davis@email.com",
+    "dom_matched": false,
+    "label_text": "emma.davis@email.com",
+    "element_id": "80627a11-a898-4ba8-8b1e-f6ed9788a791",
+    "get_by_text": "emma.davis@email.com",
+    "page_name": "customers",
+    "external": false
   },
   {
-    "placeholder": "$89,000",
-    "intent": "balance",
     "dom_matched": false,
-    "ocr_type": "label",
-    "label_text": "$89,000",
     "page_name": "customers",
-    "type": "ocr",
-    "get_by_text": "$89,000",
     "unique_name": "customers_$89,000_label_balance_f3422319",
+    "intent": "balance",
     "external": false,
-    "element_id": "a01bc09c-e53b-4f5c-b2da-249f20278981"
+    "label_text": "$89,000",
+    "element_id": "62c9875c-f7fb-452f-b16f-92beb73b460c",
+    "type": "ocr",
+    "ocr_type": "label",
+    "placeholder": "$89,000",
+    "get_by_text": "$89,000"
   },
   {
-    "page_name": "customers",
+    "intent": "join_date",
+    "ocr_type": "label",
     "placeholder": "2022-11-08",
-    "label_text": "2022-11-08",
-    "get_by_text": "2022-11-08",
-    "ocr_type": "label",
-    "external": false,
-    "type": "ocr",
     "unique_name": "customers_2022-11-08_label_join_date_bcd7c000",
+    "type": "ocr",
+    "get_by_text": "2022-11-08",
+    "element_id": "bbce3c3b-1ea4-4fd5-b9e6-6b70bdbb2f88",
+    "label_text": "2022-11-08",
     "dom_matched": false,
-    "element_id": "dac99e90-0ff1-4ac9-affe-21973e5a3077",
-    "intent": "join_date"
+    "page_name": "customers",
+    "external": false
   },
   {
-    "placeholder": "Export",
     "ocr_type": "button",
-    "element_id": "79b8da41-7405-465a-9f42-5b1956ff0493",
-    "label_text": "Export",
     "unique_name": "customers_export_button_export_ec306f18",
-    "intent": "export",
-    "page_name": "customers",
-    "type": "ocr",
-    "external": false,
     "get_by_text": "Export",
-    "dom_matched": false
-  },
-  {
-    "external": false,
-    "label_text": "New Customer",
-    "ocr_type": "button",
-    "type": "ocr",
-    "unique_name": "customers_new_customer_button_add_customer_33383326",
-    "get_by_text": "New Customer",
+    "intent": "export",
+    "element_id": "8b718123-3555-41a3-b5b5-e784c99a698d",
     "dom_matched": false,
-    "element_id": "b2df1a97-8c07-4a86-97ac-01708b14b26f",
-    "placeholder": "New Customer",
+    "label_text": "Export",
+    "placeholder": "Export",
     "page_name": "customers",
-    "intent": "add_customer"
-  },
-  {
-    "element_id": "6faace7c-eb5d-4af7-b2d7-70fbca0bac4d",
-    "unique_name": "customers_john_doe_label_user_profile_63c68727",
-    "intent": "user_profile",
-    "label_text": "John Doe",
     "external": false,
-    "placeholder": "John Doe",
-    "type": "ocr",
-    "ocr_type": "label",
-    "page_name": "customers",
-    "get_by_text": "John Doe",
-    "dom_matched": false
-  },
-  {
-    "unique_name": "customers_edit_with_loveable_button_edit_tool_782582ad",
-    "placeholder": "Edit with Loveable",
-    "element_id": "4c170f65-d26d-4d63-8b92-52422bdbb393",
-    "get_by_text": "Edit with Loveable",
-    "intent": "edit_tool",
-    "label_text": "Edit with Loveable",
-    "dom_matched": false,
-    "external": false,
-    "ocr_type": "button",
-    "page_name": "customers",
     "type": "ocr"
   },
   {
+    "external": false,
+    "type": "ocr",
+    "intent": "add_customer",
+    "label_text": "New Customer",
+    "get_by_text": "New Customer",
+    "element_id": "6461e89d-cf66-4832-a8ea-d9761a631529",
+    "dom_matched": false,
+    "placeholder": "New Customer",
+    "ocr_type": "button",
+    "unique_name": "customers_new_customer_button_add_customer_33383326",
+    "page_name": "customers"
+  },
+  {
+    "intent": "footer",
+    "dom_matched": false,
+    "element_id": "632cc2eb-760f-4589-941f-5fe5665afdb2",
+    "type": "ocr",
+    "ocr_type": "label",
+    "get_by_text": "Edit with",
+    "unique_name": "customers_edit_with_label_footer_ca0fec1e",
+    "page_name": "customers",
+    "external": false,
+    "placeholder": "Edit with",
+    "label_text": "Edit with"
+  },
+  {
+    "element_id": "076ae535-1ec4-4d8e-ac1b-aaa6ad79f1d3",
+    "intent": "footer_brand",
+    "dom_matched": false,
+    "page_name": "customers",
+    "get_by_text": "Lovable",
+    "external": false,
+    "unique_name": "customers_lovable_label_footer_brand_301dffac",
+    "ocr_type": "label",
+    "placeholder": "Lovable",
+    "label_text": "Lovable",
+    "type": "ocr"
+  },
+  {
+    "ocr_type": "label",
+    "dom_matched": false,
+    "intent": "form_title",
     "page_name": "customers",
     "unique_name": "customers_add_new_customer_label_form_title_2b3b0780",
-    "intent": "form_title",
-    "placeholder": "Add New Customer",
     "get_by_text": "Add New Customer",
-    "dom_matched": false,
-    "ocr_type": "label",
+    "element_id": "95bf0180-6790-4215-91b5-f687892ec5fd",
+    "type": "ocr",
     "label_text": "Add New Customer",
-    "element_id": "67835d96-9a88-41a8-8e0a-473f245bb6a8",
-    "external": false,
-    "type": "ocr"
+    "placeholder": "Add New Customer",
+    "external": false
   },
   {
     "external": false,
-    "placeholder": "Enter the customer details to create a new account.",
-    "ocr_type": "label",
+    "type": "ocr",
     "get_by_text": "Enter the customer details to create a new account.",
-    "dom_matched": false,
-    "unique_name": "customers_enter_the_customer_details_to_create_a_new_account._label_form_instructions_474d0863",
-    "label_text": "Enter the customer details to create a new account.",
-    "element_id": "17690711-078c-4a3a-abad-0d50017e8479",
-    "intent": "form_instructions",
-    "type": "ocr",
-    "page_name": "customers"
-  },
-  {
-    "element_id": "95573110-d3af-4efd-818c-acb1bc62ec8a",
-    "label_text": "Full Name",
     "ocr_type": "label",
+    "page_name": "customers",
+    "unique_name": "customers_enter_the_customer_details_to_create_a_new_account._label_form_instruction_4e368c65",
+    "intent": "form_instruction",
+    "placeholder": "Enter the customer details to create a new account.",
+    "label_text": "Enter the customer details to create a new account.",
+    "element_id": "1ae4070a-51bc-4a91-98fa-a080f1141adb",
+    "dom_matched": false
+  },
+  {
     "dom_matched": false,
     "type": "ocr",
-    "unique_name": "customers_full_name_label_full_name_label_7fa7eb35",
+    "label_text": "Full Name",
     "external": false,
-    "get_by_text": "Full Name",
-    "page_name": "customers",
+    "element_id": "7563fa40-7908-413b-8842-5a205b83fbb0",
     "placeholder": "Full Name",
-    "intent": "full_name_label"
-  },
-  {
-    "unique_name": "customers_textbox_full_name_input_b5555c13",
-    "type": "ocr",
-    "label_text": "",
-    "placeholder": "",
-    "dom_matched": false,
-    "element_id": "1806c4cd-9e8d-4014-93b2-ad395c429225",
-    "external": false,
-    "intent": "full_name_input",
-    "get_by_text": "",
-    "ocr_type": "textbox",
-    "page_name": "customers"
-  },
-  {
-    "get_by_text": "Email",
-    "intent": "email_label",
-    "element_id": "35cff473-02bb-4298-9ba7-7f1fc0891977",
-    "label_text": "Email",
-    "unique_name": "customers_email_label_email_label_1e22d7f0",
-    "placeholder": "Email",
     "page_name": "customers",
-    "external": false,
-    "dom_matched": false,
-    "type": "ocr",
+    "get_by_text": "Full Name",
+    "unique_name": "customers_full_name_label_full_name_label_7fa7eb35",
+    "intent": "full_name_label",
     "ocr_type": "label"
   },
   {
-    "intent": "email_input",
-    "page_name": "customers",
-    "label_text": "",
-    "external": false,
-    "placeholder": "",
+    "type": "ocr",
     "get_by_text": "",
-    "type": "ocr",
-    "dom_matched": false,
-    "element_id": "ba88f12a-f1fd-4861-924a-6be1c4f0882a",
-    "ocr_type": "textbox",
-    "unique_name": "customers_textbox_email_input_b7f01675"
-  },
-  {
-    "page_name": "customers",
-    "type": "ocr",
-    "element_id": "8d679f12-86b7-4605-94f6-bf65e2725bd3",
-    "unique_name": "customers_phone_number_label_phone_number_label_03e465fd",
-    "ocr_type": "label",
-    "intent": "phone_number_label",
-    "placeholder": "Phone Number",
-    "get_by_text": "Phone Number",
-    "external": false,
-    "dom_matched": false,
-    "label_text": "Phone Number"
-  },
-  {
-    "intent": "phone_number_input",
-    "type": "ocr",
-    "page_name": "customers",
-    "ocr_type": "textbox",
-    "element_id": "d5c001b8-c11f-4a94-bd5e-7460a5c95538",
     "label_text": "",
-    "placeholder": "",
-    "dom_matched": false,
-    "get_by_text": "",
-    "external": false,
-    "unique_name": "customers_textbox_phone_number_input_bb72a72b"
-  },
-  {
-    "intent": "account_type_label",
-    "dom_matched": false,
-    "type": "ocr",
-    "placeholder": "Account Type",
-    "get_by_text": "Account Type",
-    "ocr_type": "label",
-    "label_text": "Account Type",
-    "external": false,
-    "unique_name": "customers_account_type_label_account_type_label_a1b76de7",
     "page_name": "customers",
-    "element_id": "9d7f0411-0bc2-4525-89da-cc53ebe635af"
-  },
-  {
-    "element_id": "71759ee2-9129-4a57-97c6-b519db2ae691",
-    "dom_matched": false,
-    "type": "ocr",
-    "placeholder": "Select account type",
-    "ocr_type": "select",
-    "page_name": "customers",
-    "unique_name": "customers_select_account_type_select_account_type_select_739bf8ef",
-    "label_text": "Select account type",
-    "external": false,
-    "get_by_text": "Select account type",
-    "intent": "account_type_select"
-  },
-  {
-    "dom_matched": false,
-    "unique_name": "customers_address_label_address_label_bfa99020",
-    "type": "ocr",
-    "page_name": "customers",
-    "get_by_text": "Address",
-    "ocr_type": "label",
-    "intent": "address_label",
-    "label_text": "Address",
-    "external": false,
-    "element_id": "380c32ef-d5c1-4f0e-ad2c-656fe6e2b0d7",
-    "placeholder": "Address"
-  },
-  {
-    "element_id": "02ee4dfa-9b2d-4b28-a4cf-ad0c265f9a76",
-    "unique_name": "customers_textbox_address_input_0da1bba0",
-    "placeholder": "",
-    "label_text": "",
-    "type": "ocr",
-    "external": false,
+    "intent": "full_name_input",
     "ocr_type": "textbox",
-    "intent": "address_input",
-    "page_name": "customers",
-    "get_by_text": "",
+    "element_id": "4fc76c41-e666-4be8-bdfd-434f0120ad48",
+    "unique_name": "customers_textbox_full_name_input_b5555c13",
+    "placeholder": "",
+    "external": false,
     "dom_matched": false
   },
   {
-    "placeholder": "Occupation",
-    "page_name": "customers",
-    "external": false,
-    "label_text": "Occupation",
     "ocr_type": "label",
-    "get_by_text": "Occupation",
-    "dom_matched": false,
-    "element_id": "4cde8a1f-4149-4b30-90be-f69f4dffc46e",
-    "unique_name": "customers_occupation_label_occupation_label_78041ebe",
+    "intent": "email_label",
     "type": "ocr",
-    "intent": "occupation_label"
+    "unique_name": "customers_email_label_email_label_1e22d7f0",
+    "element_id": "c5b03e6c-7ece-4075-ac3f-8fd0f3e641f7",
+    "get_by_text": "Email",
+    "label_text": "Email",
+    "dom_matched": false,
+    "external": false,
+    "page_name": "customers",
+    "placeholder": "Email"
+  },
+  {
+    "intent": "email_input",
+    "label_text": "",
+    "get_by_text": "",
+    "placeholder": "",
+    "unique_name": "customers_textbox_email_input_b7f01675",
+    "ocr_type": "textbox",
+    "page_name": "customers",
+    "type": "ocr",
+    "external": false,
+    "element_id": "f120a144-ff93-416c-91dc-6af41aa86bb6",
+    "dom_matched": false
+  },
+  {
+    "ocr_type": "label",
+    "label_text": "Phone Number",
+    "placeholder": "Phone Number",
+    "external": false,
+    "dom_matched": false,
+    "element_id": "d146407e-2129-4572-8e7c-bfecdc8f619a",
+    "get_by_text": "Phone Number",
+    "page_name": "customers",
+    "intent": "phone_number_label",
+    "type": "ocr",
+    "unique_name": "customers_phone_number_label_phone_number_label_03e465fd"
+  },
+  {
+    "ocr_type": "textbox",
+    "intent": "phone_number_input",
+    "type": "ocr",
+    "get_by_text": "",
+    "external": false,
+    "placeholder": "",
+    "unique_name": "customers_textbox_phone_number_input_bb72a72b",
+    "element_id": "b6b33ed1-7a9a-4819-955b-c7a58242cc7e",
+    "dom_matched": false,
+    "page_name": "customers",
+    "label_text": ""
+  },
+  {
+    "external": false,
+    "ocr_type": "label",
+    "label_text": "Account Type",
+    "placeholder": "Account Type",
+    "get_by_text": "Account Type",
+    "type": "ocr",
+    "unique_name": "customers_account_type_label_account_type_label_a1b76de7",
+    "intent": "account_type_label",
+    "dom_matched": false,
+    "page_name": "customers",
+    "element_id": "1b06e63a-6e85-49f0-81b1-5cf05a84cb54"
+  },
+  {
+    "label_text": "Select account type",
+    "unique_name": "customers_select_account_type_select_account_type_select_739bf8ef",
+    "external": false,
+    "get_by_text": "Select account type",
+    "placeholder": "Select account type",
+    "ocr_type": "select",
+    "page_name": "customers",
+    "intent": "account_type_select",
+    "element_id": "83de4a69-5821-4d05-8918-c11403dece47",
+    "type": "ocr",
+    "dom_matched": false
   },
   {
     "page_name": "customers",
+    "get_by_text": "Address",
+    "dom_matched": false,
     "external": false,
-    "intent": "occupation_input",
-    "label_text": "",
-    "element_id": "224b8c87-ed8a-49eb-90dd-bb7846f0783a",
+    "element_id": "23679824-8cbe-4cd7-bc8e-9e60a319a45f",
+    "intent": "address_label",
+    "type": "ocr",
+    "ocr_type": "label",
+    "label_text": "Address",
+    "unique_name": "customers_address_label_address_label_bfa99020",
+    "placeholder": "Address"
+  },
+  {
+    "external": false,
+    "placeholder": "",
+    "dom_matched": false,
+    "ocr_type": "textbox",
+    "page_name": "customers",
+    "type": "ocr",
+    "unique_name": "customers_textbox_address_input_0da1bba0",
+    "intent": "address_input",
     "get_by_text": "",
+    "label_text": "",
+    "element_id": "22921c87-15c6-4cbf-a35a-42ce97a26fcb"
+  },
+  {
+    "element_id": "3c0da3bc-1298-40e7-8cf9-b78acd1d2c6d",
+    "page_name": "customers",
+    "placeholder": "Occupation",
+    "get_by_text": "Occupation",
+    "intent": "occupation_label",
+    "external": false,
+    "type": "ocr",
+    "unique_name": "customers_occupation_label_occupation_label_78041ebe",
+    "dom_matched": false,
+    "ocr_type": "label",
+    "label_text": "Occupation"
+  },
+  {
     "unique_name": "customers_textbox_occupation_input_7c88216e",
     "dom_matched": false,
+    "label_text": "",
+    "page_name": "customers",
     "placeholder": "",
+    "get_by_text": "",
+    "element_id": "14bde66a-1b44-45b4-9e19-9883caf63b1d",
     "type": "ocr",
-    "ocr_type": "textbox"
+    "ocr_type": "textbox",
+    "external": false,
+    "intent": "occupation_input"
   },
   {
-    "page_name": "customers",
-    "label_text": "Annual Income",
-    "unique_name": "customers_annual_income_label_annual_income_label_41327b0b",
-    "dom_matched": false,
-    "intent": "annual_income_label",
-    "type": "ocr",
     "ocr_type": "label",
-    "get_by_text": "Annual Income",
+    "label_text": "Annual Income",
     "external": false,
-    "element_id": "f1c8d3a4-cd3c-4883-98dc-b6214ed6db25",
+    "intent": "annual_income_label",
+    "get_by_text": "Annual Income",
+    "dom_matched": false,
+    "type": "ocr",
+    "unique_name": "customers_annual_income_label_annual_income_label_41327b0b",
+    "element_id": "a072d846-062f-47ae-b0df-f77d359425ff",
+    "page_name": "customers",
     "placeholder": "Annual Income"
   },
   {
-    "ocr_type": "textbox",
-    "type": "ocr",
-    "external": false,
-    "page_name": "customers",
+    "element_id": "9e6119b3-2d6c-4445-ad07-3a0e72a48f71",
     "dom_matched": false,
+    "external": false,
     "intent": "annual_income_input",
-    "element_id": "9b7d8b0d-20ac-4d25-89e8-c7640f2a7ec3",
-    "label_text": "",
+    "ocr_type": "textbox",
+    "unique_name": "customers_textbox_annual_income_input_7b960691",
     "placeholder": "",
+    "label_text": "",
+    "page_name": "customers",
     "get_by_text": "",
-    "unique_name": "customers_textbox_annual_income_input_7b960691"
+    "type": "ocr"
   },
   {
-    "external": false,
-    "ocr_type": "label",
-    "intent": "initial_deposit_label",
     "type": "ocr",
     "get_by_text": "Initial Deposit",
-    "dom_matched": false,
+    "label_text": "Initial Deposit",
     "placeholder": "Initial Deposit",
-    "element_id": "a2a3a40d-c1a8-48be-98da-cd37427bb16f",
-    "page_name": "customers",
     "unique_name": "customers_initial_deposit_label_initial_deposit_label_a98dd99a",
-    "label_text": "Initial Deposit"
+    "page_name": "customers",
+    "intent": "initial_deposit_label",
+    "element_id": "eff18cd5-3b5d-48a6-ac2d-58b76784ba58",
+    "ocr_type": "label",
+    "dom_matched": false,
+    "external": false
   },
   {
-    "type": "ocr",
+    "ocr_type": "textbox",
+    "page_name": "customers",
+    "dom_matched": false,
     "get_by_text": "",
+    "type": "ocr",
+    "intent": "initial_deposit_input",
     "external": false,
     "unique_name": "customers_textbox_initial_deposit_input_842f44e3",
     "label_text": "",
-    "element_id": "93a378f6-9597-4b58-b027-de701be68c9c",
-    "ocr_type": "textbox",
-    "intent": "initial_deposit_input",
-    "page_name": "customers",
-    "dom_matched": false,
+    "element_id": "94288828-20cd-438f-85b1-8970413e0a2b",
     "placeholder": ""
   },
   {
-    "type": "ocr",
-    "intent": "cancel",
     "page_name": "customers",
-    "unique_name": "customers_cancel_button_cancel_71a3913d",
-    "label_text": "Cancel",
-    "element_id": "aca41d5b-2231-4a7c-88f2-45c62ee4ab50",
-    "ocr_type": "button",
+    "element_id": "b13ea0e7-0235-41be-842d-5b83fb617804",
     "placeholder": "Cancel",
-    "get_by_text": "Cancel",
     "dom_matched": false,
-    "external": false
+    "intent": "cancel",
+    "ocr_type": "button",
+    "get_by_text": "Cancel",
+    "external": false,
+    "label_text": "Cancel",
+    "unique_name": "customers_cancel_button_cancel_71a3913d",
+    "type": "ocr"
   },
   {
-    "unique_name": "customers_add_customer_button_submit_bce56d38",
+    "external": false,
     "get_by_text": "Add Customer",
     "dom_matched": false,
-    "intent": "submit",
-    "ocr_type": "button",
-    "placeholder": "Add Customer",
-    "page_name": "customers",
     "label_text": "Add Customer",
+    "unique_name": "customers_add_customer_button_submit_bce56d38",
     "type": "ocr",
-    "element_id": "eb8778de-4b42-48ee-84d7-ce17dce1b9e9",
-    "external": false
+    "intent": "submit",
+    "page_name": "customers",
+    "element_id": "a4c9805f-fad4-42ca-b8e6-d9235a0ebafa",
+    "placeholder": "Add Customer",
+    "ocr_type": "button"
   }
 ]
 
 
-# === FILE: generated_runs\src\metadata\__init__.py ===
+# === FILE: generated_runs\src\pages\base_page.py ===
+from services.page_enricher import enrich_page
 
+class BasePage:
+    enriched_pages = set()
 
+    def __init__(self, page, page_name, url=None):
+        self.page = page
+        self.page_name = page_name
+        self.url = url
 
-# === FILE: generated_runs\src\pages\customers_page_methods.py ===
-from lib.smart_ai import patch_page_with_smartai
+    async def goto(self):
+        if self.url:
+            await self.page.goto(self.url)
+        else:
+            raise ValueError(f"URL not set for {self.page_name}")
 
-# Methods for page: customers
+    async def enrich_once(self, force=False):
+        if force or self.page_name not in BasePage.enriched_pages:
+            await enrich_page(self.page, self.page_name)  # DOM enrichment clearly triggered
+            BasePage.enriched_pages.add(self.page_name)
+            print(f"🌟 Enriched page: {self.page_name}")
+        else:
+            print(f"✅ Already enriched: {self.page_name}")
 
-def click_dashboard(page):
-    page.smartAI('customers_dashboard_button_navigation_fb22376c').click()
 
-def click_customers(page):
-    page.smartAI('customers_customers_button_navigation_62cd2bf8').click()
 
-def click_loans(page):
-    page.smartAI('customers_loans_button_navigation_f083cd47').click()
+# === FILE: generated_runs\src\pages\customers_page.py ===
+import asyncio
+from services.page_enricher import enrich_page
+from utils.enrichment_status import is_enriched
 
-def click_transactions(page):
-    page.smartAI('customers_transactions_button_navigation_bb833203').click()
 
-def click_tasks(page):
-    page.smartAI('customers_tasks_button_navigation_63e52ff9').click()
 
-def click_reports(page):
-    page.smartAI('customers_reports_button_navigation_1dc35b9f').click()
 
-def click_analytics(page):
-    page.smartAI('customers_analytics_button_navigation_8227d101').click()
+from .base_page import BasePage
 
-def click_settings(page):
-    page.smartAI('customers_settings_button_navigation_9de99b8a').click()
+class CustomersPage(BasePage):
+    def __init__(self, playwright_page):
+        self.page = playwright_page
+        self.page_name = "customers"
+        self._enriched = False
 
-def enter_search_customers_loans_transactions(page, value):
-    page.smartAI('customers_search_customers,_loans,_transactions..._textbox_search_be73039f').fill(value)
+    async def click_dashboard(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_dashboard_button_navigation_fb22376c').click()
 
-def verify_customers_visible(page):
-    assert page.smartAI('customers_customers_label_section_title_2ec8510a').is_visible()
+    async def click_customers(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_customers_button_navigation_62cd2bf8').click()
 
-def verify_manage_your_customer_relationships_and_accounts_visible(page):
-    assert page.smartAI('customers_manage_your_customer_relationships_and_accounts_label_section_info_f20c0595').is_visible()
+    async def click_loans(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_loans_button_navigation_f083cd47').click()
 
-def enter_search_customers(page, value):
-    page.smartAI('customers_search_customers..._textbox_search_85d3ce1f').fill(value)
+    async def click_transactions(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_transactions_button_navigation_bb833203').click()
 
-def click_filters(page):
-    page.smartAI('customers_filters_button_filter_4c0a3d63').click()
+    async def click_tasks(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_tasks_button_navigation_63e52ff9').click()
 
-def verify_customer_list_visible(page):
-    assert page.smartAI('customers_customer_list_label_section_title_ad47eb6a').is_visible()
+    async def click_reports(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_reports_button_navigation_1dc35b9f').click()
 
-def verify_3_customers_found_visible(page):
-    assert page.smartAI('customers_3_customers_found_label_section_info_f58e240e').is_visible()
+    async def click_analytics(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_analytics_button_navigation_8227d101').click()
 
-def verify_customer_visible(page):
-    assert page.smartAI('customers_customer_label_column_title_01dacf22').is_visible()
+    async def click_settings(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_settings_button_navigation_9de99b8a').click()
 
-def verify_account_type_visible(page):
-    assert page.smartAI('customers_account_type_label_column_title_1b2a9c41').is_visible()
+    async def enter_search_customers_loans_transactions(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_search_customers,_loans,_transactions..._textbox_search_be73039f').fill(value)
 
-def verify_balance_visible(page):
-    assert page.smartAI('customers_balance_label_column_title_a5832ecf').is_visible()
+    async def enter_search_customers(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_search_customers..._textbox_search_85d3ce1f').fill(value)
 
-def verify_status_visible(page):
-    assert page.smartAI('customers_status_label_column_title_b24a10b1').is_visible()
+    async def click_filters(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_filters_button_filter_4c0a3d63').click()
 
-def verify_join_date_visible(page):
-    assert page.smartAI('customers_join_date_label_column_title_c808519b').is_visible()
+    async def click_view_action(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_button_view_action_cc60ce91').click()
 
-def verify_actions_visible(page):
-    assert page.smartAI('customers_actions_label_column_title_32bd0b21').is_visible()
+    async def click_edit_action(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_button_edit_action_d3d0df61').click()
 
-def verify_sarah_johnson_visible(page):
-    assert page.smartAI('customers_sarah_johnson_label_customer_name_91134cc9').is_visible()
+    async def click_export(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_export_button_export_ec306f18').click()
 
-def verify_sarah_johnson_email_com_visible(page):
-    assert page.smartAI('customers_sarah.johnson@email.com_label_customer_email_ea79968a').is_visible()
+    async def click_new_customer(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_new_customer_button_add_customer_33383326').click()
 
-def verify_premium_visible(page):
-    assert page.smartAI('customers_premium_label_account_type_c1ae4279').is_visible()
+    async def enter_full_name_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_full_name_input_b5555c13').fill(value)
 
-def verify_1_45_000_visible(page):
-    assert page.smartAI('customers_$1,45,000_label_balance_dc74e6a8').is_visible()
+    async def enter_email_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_email_input_b7f01675').fill(value)
 
-def verify_active_visible(page):
-    assert page.smartAI('customers_active_label_status_5fc1bbb1').is_visible()
+    async def enter_phone_number_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_phone_number_input_bb72a72b').fill(value)
 
-def verify_2023_01_15_visible(page):
-    assert page.smartAI('customers_2023-01-15_label_join_date_13b4a3e0').is_visible()
+    async def select_select_account_type(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_select_account_type_select_account_type_select_739bf8ef').select_option(value)
 
-def verify_michael_chen_visible(page):
-    assert page.smartAI('customers_michael_chen_label_customer_name_8dbd8345').is_visible()
+    async def enter_address_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_address_input_0da1bba0').fill(value)
 
-def verify_michael_chen_email_com_visible(page):
-    assert page.smartAI('customers_michael.chen@email.com_label_customer_email_8f50f16b').is_visible()
+    async def enter_occupation_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_occupation_input_7c88216e').fill(value)
 
-def verify_standard_visible(page):
-    assert page.smartAI('customers_standard_label_account_type_ef9be216').is_visible()
+    async def enter_annual_income_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_annual_income_input_7b960691').fill(value)
 
-def verify_52_000_visible(page):
-    assert page.smartAI('customers_$52,000_label_balance_b6e2bd67').is_visible()
+    async def enter_initial_deposit_input(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_textbox_initial_deposit_input_842f44e3').fill(value)
 
-def verify_2023_03_22_visible(page):
-    assert page.smartAI('customers_2023-03-22_label_join_date_363240e3').is_visible()
+    async def click_cancel(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_cancel_button_cancel_71a3913d').click()
 
-def verify_emma_davis_visible(page):
-    assert page.smartAI('customers_emma_davis_label_customer_name_671b9ccd').is_visible()
+    async def click_add_customer(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('customers_add_customer_button_submit_bce56d38').click()
 
-def verify_emma_davis_email_com_visible(page):
-    assert page.smartAI('customers_emma.davis@email.com_label_customer_email_1680f20b').is_visible()
 
-def verify_89_000_visible(page):
-    assert page.smartAI('customers_$89,000_label_balance_f3422319').is_visible()
+# === FILE: generated_runs\src\pages\dashboard_page.py ===
+import asyncio
+from services.page_enricher import enrich_page
+from utils.enrichment_status import is_enriched
 
-def verify_2022_11_08_visible(page):
-    assert page.smartAI('customers_2022-11-08_label_join_date_bcd7c000').is_visible()
 
-def click_export(page):
-    page.smartAI('customers_export_button_export_ec306f18').click()
 
-def click_new_customer(page):
-    page.smartAI('customers_new_customer_button_add_customer_33383326').click()
 
-def verify_john_doe_visible(page):
-    assert page.smartAI('customers_john_doe_label_user_profile_63c68727').is_visible()
+from .base_page import BasePage
 
-def click_edit_with_loveable(page):
-    page.smartAI('customers_edit_with_loveable_button_edit_tool_782582ad').click()
+class DashboardPage(BasePage):
+    def __init__(self, playwright_page):
+        self.page = playwright_page
+        self.page_name = "dashboard"
+        self._enriched = False
 
-def verify_add_new_customer_visible(page):
-    assert page.smartAI('customers_add_new_customer_label_form_title_2b3b0780').is_visible()
+    async def enter_search_customers_loans_transactions(self, value):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968').fill(value)
 
-def verify_enter_the_customer_details_to_create_a_new_account_visible(page):
-    assert page.smartAI('customers_enter_the_customer_details_to_create_a_new_account._label_form_instructions_474d0863').is_visible()
+    async def click_dashboard(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_dashboard_button_navigation_83914516').click()
 
-def verify_full_name_visible(page):
-    assert page.smartAI('customers_full_name_label_full_name_label_7fa7eb35').is_visible()
+    async def click_customers(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_customers_button_navigation_bb4303b6').click()
 
-def enter_full_name_input(page, value):
-    page.smartAI('customers_textbox_full_name_input_b5555c13').fill(value)
+    async def click_loans(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_loans_button_navigation_42436e2a').click()
 
-def verify_email_visible(page):
-    assert page.smartAI('customers_email_label_email_label_1e22d7f0').is_visible()
+    async def click_transactions(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_transactions_button_navigation_f0479a72').click()
 
-def enter_email_input(page, value):
-    page.smartAI('customers_textbox_email_input_b7f01675').fill(value)
+    async def click_tasks(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_tasks_button_navigation_cde2a4d6').click()
 
-def verify_phone_number_visible(page):
-    assert page.smartAI('customers_phone_number_label_phone_number_label_03e465fd').is_visible()
+    async def click_reports(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_reports_button_navigation_578fb659').click()
 
-def enter_phone_number_input(page, value):
-    page.smartAI('customers_textbox_phone_number_input_bb72a72b').fill(value)
+    async def click_analytics(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_analytics_button_navigation_49884ab5').click()
 
-def verify_account_type_visible(page):
-    assert page.smartAI('customers_account_type_label_account_type_label_a1b76de7').is_visible()
+    async def click_settings(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_settings_button_navigation_7a36fd5d').click()
 
-def select_select_account_type(page, value):
-    page.smartAI('customers_select_account_type_select_account_type_select_739bf8ef').select_option(value)
+    async def click_export_report(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_export_report_button_export_ed26f6d4').click()
 
-def verify_address_visible(page):
-    assert page.smartAI('customers_address_label_address_label_bfa99020').is_visible()
-
-def enter_address_input(page, value):
-    page.smartAI('customers_textbox_address_input_0da1bba0').fill(value)
-
-def verify_occupation_visible(page):
-    assert page.smartAI('customers_occupation_label_occupation_label_78041ebe').is_visible()
-
-def enter_occupation_input(page, value):
-    page.smartAI('customers_textbox_occupation_input_7c88216e').fill(value)
-
-def verify_annual_income_visible(page):
-    assert page.smartAI('customers_annual_income_label_annual_income_label_41327b0b').is_visible()
-
-def enter_annual_income_input(page, value):
-    page.smartAI('customers_textbox_annual_income_input_7b960691').fill(value)
-
-def verify_initial_deposit_visible(page):
-    assert page.smartAI('customers_initial_deposit_label_initial_deposit_label_a98dd99a').is_visible()
-
-def enter_initial_deposit_input(page, value):
-    page.smartAI('customers_textbox_initial_deposit_input_842f44e3').fill(value)
-
-def click_cancel(page):
-    page.smartAI('customers_cancel_button_cancel_71a3913d').click()
-
-def click_add_customer(page):
-    page.smartAI('customers_add_customer_button_submit_bce56d38').click()
-
-
-
-# === FILE: generated_runs\src\pages\dashboard_page_methods.py ===
-from lib.smart_ai import patch_page_with_smartai
-
-# Methods for page: dashboard
-
-def click_dashboard(page):
-    page.smartAI('dashboard_dashboard_button_navigation_83914516').click()
-
-def click_customers(page):
-    page.smartAI('dashboard_customers_button_navigation_bb4303b6').click()
-
-def click_loans(page):
-    page.smartAI('dashboard_loans_button_navigation_42436e2a').click()
-
-def click_transactions(page):
-    page.smartAI('dashboard_transactions_button_navigation_f0479a72').click()
-
-def click_tasks(page):
-    page.smartAI('dashboard_tasks_button_navigation_cde2a4d6').click()
-
-def click_reports(page):
-    page.smartAI('dashboard_reports_button_navigation_578fb659').click()
-
-def click_analytics(page):
-    page.smartAI('dashboard_analytics_button_navigation_49884ab5').click()
-
-def click_settings(page):
-    page.smartAI('dashboard_settings_button_navigation_7a36fd5d').click()
-
-def enter_search_customers_loans_transactions(page, value):
-    page.smartAI('dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968').fill(value)
-
-def verify_dashboard_visible(page):
-    assert page.smartAI('dashboard_dashboard_label_page_title_a353b4f0').is_visible()
-
-def verify_welcome_back_here_s_your_banking_overview_visible(page):
-    assert page.smartAI('dashboard_welcome_back!_heres_your_banking_overview._label_greeting_bd321dde').is_visible()
-
-def verify_total_customers_visible(page):
-    assert page.smartAI('dashboard_total_customers_label_total_customers_228048fb').is_visible()
-
-def verify_2_847_visible(page):
-    assert page.smartAI('dashboard_2,847_label_total_customers_value_6d9c1e09').is_visible()
-
-def verify_active_loans_visible(page):
-    assert page.smartAI('dashboard_active_loans_label_active_loans_3dfc1d95').is_visible()
-
-def verify_45_2m_visible(page):
-    assert page.smartAI('dashboard_$45.2m_label_active_loans_value_e93e7652').is_visible()
-
-def verify_monthly_transactions_visible(page):
-    assert page.smartAI('dashboard_monthly_transactions_label_monthly_transactions_914c549d').is_visible()
-
-def verify_18_394_visible(page):
-    assert page.smartAI('dashboard_18,394_label_monthly_transactions_value_fc666ffb').is_visible()
-
-def verify_revenue_growth_visible(page):
-    assert page.smartAI('dashboard_revenue_growth_label_revenue_growth_bfb3b4b4').is_visible()
-
-def verify_23_4_visible(page):
-    assert page.smartAI('dashboard_23.4%_label_revenue_growth_value_76b81799').is_visible()
-
-def verify_loan_portfolio_trend_visible(page):
-    assert page.smartAI('dashboard_loan_portfolio_trend_label_loan_portfolio_trend_16637d4f').is_visible()
-
-def verify_monthly_loan_disbursements_over_the_last_6_months_visible(page):
-    assert page.smartAI('dashboard_monthly_loan_disbursements_over_the_last_6_months_label_loan_portfolio_info_f2592b48').is_visible()
-
-def verify_customer_distribution_visible(page):
-    assert page.smartAI('dashboard_customer_distribution_label_customer_distribution_28babd8d').is_visible()
-
-def verify_customer_segments_by_account_type_visible(page):
-    assert page.smartAI('dashboard_customer_segments_by_account_type_label_customer_distribution_info_737296be').is_visible()
-
-def verify_premium_35_visible(page):
-    assert page.smartAI('dashboard_premium_35%_label_premium_segment_a6240e39').is_visible()
-
-def verify_standard_45_visible(page):
-    assert page.smartAI('dashboard_standard_45%_label_standard_segment_ddbf0b0b').is_visible()
-
-def verify_basic_20_visible(page):
-    assert page.smartAI('dashboard_basic_20%_label_basic_segment_6072a081').is_visible()
-
-def verify_recent_activities_visible(page):
-    assert page.smartAI('dashboard_recent_activities_label_recent_activities_cdc77597').is_visible()
-
-def verify_latest_customer_interactions_and_transactions_visible(page):
-    assert page.smartAI('dashboard_latest_customer_interactions_and_transactions_label_recent_activities_info_3c2c88ee').is_visible()
-
-def verify_sarah_johnson_visible(page):
-    assert page.smartAI('dashboard_sarah_johnson_label_customer_name_bed9585e').is_visible()
-
-def verify_loan_application_approved_visible(page):
-    assert page.smartAI('dashboard_loan_application_approved_label_customer_activity_30eb3606').is_visible()
-
-def verify_michael_chen_visible(page):
-    assert page.smartAI('dashboard_michael_chen_label_customer_name_e126909a').is_visible()
-
-def verify_250_000_visible(page):
-    assert page.smartAI('dashboard_$250,000_label_transaction_amount_14fd1f5f').is_visible()
-
-def verify_2_hours_ago_visible(page):
-    assert page.smartAI('dashboard_2_hours_ago_label_transaction_time_a74efe28').is_visible()
-
-def verify_john_doe_visible(page):
-    assert page.smartAI('dashboard_john_doe_label_user_profile_fda748b0').is_visible()
-
-def click_export_report(page):
-    page.smartAI('dashboard_export_report_button_export_ed26f6d4').click()
-
-def click_edit_with_lovable(page):
-    page.smartAI('dashboard_edit_with_lovable_button_edit_b50c07ed').click()
-
+    async def click_lovable(self):
+        await self._enrich_if_needed()
+        await self.page.smartAI('dashboard_lovable_button_edit_tool_2de51406').click()
 
 
 # === FILE: generated_runs\src\pages\__init__.py ===
@@ -8127,13 +7941,7 @@ from lib.smart_ai import patch_page_with_smartai
 
 @pytest.fixture(autouse=True)
 def smartai_page(page):    
-    # Get the path to THIS FILE's directory
-    script_dir = Path(__file__).parent
-    # Go up one to 'src', then into 'metadata'
-    metadata_path = (script_dir.parent / "metadata" / "after_enrichment.json").resolve()
-
-    # print("Loading:", metadata_path)  # Debug, can remove
-
+    metadata_path = (Path(__file__).parent.parent / "metadata" / "after_enrichment.json").resolve()
     with open(metadata_path, "r") as f:
         actual_metadata = json.load(f)
     patch_page_with_smartai(page, actual_metadata)
@@ -8141,129 +7949,29 @@ def smartai_page(page):
 
 
 # === FILE: generated_runs\src\tests\test_1.py ===
+from pages.base_page import BasePage
+
+from pages.customers_page import CustomersPage
+
+from pages.dashboard_page import DashboardPage
+
+import pytest
+@pytest.mark.asyncio
 async def test_add_customer(page):
-    # Initialize the page objects
     dashboard_page = DashboardPage(page)
     customers_page = CustomersPage(page)
-    add_customer_page = AddCustomerPage(page)
 
-    # Navigate to the CRM dashboard
-    await page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-
-    # Click the "Customers" tab
-    await dashboard_page.click_customers_tab()
-
-    # Click the "Add Customer" button
-    await customers_page.click_add_customer_button()
-
-    # Enter customer details
-    await add_customer_page.enter_full_name("John Doe")
-    await add_customer_page.enter_email("john.doe@example.com")
-    await add_customer_page.enter_phone_number("1234567890")
-    await add_customer_page.select_account_type("Standard")
-    await add_customer_page.enter_address("123 Main St, Anytown, USA")
-    await add_customer_page.enter_occupation("Software Engineer")
-    await add_customer_page.enter_annual_income("75000")
-    await add_customer_page.enter_initial_deposit("1000")
-
-    # Click the "Add Customer" button
-    await add_customer_page.click_add_customer_button()
-
-    # Verify the customer is added successfully
-    await customers_page.verify_customer_added("John Doe")
-
-
-# === FILE: generated_runs\src\tests\ui_script_1.py ===
-# Auto-generated UI runner
-
-from playwright.sync_api import sync_playwright
-import json
-from pathlib import Path
-from pages.customers_page_methods import *
-from pages.dashboard_page_methods import *
-from lib.smart_ai import patch_page_with_smartai
-def run_positive_add_customer():
-    import time
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=300)
-        page = browser.new_page()
-        # Patch SmartAI
-        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
-        with open(metadata_path, "r") as f:
-            actual_metadata = json.load(f)
-        patch_page_with_smartai(page, actual_metadata)
-        page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-        click_customers(page)
-        click_new_customer(page)
-        enter_full_name_input(page, "John Doe")
-        enter_email_input(page, "john.doe@example.com")
-        enter_phone_number_input(page, "1234567890")
-        select_select_account_type(page, "Standard")
-        enter_address_input(page, "123 Main St, Anytown, USA")
-        enter_occupation_input(page, "Software Engineer")
-        enter_annual_income_input(page, "75000")
-        enter_initial_deposit_input(page, "1000")
-        click_add_customer(page)
-        verify_john_doe_visible(page)
-        time.sleep(3)
-        browser.close()
-
-def run_negative_add_customer():
-    import time
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=300)
-        page = browser.new_page()
-        # Patch SmartAI
-        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
-        with open(metadata_path, "r") as f:
-            actual_metadata = json.load(f)
-        patch_page_with_smartai(page, actual_metadata)
-        page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-        click_customers(page)
-        click_new_customer(page)
-        enter_full_name_input(page, "")  # Missing full name
-        enter_email_input(page, "john.doe@example.com")
-        enter_phone_number_input(page, "1234567890")
-        select_select_account_type(page, "Standard")
-        enter_address_input(page, "123 Main St, Anytown, USA")
-        enter_occupation_input(page, "Software Engineer")
-        enter_annual_income_input(page, "75000")
-        enter_initial_deposit_input(page, "1000")
-        click_add_customer(page)
-        time.sleep(3)
-        browser.close()
-
-def run_edge_add_customer():
-    import time
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=300)
-        page = browser.new_page()
-        # Patch SmartAI
-        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
-        with open(metadata_path, "r") as f:
-            actual_metadata = json.load(f)
-        patch_page_with_smartai(page, actual_metadata)
-        page.goto("https://preview--bank-buddy-crm-react.lovable.app/")
-        click_customers(page)
-        click_new_customer(page)
-        enter_full_name_input(page, "J")  # Edge case: Single character full name
-        enter_email_input(page, "john.doe@example.com")
-        enter_phone_number_input(page, "1234567890")
-        select_select_account_type(page, "Standard")
-        enter_address_input(page, "123 Main St, Anytown, USA")
-        enter_occupation_input(page, "Software Engineer")
-        enter_annual_income_input(page, "75000")
-        enter_initial_deposit_input(page, "1000")
-        click_add_customer(page)
-        time.sleep(3)
-        browser.close()
-
-
-if __name__ == '__main__':
-    run_positive_add_customer()
-    run_negative_add_customer()
-    run_edge_add_customer()
-
+    await dashboard_page.click_customers()
+    await customers_page.click_new_customer()
+    await customers_page.enter_full_name_input("John Doe")
+    await customers_page.enter_email_input("john.doe@example.com")
+    await customers_page.enter_phone_number_input("1234567890")
+    await customers_page.select_select_account_type("Standard")
+    await customers_page.enter_address_input("123 Main St, Anytown, USA")
+    await customers_page.enter_occupation_input("Software Engineer")
+    await customers_page.enter_annual_income_input("75000")
+    await customers_page.enter_initial_deposit_input("1000")
+    await customers_page.click_add_customer()
 
 
 # === FILE: generated_runs\src\tests\__init__.py ===
@@ -10272,13 +9980,10 @@ async def enrich_page(page, page_name):
     dom_data = await extract_dom_metadata(page, page_name)
 
     # --- OCR Data Fetch ---
-    embedding_fn = SentenceTransformerEmbeddingFunction(
-        model_name="all-MiniLM-L6-v2")
+    embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
     client = PersistentClient(path="./data/chroma_db")
-    collection = client.get_or_create_collection(
-        name="element_metadata", embedding_function=embedding_fn)
-    ocr_data = [r for r in collection.get(
-        where={"page_name": page_name, "type": "ocr"}).get("metadatas", [])]
+    collection = client.get_or_create_collection(name="element_metadata", embedding_function=embedding_fn)
+    ocr_data = [r for r in collection.get(where={"page_name": page_name, "type": "ocr"}).get("metadatas", [])]
 
     # --- Match and Update ---
     match_and_update(ocr_data, dom_data, collection)

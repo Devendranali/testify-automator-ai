@@ -148,6 +148,10 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
         return list(method_map_full.keys())
 
 
+def to_pascal_case(name: str) -> str:
+    return ''.join(word.capitalize() for word in name.split('_')) + "Page"
+
+
 @router.post("/rag/generate-from-story")
 async def generate_from_user_story(
     user_story: Optional[str] = Form(None),
@@ -199,18 +203,15 @@ async def generate_from_user_story(
     test_functions = []
     for story in stories:
         path_pages = get_inferred_pages(story, method_map_full)
-        sub_method_map = {p: method_map_full[p]
-                          for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(
-            story, sub_method_map, path_pages, site_url)
+        sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
+        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url)
         # 👇 Ensure all async test functions are decorated and import is present
         pattern = r'(?m)^(async def test_)'
         code = re.sub(pattern, '@pytest.mark.asyncio\n\\1', code)
         if 'import pytest' not in code:
             code = 'import pytest\n' + code
         # Remove _enrich_if_needed calls (if present)
-        code = re.sub(
-            r'await\s+\w+_page\._enrich_if_needed\([^\)]*\)\s*\n', '', code)
+        code = re.sub(r'await\s+\w+_page\._enrich_if_needed\([^\)]*\)\s*\n', '', code)
         test_functions.append(code)
 
     idx = next_index(tests_dir, "test_{}.py")
@@ -218,8 +219,9 @@ async def generate_from_user_story(
 
     imports = []
     for page in method_map_full:
-        class_name = f"{page.capitalize()}Page"
+        class_name = to_pascal_case(page)
         imports.append(f"from pages.{page}_page import {class_name}")
+
 
     full_code = "\n\n".join(imports + test_functions)
     test_file.write_text(full_code, encoding="utf-8")
