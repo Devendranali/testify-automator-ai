@@ -22,18 +22,19 @@ def convert_np(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-dashboard_page_data = collection.get(where={"page_name": 'dashboard'})
-customers_page_data = collection.get(where={"page_name": 'customers'})
+page1_data = collection.get(where={"page_name": 'login'})
+page2_data = collection.get(where={"page_name": 'inventory'})
 
+# Ensure 'apis' folder exists!
+Path("apis").mkdir(parents=True, exist_ok=True)
 
-# Save to 'dashboard_page_data.json' in the current folder
-with open("apis/dashboard_page_data.json", "w", encoding="utf-8") as f:
-    json.dump(dashboard_page_data, f, indent=4, ensure_ascii=False, default=convert_np)
+# Save to 'page1_data.json' in the current folder
+with open("apis/login.json", "w", encoding="utf-8") as f:
+    json.dump(page1_data, f, indent=4, ensure_ascii=False, default=convert_np)
 
-# Save to 'customers_page_data.json' in the current folder
-with open("apis/customers_page_data.json", "w", encoding="utf-8") as f:
-    json.dump(customers_page_data, f, indent=4,
-              ensure_ascii=False, default=convert_np)
+# Save to 'page2_data.json' in the current folder
+with open("apis/inventory.json", "w", encoding="utf-8") as f:
+    json.dump(page2_data, f, indent=4, ensure_ascii=False, default=convert_np)
 
 # # Save to 'data.json' in the current folder
 # with open("apis/data.json", "wb") as f:

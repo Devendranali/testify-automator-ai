@@ -6,8 +6,6 @@ from orchestrator.orchestrator import send_message
 
 router = APIRouter()
 
-# ✅ Function to dynamically generate BasePage with your DOM enrichment logic
-
 
 def generate_base_page(base_page_path: Path):
     base_page_content = '''from services.page_enricher import enrich_page
@@ -20,8 +18,10 @@ class BasePage:
         self.page_name = page_name
         self.url = url
 
-    async def goto(self):
-        if self.url:
+    async def goto(self, url=None):
+        if url:
+            await self.page.goto(url)
+        elif self.url:
             await self.page.goto(self.url)
         else:
             raise ValueError(f"URL not set for {self.page_name}")
@@ -44,7 +44,7 @@ def generate_page_methods():
     target_pages = filter_all_pages()
     result = {}
 
-    # ✅ Generate conftest.py once
+    # Generate conftest.py for SmartAI patching
     def create_conftest_file():
         conftest_content = '''import pytest
 import json
@@ -66,11 +66,11 @@ def smartai_page(page):
 
     create_conftest_file()
 
-    # ✅ Ensure pages directory exists
+    # Ensure pages directory exists
     outdir = Path("generated_runs") / "src" / "pages"
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # ✅ Dynamically generate BasePage (if not exists)
+    # Dynamically generate BasePage (if not exists)
     base_page_path = outdir / "base_page.py"
     if not base_page_path.exists():
         generate_base_page(base_page_path)
@@ -81,31 +81,28 @@ def smartai_page(page):
 
         page_spec = {
             "page_name": page,
-            "entries": entries  # agent handles logic
+            "entries": entries  # agent handles logic and page_name passing!
         }
 
         response = send_message("python", "generate_page_file", page_spec)
         payload = response.payload
 
-        # ✅ Inject BasePage inheritance clearly and consistently
+        # Payload["code"] is now assumed to be correct:
+        # - Inherits from BasePage
+        # - __init__(self, page, page_name="pagename"): super().__init__(page, page_name)
+        # - No _enrich_if_needed duplicates
+        # - page_name handled at class and test instantiation
+
         page_class_code = payload["code"]
 
-        # Remove existing enrichment methods to avoid duplicates/conflicts
+        # Insert import (if not present)
         lines = page_class_code.splitlines()
         new_lines = []
         inserted_import = False
-        skip_next = False
-
         for line in lines:
-            if 'def _enrich_if_needed' in line or skip_next:
-                skip_next = line.strip() != ''
-                continue  # Skip the existing enrichment method entirely
             if not inserted_import and line.strip().startswith("class"):
+                # Ensure import only if not already present
                 new_lines.append("from .base_page import BasePage\n")
-                if "(object)" in line:
-                    line = line.replace("(object)", "(BasePage)")
-                elif ":" in line and "(BasePage)" not in line:
-                    line = line.replace(":", "(BasePage):")
                 inserted_import = True
             new_lines.append(line)
         page_class_code = "\n".join(new_lines)

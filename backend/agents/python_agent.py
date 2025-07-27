@@ -35,10 +35,9 @@ class PlaywrightPythonAgent(MCPAgentBase):
         )
 
         class_header = (
-            f"\n\nclass {class_name}:\n"
-            f"    def __init__(self, playwright_page):\n"
-            f"        self.page = playwright_page\n"
-            f"        self.page_name = \"{page_name}\"\n"
+            f"\n\nclass {class_name}(BasePage):\n"
+            f"    def __init__(self, page, page_name=\"{page_name}\"):\n"
+            f"        super().__init__(page, page_name)\n"
             f"        self._enriched = False\n\n"
             f"    async def _enrich_if_needed(self, force=False):\n"
             f"        if force or not is_enriched(self.page_name):\n"

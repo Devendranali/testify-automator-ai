@@ -26,5 +26,5 @@ def flatten_project_to_single_file(project_root, output_file):
 # === Usage Example ===
 if __name__ == "__main__":
     project_folder = "C:/Users/Suchandan/Desktop/VNC/testify-automator-ai/backend"
-    output_file_path = "flattened_code_dump.py"
+    output_file_path = "Output_folder_dump.py"
     flatten_project_to_single_file(project_folder, output_file_path)
