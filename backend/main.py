@@ -33,12 +33,12 @@ if sys.platform == "win32":
 app = FastAPI(title="AI Test Extractor")
 
 
-origins = [
-    "http://localhost:3000",
-    "https://www.saucedemo.com",
-    "http://localhost:3001",
-    "http://localhost:3001",
-]
+# origins = [
+#     "http://localhost:3000",
+#     "https://www.saucedemo.com",
+#     "http://localhost:3001",
+#     "http://localhost:3001",
+# ]
 
 
 app.add_middleware(
