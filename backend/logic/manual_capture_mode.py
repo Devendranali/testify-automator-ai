@@ -510,6 +510,49 @@ async def extract_dom_metadata(page: Page, page_name: str) -> list:
 
     return elements_data
 
+def build_ocr_context_string(ocr):
+    fields = [
+        ocr.get("label_text", ""),
+        ocr.get("placeholder", ""),
+        ocr.get("intent", ""),
+        ocr.get("ocr_type", ""),
+        ocr.get("role", ""),
+        ocr.get("aria_label", ""),
+        ocr.get("page_name", ""),
+        ocr.get("unique_name", ""),
+    ]
+    return " ".join([str(f) for f in fields if f]).strip().lower()
+
+def build_dom_context_string(dom):
+    fields = [
+        dom.get("label_text", ""),
+        dom.get("placeholder", ""),
+        dom.get("text", ""),
+        dom.get("value", ""),
+        dom.get("tag_name", ""),
+        dom.get("title", ""),
+        dom.get("id", "") or dom.get("dom-id", ""),
+        dom.get("class", "") or dom.get("dom_class", ""),
+        dom.get("ocr_type", ""),
+        dom.get("intent", ""),
+        dom.get("role", ""),
+        dom.get("aria_label", ""),
+        dom.get("page_name", ""),
+        dom.get("unique_name", ""),
+    ]
+    return " ".join([str(f) for f in fields if f]).strip().lower()
+
+
+def clean_metadata(d):
+    # Recursively clean all dict/list/set values in the dict d
+    for k, v in list(d.items()):
+        if isinstance(v, (dict, list, set)):
+            # Convert dict/list/set (even empty) to string
+            d[k] = json.dumps(v)
+        elif not isinstance(v, (str, int, float, bool)) and v is not None:
+            d[k] = str(v)
+    return d
+
 
 # New Optimized match_and_update
 def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thresh=300):
@@ -525,6 +568,9 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thres
         dom_text = dom.get("label_text", "") or dom.get(
             "text", "") or dom.get("placeholder", "") or dom.get("value", "")
         dom_texts.append(dom_text.lower())
+        # dom_text = build_dom_context_string(dom)
+        # dom_texts.append(dom_text)
+
         dom_candidates.append(dom)
     if dom_texts:
         dom_embeddings = text_model.encode(dom_texts, show_progress_bar=False)
@@ -537,6 +583,9 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thres
             if ocr.get("label_text"):
                 ocr_label = ocr["label_text"].lower()
                 ocr_embedding = text_model.encode([ocr_label])[0]
+                # ocr_context = build_ocr_context_string(ocr)
+                # ocr_embedding = text_model.encode([ocr_context])[0]
+
                 if len(dom_embeddings) > 0:  # <-- FIXED ambiguous check
                     sims = cosine_similarity(
                         [ocr_embedding], dom_embeddings)[0]
@@ -783,14 +832,5 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thres
 #     return matched_records
 
 
-def clean_metadata(d):
-    # Recursively clean all dict/list/set values in the dict d
-    for k, v in list(d.items()):
-        if isinstance(v, (dict, list, set)):
-            # Convert dict/list/set (even empty) to string
-            d[k] = json.dumps(v)
-        elif not isinstance(v, (str, int, float, bool)) and v is not None:
-            d[k] = str(v)
-    return d
 
 

@@ -81,7 +81,9 @@ def get_enrichment_modal_js():
                     <div id="enrichmentMessageBox" style="margin-top:10px;font-weight:bold;color:green;"></div>
                 </div>
             `;
-            document.body.appendChild(modal);
+            
+            document.body ? document.body.appendChild(modal) : console.warn("No document.body found!");          
+
 
             async function loadAvailablePages() {
                 try {
@@ -173,14 +175,25 @@ async def launch_browser(req: LaunchRequest):
         await PAGE.expose_binding("sendEnrichmentRequests", send_enrichment_wrapper)
 
         # --- INITIAL INJECTION ---
+        await PAGE.wait_for_selector("body", timeout=5000)
         await PAGE.evaluate(get_enrichment_modal_js())
 
         # --- AUTO-REINJECT ON EVERY NAVIGATION ---
         # Re-inject BOTH after every navigation
         def reinject_js_on_navigation(frame):
-            asyncio.create_task(PAGE.evaluate(f"window._availablePages = {json.dumps(pages)};"))
-            asyncio.create_task(PAGE.evaluate(get_enrichment_modal_js()))
-            print("[DEBUG] Reinjected enrichment JS after navigation.")
+            async def safe_reinject():
+                try:
+                    await PAGE.wait_for_selector("body", timeout=5000)
+                    await PAGE.evaluate(f"window._availablePages = {json.dumps(pages)};")
+                    await PAGE.evaluate(get_enrichment_modal_js())
+                    print("[DEBUG] Reinjected enrichment JS after navigation.")
+                except Exception as exc:
+                    print(f"[ERROR] Failed to reinject enrichment JS: {exc}")
+            asyncio.create_task(safe_reinject())
+
+            # asyncio.create_task(PAGE.evaluate(f"window._availablePages = {json.dumps(pages)};"))
+            # asyncio.create_task(PAGE.evaluate(get_enrichment_modal_js()))
+            # print("[DEBUG] Reinjected enrichment JS after navigation.")
 
         PAGE.on("framenavigated", reinject_js_on_navigation)
 
@@ -192,116 +205,6 @@ async def launch_browser(req: LaunchRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# @router.post("/launch-browser")
-# async def launch_browser(req: LaunchRequest):
-#     global PLAYWRIGHT, BROWSER, PAGE
- 
-#     try:
-#         PLAYWRIGHT = await async_playwright().start()
-#         BROWSER = await PLAYWRIGHT.chromium.launch(headless=False, slow_mo=100)
-#         PAGE = await BROWSER.new_page()
-#         await PAGE.goto(req.url)
-
-#         async def send_enrichment_wrapper(source, page_name):
-#             print("[DEBUG] Triggering enrichment for:", page_name)
-#             result = await send_enrichment_requests(page_name)
-#             # print("[DEBUG] Got:", result.count," from send_enrichment_requests")
-#             return json.dumps(result)
-
-#         await PAGE.expose_binding("sendEnrichmentRequests", send_enrichment_wrapper)
-
-#         await PAGE.evaluate("""
-#             if (!window._ocrShortcutRegistered) {
-#                 window._ocrShortcutRegistered = true;
-#                 console.log('[SmartAI] Modal enrichment JS injected');
-
-#                 const modal = document.createElement('div');
-#                 modal.innerHTML = `
-#                     <div id="ocrModal" style="position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border:2px solid black;z-index:9999;display:none;">
-#                         <label>Enter Page Name:</label><br/>
-#                         <select id="pageDropdown" style="margin:5px;padding:5px;width:250px;"></select><br/>
-#                         <button onclick="triggerEnrichment()">Enrich</button>
-#                         <button onclick="document.getElementById('ocrModal').style.display='none'">Close</button>
-#                         <div id="enrichmentMessageBox" style="margin-top:10px;font-weight:bold;color:green;"></div>
-#                     </div>
-#                 `;
-#                 document.body.appendChild(modal);
-
-#                 async function loadAvailablePages() {
-#                     try {
-#                         const res = await fetch('http://127.0.0.1:8001/available-pages');
-#                         const data = await res.json();
-#                         const dropdown = document.getElementById('pageDropdown');
-#                         dropdown.innerHTML = "";
-#                         for (const page of data.pages) {
-#                             const option = document.createElement("option");
-#                             option.value = page;
-#                             option.innerText = page;
-#                             dropdown.appendChild(option);
-#                         }
-#                     } catch (err) {
-#                         alert("❌ Failed to load available pages.");
-#                     }
-#                 }
-
-                
-#                 window.triggerEnrichment = async function() {
-#                     const pageName = document.getElementById('pageDropdown').value;
-#                     const msg = document.getElementById("enrichmentMessageBox")
-#                     if (!pageName) {
-#                         msg.innerText = "❌ Page name is required.";
-#                         msg.style.color = "red";
-#                         return;
-#                     }
-#                     msg.innerText = "⏳ Enrichment in progress…"
-#                     msg.style.color   = "blue"
-#                     msg.offsetHeight  // force repaint
-
-#                     try {
-#                         const resultStr = await window.sendEnrichmentRequests(pageName)
-#                         const result    = JSON.parse(resultStr)
-#                         console.log("✅ Matched:", result);
-
-#                         if (result.status !== "success") {
-#                         msg.innerText = `❌ Enrichment failed: ${result.error}`
-#                         msg.style.color = "red"
-
-#                         } else if (result.count === 0) {
-#                         msg.innerText = "❌ Enrichment succeeded but no elements matched."
-#                         msg.style.color = "red"
-
-#                         } else {
-#                         msg.innerText = `✅ Enriched ${result.count} elements successfully.`
-#                         msg.style.color = "green"
-#                         }
-
-#                     } catch (err) {
-#                         console.error("Enrichment Error:", err);
-#                         msg.innerText = "❌ Enrichment Error: " + (err.message || err)
-#                         msg.style.color = "red"
-#                     }
-#                 };
-
-#                 document.addEventListener('keydown', function(e) {
-#                     if (e.altKey && (e.key === 'q' || e.key === 'Q')) {
-#                         const modal = document.getElementById('ocrModal');
-#                         modal.style.display = 'block';
-#                         loadAvailablePages();
-#                     }
-#                 });
-#             }
-#             """)
-        
-#         return {
-#             "message": f"✅ Browser launched and navigated to {req.url}. Press Alt+E to enrich any page."
-#         }
-
-#     except Exception as e:
-#         import traceback
-#         traceback.print_exc()
-#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/set-current-page-name")
