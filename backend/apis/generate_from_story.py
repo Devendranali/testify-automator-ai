@@ -69,17 +69,6 @@ def to_pascal_case(name: str) -> str:
 
 
 def generate_test_code_from_methods(user_story, method_map, page_names, site_url):
-    dynamic_steps = []
-    for page, methods in method_map.items():
-        for method in methods:
-            if method.startswith("enter_"):
-                param = method.replace("enter_", "")
-                dynamic_steps.append(
-                    f"    - Call `await {page}_page.{method}(\"<{param}>\")`")
-            elif method.startswith("click_") or method.startswith("select_"):
-                dynamic_steps.append(
-                    f"    - Call `await {page}_page.{method}()`")
-
     story_block = f'"""{user_story.strip()}"""'
     method_prompt_block = json.dumps(
         {f"{page}_page": methods for page, methods in method_map.items()}, indent=2)
@@ -153,10 +142,6 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
 
 
 def fix_page_object_initialization(code, page_names):
-    """
-    Replace FooPage(page) with FooPage(page, "foo") for all FooPage classes.
-    page_names: Dict[class_name -> page_name], e.g., {'LoginPage': 'login', ...}
-    """
     for class_name, page_name in page_names.items():
         code = re.sub(
             rf"{class_name}\s*\(\s*page\s*\)",
@@ -184,7 +169,6 @@ async def generate_from_user_story(
     if file:
         content = await file.read()
         if file.filename.endswith((".xls", ".xlsx")):
-            xls = pd.ExcelFile(io.BytesIO(content))
             df = pd.read_excel(io.BytesIO(content), sheet_name="User Stories")
         elif file.filename.endswith(".csv"):
             df = pd.read_csv(io.StringIO(content.decode()))
@@ -214,21 +198,9 @@ async def generate_from_user_story(
         json.dump(all_chroma_metadatas, f, indent=2)
 
     method_map_full = get_all_page_methods(pages_dir)
-    test_functions = []
-    ui_scripts = []
+    test_functions, ui_scripts = [], []
 
-    # ----- Prepare imports for both test and UI script
-    import_lines = [
-        "import asyncio",
-        "from playwright.async_api import async_playwright",
-    ]
-    # Always sort for consistency
-    page_imports = [
-        f"from pages.{page}_page import {to_pascal_case(page)}"
-        for page in sorted(method_map_full.keys())
-    ]
-    import_lines.extend(page_imports)
-    import_block = "\n".join(import_lines)
+    page_names_map = {to_pascal_case(page): page for page in method_map_full}
 
     for story in stories:
         path_pages = get_inferred_pages(story, method_map_full)
@@ -236,99 +208,90 @@ async def generate_from_user_story(
                           for p in path_pages if p in method_map_full}
         code = generate_test_code_from_methods(
             story, sub_method_map, path_pages, site_url)
-        # 👇 Ensure all async test functions are decorated and import is present
-        pattern = r'(?m)^(async def test_)'
-        code = re.sub(pattern, '@pytest.mark.asyncio\n\\1', code)
+
+        # Test Code Adjustments
+        code = re.sub(r'(?m)^(async def test_)',
+                      '@pytest.mark.asyncio\n\\1', code)
         if 'import pytest' not in code:
             code = 'import pytest\n' + code
-        # Remove _enrich_if_needed calls (if present)
         code = re.sub(
             r'await\s+\w+_page\._enrich_if_needed\([^\)]*\)\s*\n', '', code)
-        test_functions.append(code)
+        test_functions.append(
+            fix_page_object_initialization(code, page_names_map))
 
-        # --------- UI Script Generation (Standalone, Playwright, NO pytest marker) ---------
-        # Remove pytest decorator and import
+        # UI Script Adjustments
         ui_code = re.sub(r'import pytest\n?', '', code)
         ui_code = re.sub(r'@pytest\.mark\.asyncio\n?', '', ui_code)
-        # Rename test_user_story/page to main
         ui_code = re.sub(r'async def test_\w+\(page\):',
                          'async def main():', ui_code)
-        ui_code = re.sub(r'async def test_user_story\(page\):',
-                         'async def main():', ui_code)
-
-        # Patch page object initializations to include page_name
-        page_names_map = {to_pascal_case(
-            page): page for page in method_map_full}
         ui_code = fix_page_object_initialization(ui_code, page_names_map)
 
-        # Split into lines, remove function def
-        ui_lines = ui_code.splitlines()
-        inside_main = False
-        main_body_lines = []
-        for line in ui_lines:
-            if line.strip().startswith("async def main():"):
-                inside_main = True
-                continue
-            if inside_main:
-                main_body_lines.append(line)
-        # Remove dedent from original generated code
-        main_body = "\n".join(line.lstrip()
-                              for line in main_body_lines if line.strip())
+        main_body_match = re.search(
+            r'async def main\(\):\n((?:.|\n)*)', ui_code)
+        main_body_lines = main_body_match.group(
+            1).splitlines() if main_body_match else []
+        main_body_clean = [line.strip()
+                           for line in main_body_lines if line.strip()]
 
-        # Remove any lines that instantiate page objects to avoid duplicates
-        page_obj_init_pattern = re.compile(
-            r'^\s*\w+_page\s*=\s*\w+Page\(.*\)', re.MULTILINE)
-        main_body_clean = page_obj_init_pattern.sub('', main_body)
+        # Detect first usage and initialize exactly before that
+        page_class_names = {page: to_pascal_case(
+            page) for page in method_map_full}
+        seen_pages = set()
+        adjusted_main_body = []
+        for line in main_body_clean:
+            method_call_match = re.match(r'await\s+(\w+_page)\.', line)
+            if method_call_match:
+                page_var = method_call_match.group(1)
+                page_key = page_var.replace("_page", "")
+                if page_key not in seen_pages:
+                    instantiation_line = f"{page_var} = {page_class_names[page_key]}(page, '{page_key}')"
+                    adjusted_main_body.append(instantiation_line)
+                    seen_pages.add(page_key)
+            adjusted_main_body.append(line)
 
-        # Build the required page object instantiations (always all, order same as import)
-        page_vars = []
-        for page in sorted(method_map_full.keys()):
-            class_name = to_pascal_case(page)
-            page_var = f"{page}_page"
-            page_vars.append(
-                f"        {page_var} = {class_name}(page, \"{page}\")")
-
-        # Compose the main()
-        main_def = [
-            "async def main():",
-            "    async with async_playwright() as p:",
-            "        browser = await p.chromium.launch(headless=False)",
-            "        page = await browser.new_page()",
+        # Compose UI script imports
+        ui_imports = [
+            "import asyncio",
+            "from playwright.async_api import async_playwright",
+            "from generated_runs.src.pages.base_page import BasePage",
+        ] + [
+            f"from generated_runs.src.pages.{page}_page import {to_pascal_case(page)}"
+            for page in sorted(method_map_full)
         ]
-        main_def.extend(page_vars)
-        # Add an empty line for readability before main_body
-        if main_body_clean.strip():
-            main_def.append("")
-            # indent all lines in main_body by 2 indents (8 spaces)
-            for code_line in main_body_clean.splitlines():
-                if code_line.strip():  # skip empty lines
-                    main_def.append("        " + code_line.lstrip())
 
-        main_code_block = "\n".join(main_def)
+        # Final UI Script
+        ui_script_full = f"""{chr(10).join(ui_imports)}
 
-        # Compose full script
-        script_full = (
-            f"{import_block}\n\n{main_code_block}\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n"
-        )
+async def main():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page()
 
-        ui_scripts.append(script_full)
-        # --------- END UI Script Generation ----------
+        base_page = BasePage(page, "base", url='{site_url}')
+        await base_page.goto("{site_url}")
+
+{"".join(f"        {line}\n" for line in adjusted_main_body)}
+
+if __name__ == "__main__":
+    asyncio.run(main())
+""".strip()
+
+        ui_scripts.append(ui_script_full)
 
     idx = next_index(tests_dir, "test_{}.py")
     test_file = tests_dir / f"test_{idx}.py"
     ui_file = tests_dir / f"ui_scripts_{idx}.py"
 
-    # --- Patch page object initializations in tests (not needed for ui_scripts, already done above)
-    page_names_map = {to_pascal_case(page): page for page in method_map_full}
-    test_functions = [fix_page_object_initialization(
-        code, page_names_map) for code in test_functions]
+    full_test_code = "\n\n".join(
+        [f"from generated_runs.src.pages.{page}_page import {to_pascal_case(page)}"
+         for page in sorted(method_map_full)]
+        + test_functions
+    )
+    test_file.write_text(full_test_code, encoding="utf-8")
 
-    full_code = "\n\n".join(page_imports + test_functions)
-    test_file.write_text(full_code, encoding="utf-8")
-    create_default_test_data(run_folder)
-
-    # Write UI script with full imports and Playwright block
     ui_code_full = "\n\n".join(ui_scripts)
     ui_file.write_text(ui_code_full, encoding="utf-8")
+
+    create_default_test_data(run_folder)
 
     return {"results": stories, "test_file": str(test_file), "ui_script": str(ui_file)}

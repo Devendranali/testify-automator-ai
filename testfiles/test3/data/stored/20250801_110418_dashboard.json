@@ -1,0 +1,580 @@
+[
+    {
+        "id": "5df90a95-1bcb-4e34-b4f7-921c1f107307",
+        "document": "Bank CRM",
+        "metadata": {
+            "external": false,
+            "label_text": "Bank CRM",
+            "ocr_type": "label",
+            "intent": "app_name",
+            "page_name": "dashboard",
+            "type": "ocr",
+            "placeholder": "Bank CRM",
+            "element_id": "5df90a95-1bcb-4e34-b4f7-921c1f107307",
+            "dom_matched": false,
+            "get_by_text": "Bank CRM",
+            "unique_name": "dashboard_bank_crm_label_app_name_386d51e4"
+        }
+    },
+    {
+        "id": "b0ba28ae-21ad-46fc-9757-0f814f590d9c",
+        "document": "Dashboard",
+        "metadata": {
+            "intent": "navigation",
+            "dom_matched": false,
+            "external": false,
+            "type": "ocr",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_dashboard_button_navigation_83914516",
+            "ocr_type": "button",
+            "label_text": "Dashboard",
+            "placeholder": "Dashboard",
+            "get_by_text": "Dashboard",
+            "element_id": "b0ba28ae-21ad-46fc-9757-0f814f590d9c"
+        }
+    },
+    {
+        "id": "368fa533-1e51-4e70-9178-29fc4b07fce1",
+        "document": "Customers",
+        "metadata": {
+            "label_text": "Customers",
+            "unique_name": "dashboard_customers_button_navigation_bb4303b6",
+            "placeholder": "Customers",
+            "element_id": "368fa533-1e51-4e70-9178-29fc4b07fce1",
+            "dom_matched": false,
+            "intent": "navigation",
+            "page_name": "dashboard",
+            "get_by_text": "Customers",
+            "ocr_type": "button",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "f861504c-af72-4087-b485-08d9f8c713e0",
+        "document": "Loans",
+        "metadata": {
+            "get_by_text": "Loans",
+            "external": false,
+            "element_id": "f861504c-af72-4087-b485-08d9f8c713e0",
+            "page_name": "dashboard",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "type": "ocr",
+            "unique_name": "dashboard_loans_button_navigation_42436e2a",
+            "label_text": "Loans",
+            "intent": "navigation",
+            "placeholder": "Loans"
+        }
+    },
+    {
+        "id": "cd680b76-c7a7-4556-9b32-773219512e85",
+        "document": "Transactions",
+        "metadata": {
+            "label_text": "Transactions",
+            "external": false,
+            "get_by_text": "Transactions",
+            "element_id": "cd680b76-c7a7-4556-9b32-773219512e85",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_transactions_button_navigation_f0479a72",
+            "placeholder": "Transactions",
+            "intent": "navigation",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "dc1ad66a-f342-4c25-98d8-e6cc6d5bf624",
+        "document": "Tasks",
+        "metadata": {
+            "get_by_text": "Tasks",
+            "element_id": "dc1ad66a-f342-4c25-98d8-e6cc6d5bf624",
+            "dom_matched": false,
+            "label_text": "Tasks",
+            "type": "ocr",
+            "ocr_type": "button",
+            "unique_name": "dashboard_tasks_button_navigation_cde2a4d6",
+            "intent": "navigation",
+            "placeholder": "Tasks",
+            "external": false,
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "aff42980-c254-4395-ab42-8b1cf7f5ca44",
+        "document": "Reports",
+        "metadata": {
+            "intent": "navigation",
+            "unique_name": "dashboard_reports_button_navigation_578fb659",
+            "label_text": "Reports",
+            "get_by_text": "Reports",
+            "external": false,
+            "type": "ocr",
+            "placeholder": "Reports",
+            "element_id": "aff42980-c254-4395-ab42-8b1cf7f5ca44",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "9c33f21f-78c3-49dc-ada3-2a9c1bcbc409",
+        "document": "Analytics",
+        "metadata": {
+            "external": false,
+            "element_id": "9c33f21f-78c3-49dc-ada3-2a9c1bcbc409",
+            "intent": "navigation",
+            "placeholder": "Analytics",
+            "label_text": "Analytics",
+            "unique_name": "dashboard_analytics_button_navigation_49884ab5",
+            "type": "ocr",
+            "get_by_text": "Analytics",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "17b8a38c-1603-4952-ba3d-6663cd5dc83f",
+        "document": "Settings",
+        "metadata": {
+            "page_name": "dashboard",
+            "intent": "navigation",
+            "get_by_text": "Settings",
+            "type": "ocr",
+            "dom_matched": false,
+            "label_text": "Settings",
+            "element_id": "17b8a38c-1603-4952-ba3d-6663cd5dc83f",
+            "placeholder": "Settings",
+            "external": false,
+            "ocr_type": "button",
+            "unique_name": "dashboard_settings_button_navigation_7a36fd5d"
+        }
+    },
+    {
+        "id": "46c7267e-3433-4784-8036-0c05ef1e84c2",
+        "document": "Search customers, loans, transactions...",
+        "metadata": {
+            "label_text": "Search customers, loans, transactions...",
+            "external": false,
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "ocr_type": "textbox",
+            "get_by_text": "Search customers, loans, transactions...",
+            "element_id": "46c7267e-3433-4784-8036-0c05ef1e84c2",
+            "placeholder": "Search customers, loans, transactions...",
+            "intent": "search",
+            "unique_name": "dashboard_search_customers,_loans,_transactions..._textbox_search_3310a968"
+        }
+    },
+    {
+        "id": "9c5fb607-9455-47a2-b157-227f5b2ebbab",
+        "document": "Dashboard",
+        "metadata": {
+            "intent": "page_title",
+            "placeholder": "Dashboard",
+            "element_id": "9c5fb607-9455-47a2-b157-227f5b2ebbab",
+            "label_text": "Dashboard",
+            "unique_name": "dashboard_dashboard_label_page_title_a353b4f0",
+            "ocr_type": "label",
+            "get_by_text": "Dashboard",
+            "external": false,
+            "dom_matched": false,
+            "type": "ocr",
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "6a96c97f-0a79-431a-af33-9249df145eab",
+        "document": "Welcome back! Here's your banking overview.",
+        "metadata": {
+            "get_by_text": "Welcome back! Here's your banking overview.",
+            "intent": "page_description",
+            "placeholder": "Welcome back! Here's your banking overview.",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "element_id": "6a96c97f-0a79-431a-af33-9249df145eab",
+            "page_name": "dashboard",
+            "label_text": "Welcome back! Here's your banking overview.",
+            "unique_name": "dashboard_welcome_back!_heres_your_banking_overview._label_page_description_09bbc2b8",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "ec54bcb4-86db-4a58-ab1b-231b7138b6ec",
+        "document": "Total Customers",
+        "metadata": {
+            "element_id": "ec54bcb4-86db-4a58-ab1b-231b7138b6ec",
+            "placeholder": "Total Customers",
+            "unique_name": "dashboard_total_customers_label_stat_title_179d38df",
+            "dom_matched": false,
+            "get_by_text": "Total Customers",
+            "external": false,
+            "type": "ocr",
+            "label_text": "Total Customers",
+            "page_name": "dashboard",
+            "intent": "stat_title",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "1aa56d6e-a7db-4efc-8b42-43aab7aaf9ab",
+        "document": "2,847",
+        "metadata": {
+            "external": false,
+            "label_text": "2,847",
+            "ocr_type": "label",
+            "intent": "stat_value",
+            "element_id": "1aa56d6e-a7db-4efc-8b42-43aab7aaf9ab",
+            "page_name": "dashboard",
+            "placeholder": "2,847",
+            "get_by_text": "2,847",
+            "type": "ocr",
+            "unique_name": "dashboard_2,847_label_stat_value_87cbb334",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "10018206-f6fb-46dc-9e23-a668c536e85e",
+        "document": "Active Loans",
+        "metadata": {
+            "label_text": "Active Loans",
+            "get_by_text": "Active Loans",
+            "intent": "stat_title",
+            "placeholder": "Active Loans",
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "label",
+            "element_id": "10018206-f6fb-46dc-9e23-a668c536e85e",
+            "unique_name": "dashboard_active_loans_label_stat_title_d483020f",
+            "dom_matched": false,
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "2e295afd-0448-42dc-8ffb-cc3971b763dc",
+        "document": "$45.2M",
+        "metadata": {
+            "external": false,
+            "placeholder": "$45.2M",
+            "label_text": "$45.2M",
+            "unique_name": "dashboard_$45.2m_label_stat_value_4d719f7e",
+            "ocr_type": "label",
+            "type": "ocr",
+            "page_name": "dashboard",
+            "get_by_text": "$45.2M",
+            "dom_matched": false,
+            "intent": "stat_value",
+            "element_id": "2e295afd-0448-42dc-8ffb-cc3971b763dc"
+        }
+    },
+    {
+        "id": "3025666b-e943-4237-922f-f63b99721b5b",
+        "document": "Monthly Transactions",
+        "metadata": {
+            "dom_matched": false,
+            "placeholder": "Monthly Transactions",
+            "ocr_type": "label",
+            "get_by_text": "Monthly Transactions",
+            "type": "ocr",
+            "element_id": "3025666b-e943-4237-922f-f63b99721b5b",
+            "external": false,
+            "page_name": "dashboard",
+            "unique_name": "dashboard_monthly_transactions_label_stat_title_c5add703",
+            "label_text": "Monthly Transactions",
+            "intent": "stat_title"
+        }
+    },
+    {
+        "id": "4a8105f6-40d0-4b3f-b550-2c5107559104",
+        "document": "18,394",
+        "metadata": {
+            "intent": "stat_value",
+            "type": "ocr",
+            "page_name": "dashboard",
+            "label_text": "18,394",
+            "element_id": "4a8105f6-40d0-4b3f-b550-2c5107559104",
+            "unique_name": "dashboard_18,394_label_stat_value_e3b013e0",
+            "external": false,
+            "get_by_text": "18,394",
+            "placeholder": "18,394",
+            "ocr_type": "label",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "5a8becd4-eadb-47ab-b130-1b2c17a641c4",
+        "document": "Revenue Growth",
+        "metadata": {
+            "element_id": "5a8becd4-eadb-47ab-b130-1b2c17a641c4",
+            "placeholder": "Revenue Growth",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_revenue_growth_label_stat_title_d31f3890",
+            "type": "ocr",
+            "ocr_type": "label",
+            "intent": "stat_title",
+            "dom_matched": false,
+            "label_text": "Revenue Growth",
+            "get_by_text": "Revenue Growth",
+            "external": false
+        }
+    },
+    {
+        "id": "e86ca00a-61eb-4e4f-807d-8989b571a220",
+        "document": "23.4%",
+        "metadata": {
+            "ocr_type": "label",
+            "external": false,
+            "intent": "stat_value",
+            "placeholder": "23.4%",
+            "get_by_text": "23.4%",
+            "unique_name": "dashboard_23.4%_label_stat_value_71ed5bf4",
+            "dom_matched": false,
+            "element_id": "e86ca00a-61eb-4e4f-807d-8989b571a220",
+            "page_name": "dashboard",
+            "label_text": "23.4%",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "35a94ba0-6b2b-4149-8aeb-e231e2737acb",
+        "document": "Export Report",
+        "metadata": {
+            "label_text": "Export Report",
+            "page_name": "dashboard",
+            "element_id": "35a94ba0-6b2b-4149-8aeb-e231e2737acb",
+            "dom_matched": false,
+            "placeholder": "Export Report",
+            "ocr_type": "button",
+            "external": false,
+            "get_by_text": "Export Report",
+            "type": "ocr",
+            "unique_name": "dashboard_export_report_button_export_ed26f6d4",
+            "intent": "export"
+        }
+    },
+    {
+        "id": "c818bcd4-1da3-4a58-ab89-55cf3c98a82a",
+        "document": "Loan Portfolio Trend",
+        "metadata": {
+            "get_by_text": "Loan Portfolio Trend",
+            "type": "ocr",
+            "intent": "chart_title",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "label_text": "Loan Portfolio Trend",
+            "external": false,
+            "element_id": "c818bcd4-1da3-4a58-ab89-55cf3c98a82a",
+            "placeholder": "Loan Portfolio Trend",
+            "unique_name": "dashboard_loan_portfolio_trend_label_chart_title_989237db",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "7b52290d-a6d5-4c97-aa5a-f16ff39f61e5",
+        "document": "Monthly loan disbursements over the last 6 months",
+        "metadata": {
+            "placeholder": "Monthly loan disbursements over the last 6 months",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "element_id": "7b52290d-a6d5-4c97-aa5a-f16ff39f61e5",
+            "intent": "chart_description",
+            "external": false,
+            "get_by_text": "Monthly loan disbursements over the last 6 months",
+            "label_text": "Monthly loan disbursements over the last 6 months",
+            "type": "ocr",
+            "unique_name": "dashboard_monthly_loan_disbursements_over_the_last_6_months_label_chart_description_f35a06c8",
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "11864794-dfe1-4552-88d3-4f40445eb79d",
+        "document": "Customer Distribution",
+        "metadata": {
+            "unique_name": "dashboard_customer_distribution_label_chart_title_e474f1f6",
+            "dom_matched": false,
+            "page_name": "dashboard",
+            "intent": "chart_title",
+            "type": "ocr",
+            "ocr_type": "label",
+            "placeholder": "Customer Distribution",
+            "label_text": "Customer Distribution",
+            "element_id": "11864794-dfe1-4552-88d3-4f40445eb79d",
+            "get_by_text": "Customer Distribution",
+            "external": false
+        }
+    },
+    {
+        "id": "48a1a4c2-6aa5-45b3-bef5-95d67f9b2a94",
+        "document": "Customer segments by account type",
+        "metadata": {
+            "unique_name": "dashboard_customer_segments_by_account_type_label_chart_description_0c3ccf15",
+            "ocr_type": "label",
+            "intent": "chart_description",
+            "type": "ocr",
+            "get_by_text": "Customer segments by account type",
+            "element_id": "48a1a4c2-6aa5-45b3-bef5-95d67f9b2a94",
+            "page_name": "dashboard",
+            "placeholder": "Customer segments by account type",
+            "dom_matched": false,
+            "label_text": "Customer segments by account type",
+            "external": false
+        }
+    },
+    {
+        "id": "c919cf2f-8a71-4240-a5b4-9081e2e59a7f",
+        "document": "Recent Activities",
+        "metadata": {
+            "ocr_type": "label",
+            "page_name": "dashboard",
+            "unique_name": "dashboard_recent_activities_label_section_title_c5dd6139",
+            "label_text": "Recent Activities",
+            "placeholder": "Recent Activities",
+            "intent": "section_title",
+            "type": "ocr",
+            "dom_matched": false,
+            "element_id": "c919cf2f-8a71-4240-a5b4-9081e2e59a7f",
+            "get_by_text": "Recent Activities",
+            "external": false
+        }
+    },
+    {
+        "id": "64ca2fc9-4d9e-4963-b1f6-772aa6df27f1",
+        "document": "Latest customer interactions and transactions",
+        "metadata": {
+            "placeholder": "Latest customer interactions and transactions",
+            "label_text": "Latest customer interactions and transactions",
+            "unique_name": "dashboard_latest_customer_interactions_and_transactions_label_section_description_80065ec9",
+            "page_name": "dashboard",
+            "get_by_text": "Latest customer interactions and transactions",
+            "ocr_type": "label",
+            "external": false,
+            "intent": "section_description",
+            "element_id": "64ca2fc9-4d9e-4963-b1f6-772aa6df27f1",
+            "type": "ocr",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "603095bc-2019-458b-aa55-84916a5c141c",
+        "document": "Sarah Johnson",
+        "metadata": {
+            "page_name": "dashboard",
+            "type": "ocr",
+            "element_id": "603095bc-2019-458b-aa55-84916a5c141c",
+            "external": false,
+            "label_text": "Sarah Johnson",
+            "intent": "activity_name",
+            "dom_matched": false,
+            "get_by_text": "Sarah Johnson",
+            "placeholder": "Sarah Johnson",
+            "ocr_type": "label",
+            "unique_name": "dashboard_sarah_johnson_label_activity_name_0c1c1c63"
+        }
+    },
+    {
+        "id": "25e81eff-4aca-44e4-8c78-3a147d2f61a5",
+        "document": "Loan Application Approved",
+        "metadata": {
+            "get_by_text": "Loan Application Approved",
+            "page_name": "dashboard",
+            "ocr_type": "label",
+            "unique_name": "dashboard_loan_application_approved_label_activity_description_9c02eed4",
+            "external": false,
+            "intent": "activity_description",
+            "label_text": "Loan Application Approved",
+            "dom_matched": false,
+            "placeholder": "Loan Application Approved",
+            "type": "ocr",
+            "element_id": "25e81eff-4aca-44e4-8c78-3a147d2f61a5"
+        }
+    },
+    {
+        "id": "7b786c50-bf57-4efa-b940-cb42eb1f1afb",
+        "document": "Michael Chen",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "get_by_text": "Michael Chen",
+            "ocr_type": "label",
+            "intent": "activity_name",
+            "external": false,
+            "page_name": "dashboard",
+            "label_text": "Michael Chen",
+            "element_id": "7b786c50-bf57-4efa-b940-cb42eb1f1afb",
+            "placeholder": "Michael Chen",
+            "unique_name": "dashboard_michael_chen_label_activity_name_f450c443"
+        }
+    },
+    {
+        "id": "e8a2dc4c-55e3-4f39-bc90-600045bde04c",
+        "document": "- $250,000",
+        "metadata": {
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "- $250,000",
+            "intent": "activity_value",
+            "placeholder": "- $250,000",
+            "label_text": "- $250,000",
+            "ocr_type": "label",
+            "element_id": "e8a2dc4c-55e3-4f39-bc90-600045bde04c",
+            "external": false,
+            "unique_name": "dashboard_-_$250,000_label_activity_value_62d6508e",
+            "page_name": "dashboard"
+        }
+    },
+    {
+        "id": "e19befb8-fef0-4472-b39d-2dc1ece8ec56",
+        "document": "2 hours ago",
+        "metadata": {
+            "ocr_type": "label",
+            "dom_matched": false,
+            "type": "ocr",
+            "page_name": "dashboard",
+            "placeholder": "2 hours ago",
+            "label_text": "2 hours ago",
+            "unique_name": "dashboard_2_hours_ago_label_activity_time_03a0319c",
+            "get_by_text": "2 hours ago",
+            "external": false,
+            "element_id": "e19befb8-fef0-4472-b39d-2dc1ece8ec56",
+            "intent": "activity_time"
+        }
+    },
+    {
+        "id": "e89c6c90-3ca2-438d-bde9-0cc32040a1e6",
+        "document": "John Doe",
+        "metadata": {
+            "ocr_type": "label",
+            "element_id": "e89c6c90-3ca2-438d-bde9-0cc32040a1e6",
+            "dom_matched": false,
+            "label_text": "John Doe",
+            "placeholder": "John Doe",
+            "unique_name": "dashboard_john_doe_label_user_profile_fda748b0",
+            "page_name": "dashboard",
+            "get_by_text": "John Doe",
+            "external": false,
+            "intent": "user_profile",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "c640e61b-3e31-45f3-8ca3-68b01c408456",
+        "document": "Edit with",
+        "metadata": {
+            "intent": "edit",
+            "unique_name": "dashboard_edit_with_button_edit_b26551b3",
+            "label_text": "Edit with",
+            "external": false,
+            "page_name": "dashboard",
+            "type": "ocr",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "get_by_text": "Edit with",
+            "placeholder": "Edit with",
+            "element_id": "c640e61b-3e31-45f3-8ca3-68b01c408456"
+        }
+    }
+]

@@ -1,0 +1,111 @@
+I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements from the screenshot. Here's a general approach:
+
+1. **Navigation Menu:**
+   - Bank CRM - label - app_name
+   - Dashboard - button - navigation
+   - Customers - button - navigation
+   - Loans - button - navigation
+   - Transactions - button - navigation
+   - Tasks - button - navigation
+   - Reports - button - navigation
+   - Analytics - button - navigation
+   - Settings - button - navigation
+
+2. **Search Bar:**
+   - Search customers, loans, transactions... - textbox - search
+
+3. **Dashboard Header:**
+   - Dashboard - label - page_title
+   - Welcome back! Here's your banking overview. - label - page_description
+
+4. **Statistics Cards:**
+   - Total Customers - label - stat_title
+   - 2,847 - label - stat_value
+   - Active Loans - label - stat_title
+   - $45.2M - label - stat_value
+   - Monthly Transactions - label - stat_title
+   - 18,394 - label - stat_value
+   - Revenue Growth - label - stat_title
+   - 23.4% - label - stat_value
+
+5. **Export Button:**
+   - Export Report - button - export
+
+6. **Graphs and Charts:**
+   - Loan Portfolio Trend - label - chart_title
+   - Monthly loan disbursements over the last 6 months - label - chart_description
+   - Customer Distribution - label - chart_title
+   - Customer segments by account type - label - chart_description
+
+7. **Recent Activities:**
+   - Recent Activities - label - section_title
+   - Latest customer interactions and transactions - label - section_description
+   - Sarah Johnson - label - activity_name
+   - Loan Application Approved - label - activity_description
+   - Michael Chen - label - activity_name
+   - - $250,000 - label - activity_value
+   - 2 hours ago - label - activity_time
+
+8. **User Profile:**
+   - John Doe - label - user_profile
+
+9. **Edit Button:**
+   - Edit with - button - edit
+
+This approach involves identifying each element's type and intent based on its appearance and context within the UI.
+---------------------------------------- After Cleaning ----------------------------------------
+I'm unable to process the image directly, but I can guide you on how to extract and classify the UI elements from the screenshot. Here's a general approach:
+
+Navigation Menu:
+Bank CRM - label - app_name
+Dashboard - button - navigation
+Customers - button - navigation
+Loans - button - navigation
+Transactions - button - navigation
+Tasks - button - navigation
+Reports - button - navigation
+Analytics - button - navigation
+Settings - button - navigation
+
+Search Bar:
+Search customers, loans, transactions... - textbox - search
+
+Dashboard Header:
+Dashboard - label - page_title
+Welcome back! Here's your banking overview. - label - page_description
+
+Statistics Cards:
+Total Customers - label - stat_title
+2,847 - label - stat_value
+Active Loans - label - stat_title
+$45.2M - label - stat_value
+Monthly Transactions - label - stat_title
+18,394 - label - stat_value
+Revenue Growth - label - stat_title
+23.4% - label - stat_value
+
+Export Button:
+Export Report - button - export
+
+Graphs and Charts:
+Loan Portfolio Trend - label - chart_title
+Monthly loan disbursements over the last 6 months - label - chart_description
+Customer Distribution - label - chart_title
+Customer segments by account type - label - chart_description
+
+Recent Activities:
+Recent Activities - label - section_title
+Latest customer interactions and transactions - label - section_description
+Sarah Johnson - label - activity_name
+Loan Application Approved - label - activity_description
+Michael Chen - label - activity_name
+- $250,000 - label - activity_value
+2 hours ago - label - activity_time
+
+User Profile:
+John Doe - label - user_profile
+
+Edit Button:
+Edit with - button - edit
+
+This approach involves identifying each element's type and intent based on its appearance and context within the UI.

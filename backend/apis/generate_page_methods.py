@@ -9,30 +9,38 @@ router = APIRouter()
 
 def generate_base_page(base_page_path: Path):
     base_page_content = '''from services.page_enricher import enrich_page
+from generated_runs.src.lib.smart_ai import patch_page_with_smartai
+from services.chroma_service import get_chroma_collection
 
 class BasePage:
     enriched_pages = set()
+    shared_page = None  # Class-level page sharing
 
-    def __init__(self, page, page_name, url=None):
-        self.page = page
+    def __init__(self, page=None, page_name="base", url=None):
+        if page is not None:
+            BasePage.shared_page = page
+        elif BasePage.shared_page is None:
+            raise ValueError("Playwright page instance must be provided at least once.")
+
+        self.page = BasePage.shared_page
         self.page_name = page_name
         self.url = url
 
+    def _fetch_metadata_from_chroma(self, page_name):
+        collection = get_chroma_collection()
+        all_metadata = collection.get(where={"page_name": page_name}).get("metadatas", [])
+        return all_metadata
+
     async def goto(self, url=None):
-        if url:
-            await self.page.goto(url)
-        elif self.url:
-            await self.page.goto(self.url)
-        else:
+        target_url = url or self.url
+        if not target_url:
             raise ValueError(f"URL not set for {self.page_name}")
+        await self.page.goto(target_url)
 
     async def enrich_once(self, force=False):
         if force or self.page_name not in BasePage.enriched_pages:
-            await enrich_page(self.page, self.page_name)  # DOM enrichment clearly triggered
+            await enrich_page(self.page, self.page_name)
             BasePage.enriched_pages.add(self.page_name)
-            print(f"🌟 Enriched page: {self.page_name}")
-        else:
-            print(f"✅ Already enriched: {self.page_name}")
 '''
     base_page_path.write_text(base_page_content.strip(), encoding="utf-8")
     print("✅ Generated BasePage class")
@@ -70,10 +78,9 @@ def smartai_page(page):
     outdir = Path("generated_runs") / "src" / "pages"
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Dynamically generate BasePage (if not exists)
+    # Generate BasePage class
     base_page_path = outdir / "base_page.py"
-    if not base_page_path.exists():
-        generate_base_page(base_page_path)
+    generate_base_page(base_page_path)
 
     for page in target_pages:
         page_data = collection.get(where={"page_name": page})
@@ -81,39 +88,60 @@ def smartai_page(page):
 
         page_spec = {
             "page_name": page,
-            "entries": entries  # agent handles logic and page_name passing!
+            "entries": entries
         }
 
         response = send_message("python", "generate_page_file", page_spec)
         payload = response.payload
-
-        # Payload["code"] is now assumed to be correct:
-        # - Inherits from BasePage
-        # - __init__(self, page, page_name="pagename"): super().__init__(page, page_name)
-        # - No _enrich_if_needed duplicates
-        # - page_name handled at class and test instantiation
-
         page_class_code = payload["code"]
 
-        # Insert import (if not present)
-        lines = page_class_code.splitlines()
-        new_lines = []
-        inserted_import = False
-        for line in lines:
-            if not inserted_import and line.strip().startswith("class"):
-                # Ensure import only if not already present
-                new_lines.append("from .base_page import BasePage\n")
-                inserted_import = True
-            new_lines.append(line)
-        page_class_code = "\n".join(new_lines)
+        # Extract class name
+        class_name = page_class_code.split('class ')[1].split('(')[0].strip()
+
+        header = f'''from generated_runs.src.pages.base_page import BasePage
+from services.page_enricher import enrich_page
+from generated_runs.src.lib.smart_ai import patch_page_with_smartai
+from utils.enrichment_status import is_enriched
+
+class {class_name}(BasePage):
+    def __init__(self, page=None, page_name="{page}"):
+        super().__init__(page, page_name)
+        self._enriched = False
+        metadata = self._fetch_metadata_from_chroma(page_name)
+        patch_page_with_smartai(self.page, metadata)
+
+    async def _enrich_if_needed(self, force=False):
+        if force or not is_enriched(self.page_name):
+            await enrich_page(self.page, self.page_name)
+            self._enriched = True
+'''
+
+        # 1. Split out all method blocks (grab all async defs, skip _enrich_if_needed duplicates)
+        methods = []
+        for block in page_class_code.split('\n'):
+            # Capture only async def methods (skip _enrich_if_needed outside the header)
+            if block.strip().startswith("async def _enrich_if_needed"):
+                continue  # We inject this above, skip all else
+            if block.strip().startswith("async def "):
+                methods.append(block)
+            elif methods:
+                # For lines after async def (body), as long as we started a method
+                methods[-1] += "\n" + block
+
+        # 2. Join all method blocks and ensure proper indentation
+        # (Assume incoming block is already correctly indented by LLM; otherwise, indent manually)
+        method_blocks = "\n\n".join(methods)
+
+        # 3. Final code assembly
+        final_code = f"{header}\n\n{method_blocks}\n"
 
         # Write the generated page class
         filepath = outdir / payload["page_file"]
-        filepath.write_text(page_class_code, encoding="utf-8")
+        filepath.write_text(final_code.strip(), encoding="utf-8")
 
         result[page] = {
             "filename": str(filepath),
-            "code": page_class_code
+            "code": final_code
         }
 
     return result

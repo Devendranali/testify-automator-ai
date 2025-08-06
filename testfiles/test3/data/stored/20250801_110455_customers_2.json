@@ -1,0 +1,342 @@
+[
+    {
+        "id": "a2fca7d3-9201-4218-a75a-0a149c0e19a8",
+        "document": "Add New Customer",
+        "metadata": {
+            "ocr_type": "label",
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Add New Customer",
+            "unique_name": "customers_add_new_customer_label_form_title_2b3b0780",
+            "page_name": "customers",
+            "label_text": "Add New Customer",
+            "intent": "form_title",
+            "external": false,
+            "placeholder": "Add New Customer",
+            "element_id": "a2fca7d3-9201-4218-a75a-0a149c0e19a8"
+        }
+    },
+    {
+        "id": "fb2cd0aa-8211-4797-bdfb-7c9a38b25c5a",
+        "document": "Enter the customer details to create a new account.",
+        "metadata": {
+            "label_text": "Enter the customer details to create a new account.",
+            "placeholder": "Enter the customer details to create a new account.",
+            "page_name": "customers",
+            "unique_name": "customers_enter_the_customer_details_to_create_a_new_account._label_form_instruction_4e368c65",
+            "dom_matched": false,
+            "intent": "form_instruction",
+            "type": "ocr",
+            "external": false,
+            "element_id": "fb2cd0aa-8211-4797-bdfb-7c9a38b25c5a",
+            "get_by_text": "Enter the customer details to create a new account.",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "ca0271cd-3c80-4774-82c4-631c1112f69a",
+        "document": "Full Name",
+        "metadata": {
+            "label_text": "Full Name",
+            "unique_name": "customers_full_name_label_full_name_label_7fa7eb35",
+            "get_by_text": "Full Name",
+            "dom_matched": false,
+            "intent": "full_name_label",
+            "ocr_type": "label",
+            "external": false,
+            "placeholder": "Full Name",
+            "page_name": "customers",
+            "element_id": "ca0271cd-3c80-4774-82c4-631c1112f69a",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "a1de6265-b477-444c-9c5b-09a63170e5cb",
+        "document": "",
+        "metadata": {
+            "page_name": "customers",
+            "label_text": "",
+            "get_by_text": "",
+            "intent": "full_name_input",
+            "placeholder": "",
+            "element_id": "a1de6265-b477-444c-9c5b-09a63170e5cb",
+            "type": "ocr",
+            "unique_name": "customers_textbox_full_name_input_b5555c13",
+            "ocr_type": "textbox",
+            "dom_matched": false,
+            "external": false
+        }
+    },
+    {
+        "id": "5044d1f0-633b-404c-b8c7-935bbdc3c359",
+        "document": "Email",
+        "metadata": {
+            "ocr_type": "label",
+            "page_name": "customers",
+            "dom_matched": false,
+            "element_id": "5044d1f0-633b-404c-b8c7-935bbdc3c359",
+            "placeholder": "Email",
+            "intent": "email_label",
+            "unique_name": "customers_email_label_email_label_1e22d7f0",
+            "get_by_text": "Email",
+            "external": false,
+            "label_text": "Email",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "9bfcba14-2fe8-4483-8473-650aa96a7ecd",
+        "document": "",
+        "metadata": {
+            "unique_name": "customers_textbox_email_input_b7f01675",
+            "page_name": "customers",
+            "ocr_type": "textbox",
+            "type": "ocr",
+            "dom_matched": false,
+            "placeholder": "",
+            "label_text": "",
+            "get_by_text": "",
+            "external": false,
+            "intent": "email_input",
+            "element_id": "9bfcba14-2fe8-4483-8473-650aa96a7ecd"
+        }
+    },
+    {
+        "id": "cf9ab89f-d77b-4a6b-b05b-2797447bc18a",
+        "document": "Phone Number",
+        "metadata": {
+            "external": false,
+            "ocr_type": "label",
+            "dom_matched": false,
+            "page_name": "customers",
+            "element_id": "cf9ab89f-d77b-4a6b-b05b-2797447bc18a",
+            "label_text": "Phone Number",
+            "get_by_text": "Phone Number",
+            "type": "ocr",
+            "unique_name": "customers_phone_number_label_phone_number_label_03e465fd",
+            "intent": "phone_number_label",
+            "placeholder": "Phone Number"
+        }
+    },
+    {
+        "id": "5ef95f22-b54a-4a0b-9c07-dfff3cdf68ee",
+        "document": "",
+        "metadata": {
+            "get_by_text": "",
+            "type": "ocr",
+            "intent": "phone_number_input",
+            "external": false,
+            "unique_name": "customers_textbox_phone_number_input_bb72a72b",
+            "page_name": "customers",
+            "dom_matched": false,
+            "label_text": "",
+            "ocr_type": "textbox",
+            "placeholder": "",
+            "element_id": "5ef95f22-b54a-4a0b-9c07-dfff3cdf68ee"
+        }
+    },
+    {
+        "id": "8b9358b8-df75-4953-aea0-90a76eac154a",
+        "document": "Account Type",
+        "metadata": {
+            "placeholder": "Account Type",
+            "type": "ocr",
+            "element_id": "8b9358b8-df75-4953-aea0-90a76eac154a",
+            "external": false,
+            "intent": "account_type_label",
+            "ocr_type": "label",
+            "unique_name": "customers_account_type_label_account_type_label_a1b76de7",
+            "dom_matched": false,
+            "label_text": "Account Type",
+            "page_name": "customers",
+            "get_by_text": "Account Type"
+        }
+    },
+    {
+        "id": "a4ee4270-ec8c-4445-b218-ec1c2beb6894",
+        "document": "Select account type",
+        "metadata": {
+            "get_by_text": "Select account type",
+            "intent": "account_type_select",
+            "label_text": "Select account type",
+            "unique_name": "customers_select_account_type_select_account_type_select_739bf8ef",
+            "ocr_type": "select",
+            "type": "ocr",
+            "element_id": "a4ee4270-ec8c-4445-b218-ec1c2beb6894",
+            "external": false,
+            "page_name": "customers",
+            "dom_matched": false,
+            "placeholder": "Select account type"
+        }
+    },
+    {
+        "id": "f11e10d3-48a4-4a6f-8e91-1836acfa65c9",
+        "document": "Address",
+        "metadata": {
+            "page_name": "customers",
+            "placeholder": "Address",
+            "external": false,
+            "intent": "address_label",
+            "unique_name": "customers_address_label_address_label_bfa99020",
+            "get_by_text": "Address",
+            "ocr_type": "label",
+            "label_text": "Address",
+            "element_id": "f11e10d3-48a4-4a6f-8e91-1836acfa65c9",
+            "dom_matched": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "2b83cf40-c25e-4bb9-b1f5-0d6187c70df6",
+        "document": "",
+        "metadata": {
+            "page_name": "customers",
+            "external": false,
+            "type": "ocr",
+            "dom_matched": false,
+            "element_id": "2b83cf40-c25e-4bb9-b1f5-0d6187c70df6",
+            "label_text": "",
+            "ocr_type": "textbox",
+            "placeholder": "",
+            "get_by_text": "",
+            "unique_name": "customers_textbox_address_input_0da1bba0",
+            "intent": "address_input"
+        }
+    },
+    {
+        "id": "e2ac3b26-97ac-41c3-b4b0-28fd11227096",
+        "document": "Occupation",
+        "metadata": {
+            "intent": "occupation_label",
+            "page_name": "customers",
+            "get_by_text": "Occupation",
+            "external": false,
+            "placeholder": "Occupation",
+            "element_id": "e2ac3b26-97ac-41c3-b4b0-28fd11227096",
+            "unique_name": "customers_occupation_label_occupation_label_78041ebe",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Occupation"
+        }
+    },
+    {
+        "id": "b99d68c1-2464-4867-a6a7-1cb2e4dc3eb3",
+        "document": "",
+        "metadata": {
+            "dom_matched": false,
+            "unique_name": "customers_textbox_occupation_input_7c88216e",
+            "intent": "occupation_input",
+            "page_name": "customers",
+            "placeholder": "",
+            "get_by_text": "",
+            "ocr_type": "textbox",
+            "external": false,
+            "type": "ocr",
+            "element_id": "b99d68c1-2464-4867-a6a7-1cb2e4dc3eb3",
+            "label_text": ""
+        }
+    },
+    {
+        "id": "41b5c0b8-ed03-41ec-923b-64c1c8fce9ff",
+        "document": "Annual Income",
+        "metadata": {
+            "intent": "annual_income_label",
+            "page_name": "customers",
+            "placeholder": "Annual Income",
+            "dom_matched": false,
+            "get_by_text": "Annual Income",
+            "external": false,
+            "element_id": "41b5c0b8-ed03-41ec-923b-64c1c8fce9ff",
+            "ocr_type": "label",
+            "unique_name": "customers_annual_income_label_annual_income_label_41327b0b",
+            "label_text": "Annual Income",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "78f68805-9a98-479c-b406-f58f6a293ba2",
+        "document": "",
+        "metadata": {
+            "placeholder": "",
+            "intent": "annual_income_input",
+            "label_text": "",
+            "unique_name": "customers_textbox_annual_income_input_7b960691",
+            "element_id": "78f68805-9a98-479c-b406-f58f6a293ba2",
+            "type": "ocr",
+            "page_name": "customers",
+            "dom_matched": false,
+            "get_by_text": "",
+            "external": false,
+            "ocr_type": "textbox"
+        }
+    },
+    {
+        "id": "5dae5c00-d3e8-48d6-bc52-948edea26def",
+        "document": "Initial Deposit",
+        "metadata": {
+            "label_text": "Initial Deposit",
+            "unique_name": "customers_initial_deposit_label_initial_deposit_label_a98dd99a",
+            "type": "ocr",
+            "element_id": "5dae5c00-d3e8-48d6-bc52-948edea26def",
+            "get_by_text": "Initial Deposit",
+            "intent": "initial_deposit_label",
+            "external": false,
+            "ocr_type": "label",
+            "dom_matched": false,
+            "placeholder": "Initial Deposit",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "3688aa7e-269c-40b7-a916-a08a6c1c2856",
+        "document": "",
+        "metadata": {
+            "placeholder": "",
+            "type": "ocr",
+            "ocr_type": "textbox",
+            "intent": "initial_deposit_input",
+            "dom_matched": false,
+            "element_id": "3688aa7e-269c-40b7-a916-a08a6c1c2856",
+            "unique_name": "customers_textbox_initial_deposit_input_842f44e3",
+            "external": false,
+            "label_text": "",
+            "page_name": "customers",
+            "get_by_text": ""
+        }
+    },
+    {
+        "id": "efeb1242-fdf0-416e-9a47-4d0ce3992df1",
+        "document": "Cancel",
+        "metadata": {
+            "placeholder": "Cancel",
+            "label_text": "Cancel",
+            "page_name": "customers",
+            "unique_name": "customers_cancel_button_cancel_71a3913d",
+            "type": "ocr",
+            "dom_matched": false,
+            "get_by_text": "Cancel",
+            "ocr_type": "button",
+            "intent": "cancel",
+            "element_id": "efeb1242-fdf0-416e-9a47-4d0ce3992df1",
+            "external": false
+        }
+    },
+    {
+        "id": "ced215b1-ce3b-40d3-a1d9-ffdf8e6c4146",
+        "document": "Add Customer",
+        "metadata": {
+            "external": false,
+            "page_name": "customers",
+            "element_id": "ced215b1-ce3b-40d3-a1d9-ffdf8e6c4146",
+            "intent": "submit",
+            "ocr_type": "button",
+            "type": "ocr",
+            "placeholder": "Add Customer",
+            "dom_matched": false,
+            "label_text": "Add Customer",
+            "unique_name": "customers_add_customer_button_submit_bce56d38",
+            "get_by_text": "Add Customer"
+        }
+    }
+]

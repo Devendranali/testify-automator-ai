@@ -19,8 +19,8 @@ async def enrich_page(page, page_name):
     collection = client.get_or_create_collection(
         name="element_metadata", embedding_function=embedding_fn
     )
-    ocr_data = collection.get(
-        where={"page_name": page_name, "type": "ocr"}).get("metadatas", [])
+    ocr_data = collection.get(where={"page_name": page_name}).get("metadatas", []) 
+    # ocr_data = collection.get(where={"$and": [{"page_name": page_name}]}).get("metadatas", [])
 
     # --- Match and Update ---
     match_and_update(ocr_data, dom_data, collection)

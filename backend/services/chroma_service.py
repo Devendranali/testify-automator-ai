@@ -20,6 +20,11 @@ handler = logging.FileHandler("chroma_upsert_errors.log")
 handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
 error_logger.addHandler(handler)
 
+
+def get_chroma_collection():
+    return collection
+
+
 def _sanitize_metadata_value(value):
     if value is None:
         return ""

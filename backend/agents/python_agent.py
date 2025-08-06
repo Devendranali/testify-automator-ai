@@ -12,9 +12,10 @@ class PlaywrightPythonAgent(MCPAgentBase):
         return MCPResponse(False, error="generate_method is now part of generate_page_file")
 
     def generate_test(self, test_case_spec):
-        page_imports = test_case_spec["imports"]  # e.g. ['from pages.dashboard_page import DashboardPage']
-        method_calls = test_case_spec["calls"]    # e.g. ['await page.enter_username("standard_user")', ...]
-
+        # e.g. ['from pages.dashboard_page import DashboardPage']
+        page_imports = test_case_spec["imports"]
+        # e.g. ['await page.enter_username("standard_user")', ...]
+        method_calls = test_case_spec["calls"]
         code = "\n".join([
             *page_imports,
             "\n\nasync def test_generated_flow(smartai_page):",
@@ -36,9 +37,11 @@ class PlaywrightPythonAgent(MCPAgentBase):
 
         class_header = (
             f"\n\nclass {class_name}(BasePage):\n"
-            f"    def __init__(self, page, page_name=\"{page_name}\"):\n"
+            f"    def __init__(self, page=None, page_name=\"{page_name}\"):\n"
             f"        super().__init__(page, page_name)\n"
-            f"        self._enriched = False\n\n"
+            f"        self._enriched = False\n"
+            f"        metadata = self._fetch_metadata_from_chroma(page_name)\n"
+            f"        patch_page_with_smartai(self.page, metadata)\n\n"
             f"    async def _enrich_if_needed(self, force=False):\n"
             f"        if force or not is_enriched(self.page_name):\n"
             f"            await enrich_page(self.page, self.page_name)\n"
@@ -47,7 +50,6 @@ class PlaywrightPythonAgent(MCPAgentBase):
 
         method_blocks = []
         seen_method_names = set()
-
         ignored_types = {}
 
         for entry in entries:
@@ -60,13 +62,14 @@ class PlaywrightPythonAgent(MCPAgentBase):
             if ocr_type in ignored_types:
                 continue  # Skip passive elements
 
-            # --- Map ocr_type to method template ---
+            # --- All methods use locator assignment first ---
             if ocr_type in ("textbox", "text", "textarea", "password", "email", "input"):
                 method_name = f"enter_{base_name}"
                 block = (
                     f"    async def {method_name}(self, value):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').fill(value)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.fill(value)\n"
                 )
 
             elif ocr_type in ("button", "submit", "link", "iconbutton", "imagebutton", "tab", "panel", "accordion", "menu", "breadcrumb"):
@@ -74,7 +77,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').click()\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.click()\n"
                 )
 
             elif ocr_type in ("select", "dropdown", "combobox"):
@@ -82,7 +86,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self, value):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').select_option(value)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.select_option(value)\n"
                 )
 
             elif ocr_type == "multiselect":
@@ -90,7 +95,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self, values):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').select_options(values)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.select_options(values)\n"
                 )
 
             elif ocr_type in ("checkbox", "switch", "toggle"):
@@ -98,7 +104,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').click()\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.click()\n"
                 )
 
             elif ocr_type in ("date", "datepicker", "time", "timepicker", "slider", "range"):
@@ -106,7 +113,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self, value):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').fill(value)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.fill(value)\n"
                 )
 
             elif ocr_type in ("image", "avatar", "userpic", "badge", "chip", "tag", "alert", "modal", "toast", "dialog", "label"):
@@ -114,7 +122,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        assert await self.page.smartAI('{smartai_name}').is_visible()\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        assert await locator.is_visible()\n"
                 )
 
             elif ocr_type == "pagination":
@@ -122,7 +131,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self, page_number):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').goto_page(page_number)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.goto_page(page_number)\n"
                 )
 
             elif ocr_type in ("table", "grid", "datatable"):
@@ -130,7 +140,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        return await self.page.smartAI('{smartai_name}').get_table_data()\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        return await locator.get_table_data()\n"
                 )
 
             elif ocr_type in ("file", "upload", "fileinput"):
@@ -138,7 +149,8 @@ class PlaywrightPythonAgent(MCPAgentBase):
                 block = (
                     f"    async def {method_name}(self, file_path):\n"
                     f"        await self._enrich_if_needed()\n"
-                    f"        await self.page.smartAI('{smartai_name}').set_input_files(file_path)\n"
+                    f"        locator = await self.page.smartAI('{smartai_name}')\n"
+                    f"        await locator.set_input_files(file_path)\n"
                 )
 
             else:

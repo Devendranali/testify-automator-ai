@@ -1,0 +1,835 @@
+[
+    {
+        "id": "d2b1a228-a8a0-4d0b-9457-f2036aca50aa",
+        "document": "",
+        "metadata": {
+            "intent": "navigation",
+            "label_text": "",
+            "page_name": "customers",
+            "unique_name": "customers_button_navigation_6ab61bef",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "external": false,
+            "get_by_text": "",
+            "placeholder": "",
+            "type": "ocr",
+            "element_id": "d2b1a228-a8a0-4d0b-9457-f2036aca50aa"
+        }
+    },
+    {
+        "id": "021831e7-fd2d-40cc-9ac3-2f23ee70d0c6",
+        "document": "Search customers, loans, transactions...",
+        "metadata": {
+            "type": "ocr",
+            "page_name": "customers",
+            "element_id": "021831e7-fd2d-40cc-9ac3-2f23ee70d0c6",
+            "ocr_type": "textbox",
+            "get_by_text": "Search customers, loans, transactions...",
+            "intent": "search",
+            "placeholder": "Search customers, loans, transactions...",
+            "label_text": "Search customers, loans, transactions...",
+            "dom_matched": false,
+            "unique_name": "customers_search_customers,_loans,_transactions..._textbox_search_be73039f",
+            "external": false
+        }
+    },
+    {
+        "id": "de442e19-49cb-45a3-aa9c-f3efdb02b84e",
+        "document": "Dashboard",
+        "metadata": {
+            "dom_matched": false,
+            "unique_name": "customers_dashboard_button_navigation_fb22376c",
+            "element_id": "de442e19-49cb-45a3-aa9c-f3efdb02b84e",
+            "ocr_type": "button",
+            "external": false,
+            "label_text": "Dashboard",
+            "placeholder": "Dashboard",
+            "type": "ocr",
+            "page_name": "customers",
+            "get_by_text": "Dashboard",
+            "intent": "navigation"
+        }
+    },
+    {
+        "id": "e333d9ff-e793-4a09-bfc5-935fa61980ad",
+        "document": "Customers",
+        "metadata": {
+            "external": false,
+            "placeholder": "Customers",
+            "type": "ocr",
+            "page_name": "customers",
+            "unique_name": "customers_customers_button_navigation_62cd2bf8",
+            "get_by_text": "Customers",
+            "intent": "navigation",
+            "dom_matched": false,
+            "element_id": "e333d9ff-e793-4a09-bfc5-935fa61980ad",
+            "ocr_type": "button",
+            "label_text": "Customers"
+        }
+    },
+    {
+        "id": "e577303a-76f3-47f5-9121-f23a8b71d40d",
+        "document": "Loans",
+        "metadata": {
+            "label_text": "Loans",
+            "placeholder": "Loans",
+            "page_name": "customers",
+            "get_by_text": "Loans",
+            "dom_matched": false,
+            "external": false,
+            "intent": "navigation",
+            "element_id": "e577303a-76f3-47f5-9121-f23a8b71d40d",
+            "type": "ocr",
+            "unique_name": "customers_loans_button_navigation_f083cd47",
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "8df4eb69-6394-44ac-b88e-fe8bd0933163",
+        "document": "Transactions",
+        "metadata": {
+            "type": "ocr",
+            "placeholder": "Transactions",
+            "intent": "navigation",
+            "ocr_type": "button",
+            "element_id": "8df4eb69-6394-44ac-b88e-fe8bd0933163",
+            "get_by_text": "Transactions",
+            "unique_name": "customers_transactions_button_navigation_bb833203",
+            "label_text": "Transactions",
+            "dom_matched": false,
+            "external": false,
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "698cb956-b319-4c11-9b61-daded2b088e3",
+        "document": "Tasks",
+        "metadata": {
+            "page_name": "customers",
+            "type": "ocr",
+            "element_id": "698cb956-b319-4c11-9b61-daded2b088e3",
+            "get_by_text": "Tasks",
+            "placeholder": "Tasks",
+            "external": false,
+            "unique_name": "customers_tasks_button_navigation_63e52ff9",
+            "ocr_type": "button",
+            "label_text": "Tasks",
+            "intent": "navigation",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "38b45acb-6f71-453b-8074-a11b8c7d259b",
+        "document": "Reports",
+        "metadata": {
+            "element_id": "38b45acb-6f71-453b-8074-a11b8c7d259b",
+            "placeholder": "Reports",
+            "external": false,
+            "ocr_type": "button",
+            "dom_matched": false,
+            "label_text": "Reports",
+            "unique_name": "customers_reports_button_navigation_1dc35b9f",
+            "intent": "navigation",
+            "get_by_text": "Reports",
+            "type": "ocr",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "5cf2b96e-0c6f-47d5-b366-783c18ac2154",
+        "document": "Analytics",
+        "metadata": {
+            "dom_matched": false,
+            "element_id": "5cf2b96e-0c6f-47d5-b366-783c18ac2154",
+            "intent": "navigation",
+            "get_by_text": "Analytics",
+            "placeholder": "Analytics",
+            "ocr_type": "button",
+            "external": false,
+            "unique_name": "customers_analytics_button_navigation_8227d101",
+            "type": "ocr",
+            "label_text": "Analytics",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "dd830670-2ebd-4530-a3c8-75eb66253786",
+        "document": "Settings",
+        "metadata": {
+            "label_text": "Settings",
+            "get_by_text": "Settings",
+            "type": "ocr",
+            "page_name": "customers",
+            "element_id": "dd830670-2ebd-4530-a3c8-75eb66253786",
+            "intent": "navigation",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "unique_name": "customers_settings_button_navigation_9de99b8a",
+            "external": false,
+            "placeholder": "Settings"
+        }
+    },
+    {
+        "id": "878b0621-7709-40c7-9c26-86a767289d63",
+        "document": "Customers",
+        "metadata": {
+            "intent": "section_title",
+            "placeholder": "Customers",
+            "type": "ocr",
+            "get_by_text": "Customers",
+            "ocr_type": "label",
+            "label_text": "Customers",
+            "dom_matched": false,
+            "element_id": "878b0621-7709-40c7-9c26-86a767289d63",
+            "external": false,
+            "page_name": "customers",
+            "unique_name": "customers_customers_label_section_title_2ec8510a"
+        }
+    },
+    {
+        "id": "ec6e9630-bbc8-475b-ab98-7c229a24d2cb",
+        "document": "Manage your customer relationships and accounts",
+        "metadata": {
+            "unique_name": "customers_manage_your_customer_relationships_and_accounts_label_section_info_f20c0595",
+            "dom_matched": false,
+            "get_by_text": "Manage your customer relationships and accounts",
+            "external": false,
+            "ocr_type": "label",
+            "element_id": "ec6e9630-bbc8-475b-ab98-7c229a24d2cb",
+            "page_name": "customers",
+            "intent": "section_info",
+            "type": "ocr",
+            "label_text": "Manage your customer relationships and accounts",
+            "placeholder": "Manage your customer relationships and accounts"
+        }
+    },
+    {
+        "id": "00989a60-d022-4457-9dbf-148c09cd52e9",
+        "document": "Search customers...",
+        "metadata": {
+            "placeholder": "Search customers...",
+            "ocr_type": "textbox",
+            "type": "ocr",
+            "get_by_text": "Search customers...",
+            "unique_name": "customers_search_customers..._textbox_search_85d3ce1f",
+            "element_id": "00989a60-d022-4457-9dbf-148c09cd52e9",
+            "page_name": "customers",
+            "intent": "search",
+            "label_text": "Search customers...",
+            "dom_matched": false,
+            "external": false
+        }
+    },
+    {
+        "id": "cef4f6ed-e3a0-4b8f-a419-3a539d2ee480",
+        "document": "Filters",
+        "metadata": {
+            "element_id": "cef4f6ed-e3a0-4b8f-a419-3a539d2ee480",
+            "ocr_type": "button",
+            "placeholder": "Filters",
+            "unique_name": "customers_filters_button_filter_4c0a3d63",
+            "external": false,
+            "intent": "filter",
+            "page_name": "customers",
+            "type": "ocr",
+            "get_by_text": "Filters",
+            "label_text": "Filters",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "0650f6f1-3892-427f-9b8d-817a0503edd2",
+        "document": "Customer List",
+        "metadata": {
+            "get_by_text": "Customer List",
+            "label_text": "Customer List",
+            "placeholder": "Customer List",
+            "intent": "section_title",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "page_name": "customers",
+            "element_id": "0650f6f1-3892-427f-9b8d-817a0503edd2",
+            "unique_name": "customers_customer_list_label_section_title_ad47eb6a",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "e1e68f7d-14a0-44f0-9092-1026eaf16158",
+        "document": "3 customers found",
+        "metadata": {
+            "element_id": "e1e68f7d-14a0-44f0-9092-1026eaf16158",
+            "ocr_type": "label",
+            "intent": "section_info",
+            "dom_matched": false,
+            "external": false,
+            "unique_name": "customers_3_customers_found_label_section_info_f58e240e",
+            "page_name": "customers",
+            "label_text": "3 customers found",
+            "placeholder": "3 customers found",
+            "type": "ocr",
+            "get_by_text": "3 customers found"
+        }
+    },
+    {
+        "id": "51c8ef4b-a743-4cb6-a351-ba42e4fcf518",
+        "document": "Customer",
+        "metadata": {
+            "page_name": "customers",
+            "dom_matched": false,
+            "placeholder": "Customer",
+            "intent": "column_title",
+            "label_text": "Customer",
+            "type": "ocr",
+            "ocr_type": "label",
+            "get_by_text": "Customer",
+            "unique_name": "customers_customer_label_column_title_01dacf22",
+            "external": false,
+            "element_id": "51c8ef4b-a743-4cb6-a351-ba42e4fcf518"
+        }
+    },
+    {
+        "id": "1014ad6c-eafb-4afa-8bbc-e1cafd62d85c",
+        "document": "Account Type",
+        "metadata": {
+            "intent": "column_title",
+            "ocr_type": "label",
+            "element_id": "1014ad6c-eafb-4afa-8bbc-e1cafd62d85c",
+            "label_text": "Account Type",
+            "dom_matched": false,
+            "get_by_text": "Account Type",
+            "unique_name": "customers_account_type_label_column_title_1b2a9c41",
+            "type": "ocr",
+            "placeholder": "Account Type",
+            "page_name": "customers",
+            "external": false
+        }
+    },
+    {
+        "id": "3c053eb3-a466-49ef-99b6-a9dafaaeba0e",
+        "document": "Balance",
+        "metadata": {
+            "placeholder": "Balance",
+            "type": "ocr",
+            "unique_name": "customers_balance_label_column_title_a5832ecf",
+            "dom_matched": false,
+            "page_name": "customers",
+            "external": false,
+            "ocr_type": "label",
+            "get_by_text": "Balance",
+            "element_id": "3c053eb3-a466-49ef-99b6-a9dafaaeba0e",
+            "intent": "column_title",
+            "label_text": "Balance"
+        }
+    },
+    {
+        "id": "50c83703-ea99-49cc-96a0-f2afe78e8c5e",
+        "document": "Status",
+        "metadata": {
+            "ocr_type": "label",
+            "label_text": "Status",
+            "dom_matched": false,
+            "type": "ocr",
+            "placeholder": "Status",
+            "page_name": "customers",
+            "intent": "column_title",
+            "external": false,
+            "get_by_text": "Status",
+            "element_id": "50c83703-ea99-49cc-96a0-f2afe78e8c5e",
+            "unique_name": "customers_status_label_column_title_b24a10b1"
+        }
+    },
+    {
+        "id": "b17286ab-22fc-48b5-9368-23c9e9493d9f",
+        "document": "Join Date",
+        "metadata": {
+            "label_text": "Join Date",
+            "page_name": "customers",
+            "unique_name": "customers_join_date_label_column_title_c808519b",
+            "dom_matched": false,
+            "element_id": "b17286ab-22fc-48b5-9368-23c9e9493d9f",
+            "placeholder": "Join Date",
+            "ocr_type": "label",
+            "get_by_text": "Join Date",
+            "intent": "column_title",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "3eb31fbe-233c-41ce-a2ec-9708ac8a4382",
+        "document": "Actions",
+        "metadata": {
+            "page_name": "customers",
+            "placeholder": "Actions",
+            "unique_name": "customers_actions_label_column_title_32bd0b21",
+            "type": "ocr",
+            "intent": "column_title",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "external": false,
+            "element_id": "3eb31fbe-233c-41ce-a2ec-9708ac8a4382",
+            "label_text": "Actions",
+            "get_by_text": "Actions"
+        }
+    },
+    {
+        "id": "bc68f083-5fa9-4a2f-89a9-72ef7dab602e",
+        "document": "Sarah Johnson",
+        "metadata": {
+            "dom_matched": false,
+            "unique_name": "customers_sarah_johnson_label_customer_name_91134cc9",
+            "label_text": "Sarah Johnson",
+            "type": "ocr",
+            "placeholder": "Sarah Johnson",
+            "ocr_type": "label",
+            "external": false,
+            "get_by_text": "Sarah Johnson",
+            "element_id": "bc68f083-5fa9-4a2f-89a9-72ef7dab602e",
+            "intent": "customer_name",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "8886264f-fadd-4622-b00d-fb578afb9ac3",
+        "document": "sarah.johnson@email.com",
+        "metadata": {
+            "intent": "customer_email",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "get_by_text": "sarah.johnson@email.com",
+            "unique_name": "customers_sarah.johnson@email.com_label_customer_email_ea79968a",
+            "placeholder": "sarah.johnson@email.com",
+            "external": false,
+            "label_text": "sarah.johnson@email.com",
+            "page_name": "customers",
+            "element_id": "8886264f-fadd-4622-b00d-fb578afb9ac3",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "a73dc962-40ad-4e64-b0f1-74c5ee623abd",
+        "document": "Premium",
+        "metadata": {
+            "element_id": "a73dc962-40ad-4e64-b0f1-74c5ee623abd",
+            "unique_name": "customers_premium_label_account_type_c1ae4279",
+            "page_name": "customers",
+            "intent": "account_type",
+            "placeholder": "Premium",
+            "label_text": "Premium",
+            "dom_matched": false,
+            "type": "ocr",
+            "external": false,
+            "ocr_type": "label",
+            "get_by_text": "Premium"
+        }
+    },
+    {
+        "id": "71397a63-0c0e-412a-88ee-d9c67790c187",
+        "document": "$1,45,000",
+        "metadata": {
+            "get_by_text": "$1,45,000",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "intent": "balance",
+            "label_text": "$1,45,000",
+            "page_name": "customers",
+            "external": false,
+            "element_id": "71397a63-0c0e-412a-88ee-d9c67790c187",
+            "placeholder": "$1,45,000",
+            "type": "ocr",
+            "unique_name": "customers_$1,45,000_label_balance_dc74e6a8"
+        }
+    },
+    {
+        "id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+        "document": "Active",
+        "metadata": {
+            "label_text": "Active",
+            "intent": "status",
+            "get_by_text": "Active",
+            "placeholder": "Active",
+            "ocr_type": "label",
+            "element_id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+            "type": "ocr",
+            "unique_name": "customers_active_label_status_5fc1bbb1",
+            "page_name": "customers",
+            "external": false,
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "f6ab412d-4e34-4861-a87b-cd96096bda84",
+        "document": "2023-01-15",
+        "metadata": {
+            "intent": "join_date",
+            "type": "ocr",
+            "dom_matched": false,
+            "element_id": "f6ab412d-4e34-4861-a87b-cd96096bda84",
+            "label_text": "2023-01-15",
+            "external": false,
+            "placeholder": "2023-01-15",
+            "unique_name": "customers_2023-01-15_label_join_date_13b4a3e0",
+            "ocr_type": "label",
+            "page_name": "customers",
+            "get_by_text": "2023-01-15"
+        }
+    },
+    {
+        "id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097",
+        "document": "",
+        "metadata": {
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "placeholder": "",
+            "intent": "view_action",
+            "page_name": "customers",
+            "element_id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097",
+            "external": false,
+            "ocr_type": "button",
+            "label_text": "",
+            "get_by_text": "",
+            "dom_matched": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+        "document": "",
+        "metadata": {
+            "intent": "edit_action",
+            "ocr_type": "button",
+            "label_text": "",
+            "dom_matched": false,
+            "type": "ocr",
+            "element_id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+            "external": false,
+            "unique_name": "customers_button_edit_action_d3d0df61",
+            "page_name": "customers",
+            "placeholder": "",
+            "get_by_text": ""
+        }
+    },
+    {
+        "id": "875cde4c-7aee-4184-99bb-4d034760930a",
+        "document": "Michael Chen",
+        "metadata": {
+            "dom_matched": false,
+            "page_name": "customers",
+            "label_text": "Michael Chen",
+            "element_id": "875cde4c-7aee-4184-99bb-4d034760930a",
+            "ocr_type": "label",
+            "get_by_text": "Michael Chen",
+            "type": "ocr",
+            "intent": "customer_name",
+            "placeholder": "Michael Chen",
+            "external": false,
+            "unique_name": "customers_michael_chen_label_customer_name_8dbd8345"
+        }
+    },
+    {
+        "id": "5b09beb3-e538-4203-80bc-fb6bd6a64d57",
+        "document": "michael.chen@email.com",
+        "metadata": {
+            "unique_name": "customers_michael.chen@email.com_label_customer_email_8f50f16b",
+            "get_by_text": "michael.chen@email.com",
+            "element_id": "5b09beb3-e538-4203-80bc-fb6bd6a64d57",
+            "placeholder": "michael.chen@email.com",
+            "type": "ocr",
+            "label_text": "michael.chen@email.com",
+            "intent": "customer_email",
+            "dom_matched": false,
+            "page_name": "customers",
+            "ocr_type": "label",
+            "external": false
+        }
+    },
+    {
+        "id": "19890bb6-4950-49a8-bdda-7de1c20aa551",
+        "document": "Standard",
+        "metadata": {
+            "external": false,
+            "dom_matched": false,
+            "unique_name": "customers_standard_label_account_type_ef9be216",
+            "ocr_type": "label",
+            "get_by_text": "Standard",
+            "placeholder": "Standard",
+            "element_id": "19890bb6-4950-49a8-bdda-7de1c20aa551",
+            "label_text": "Standard",
+            "page_name": "customers",
+            "type": "ocr",
+            "intent": "account_type"
+        }
+    },
+    {
+        "id": "e237650c-9454-4cac-9320-2276321b47e6",
+        "document": "$52,000",
+        "metadata": {
+            "ocr_type": "label",
+            "intent": "balance",
+            "label_text": "$52,000",
+            "type": "ocr",
+            "dom_matched": false,
+            "placeholder": "$52,000",
+            "page_name": "customers",
+            "element_id": "e237650c-9454-4cac-9320-2276321b47e6",
+            "get_by_text": "$52,000",
+            "unique_name": "customers_$52,000_label_balance_b6e2bd67",
+            "external": false
+        }
+    },
+    {
+        "id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+        "document": "Active",
+        "metadata": {
+            "unique_name": "customers_active_label_status_5fc1bbb1",
+            "intent": "status",
+            "label_text": "Active",
+            "dom_matched": false,
+            "page_name": "customers",
+            "element_id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+            "type": "ocr",
+            "external": false,
+            "get_by_text": "Active",
+            "placeholder": "Active",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "60b1e2be-4f28-4302-8916-b494d35be984",
+        "document": "2023-03-22",
+        "metadata": {
+            "intent": "join_date",
+            "page_name": "customers",
+            "ocr_type": "label",
+            "get_by_text": "2023-03-22",
+            "label_text": "2023-03-22",
+            "external": false,
+            "placeholder": "2023-03-22",
+            "type": "ocr",
+            "unique_name": "customers_2023-03-22_label_join_date_363240e3",
+            "element_id": "60b1e2be-4f28-4302-8916-b494d35be984",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097",
+        "document": "",
+        "metadata": {
+            "type": "ocr",
+            "label_text": "",
+            "placeholder": "",
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "intent": "view_action",
+            "get_by_text": "",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "page_name": "customers",
+            "external": false,
+            "element_id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097"
+        }
+    },
+    {
+        "id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+        "document": "",
+        "metadata": {
+            "intent": "edit_action",
+            "label_text": "",
+            "element_id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+            "get_by_text": "",
+            "placeholder": "",
+            "page_name": "customers",
+            "type": "ocr",
+            "dom_matched": false,
+            "external": false,
+            "ocr_type": "button",
+            "unique_name": "customers_button_edit_action_d3d0df61"
+        }
+    },
+    {
+        "id": "cb631786-ef5d-4e00-820a-050c7a3346fc",
+        "document": "Emma Davis",
+        "metadata": {
+            "dom_matched": false,
+            "type": "ocr",
+            "element_id": "cb631786-ef5d-4e00-820a-050c7a3346fc",
+            "intent": "customer_name",
+            "page_name": "customers",
+            "ocr_type": "label",
+            "get_by_text": "Emma Davis",
+            "external": false,
+            "unique_name": "customers_emma_davis_label_customer_name_671b9ccd",
+            "label_text": "Emma Davis",
+            "placeholder": "Emma Davis"
+        }
+    },
+    {
+        "id": "6d16d772-39b9-437c-b110-c6cb042ce30d",
+        "document": "emma.davis@email.com",
+        "metadata": {
+            "page_name": "customers",
+            "ocr_type": "label",
+            "type": "ocr",
+            "unique_name": "customers_emma.davis@email.com_label_customer_email_1680f20b",
+            "dom_matched": false,
+            "placeholder": "emma.davis@email.com",
+            "intent": "customer_email",
+            "get_by_text": "emma.davis@email.com",
+            "label_text": "emma.davis@email.com",
+            "external": false,
+            "element_id": "6d16d772-39b9-437c-b110-c6cb042ce30d"
+        }
+    },
+    {
+        "id": "a73dc962-40ad-4e64-b0f1-74c5ee623abd",
+        "document": "Premium",
+        "metadata": {
+            "dom_matched": false,
+            "label_text": "Premium",
+            "get_by_text": "Premium",
+            "page_name": "customers",
+            "ocr_type": "label",
+            "unique_name": "customers_premium_label_account_type_c1ae4279",
+            "external": false,
+            "placeholder": "Premium",
+            "element_id": "a73dc962-40ad-4e64-b0f1-74c5ee623abd",
+            "intent": "account_type",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "3902da82-a4d6-475f-a922-16ae6302d889",
+        "document": "$89,000",
+        "metadata": {
+            "unique_name": "customers_$89,000_label_balance_f3422319",
+            "label_text": "$89,000",
+            "intent": "balance",
+            "type": "ocr",
+            "placeholder": "$89,000",
+            "ocr_type": "label",
+            "get_by_text": "$89,000",
+            "external": false,
+            "element_id": "3902da82-a4d6-475f-a922-16ae6302d889",
+            "dom_matched": false,
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+        "document": "Active",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "label",
+            "label_text": "Active",
+            "dom_matched": false,
+            "external": false,
+            "element_id": "3c9a5629-b02a-4948-ad63-13eaa1c7da29",
+            "intent": "status",
+            "get_by_text": "Active",
+            "unique_name": "customers_active_label_status_5fc1bbb1",
+            "placeholder": "Active",
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "2097a019-cb26-4b3a-84c7-c5a068c0d685",
+        "document": "2022-11-08",
+        "metadata": {
+            "label_text": "2022-11-08",
+            "page_name": "customers",
+            "ocr_type": "label",
+            "placeholder": "2022-11-08",
+            "type": "ocr",
+            "element_id": "2097a019-cb26-4b3a-84c7-c5a068c0d685",
+            "intent": "join_date",
+            "unique_name": "customers_2022-11-08_label_join_date_bcd7c000",
+            "dom_matched": false,
+            "get_by_text": "2022-11-08",
+            "external": false
+        }
+    },
+    {
+        "id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097",
+        "document": "",
+        "metadata": {
+            "get_by_text": "",
+            "unique_name": "customers_button_view_action_cc60ce91",
+            "ocr_type": "button",
+            "type": "ocr",
+            "element_id": "a855d39c-19c0-4bc8-bbd5-46a9eb6df097",
+            "external": false,
+            "placeholder": "",
+            "intent": "view_action",
+            "label_text": "",
+            "dom_matched": false,
+            "page_name": "customers"
+        }
+    },
+    {
+        "id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+        "document": "",
+        "metadata": {
+            "external": false,
+            "type": "ocr",
+            "unique_name": "customers_button_edit_action_d3d0df61",
+            "get_by_text": "",
+            "page_name": "customers",
+            "intent": "edit_action",
+            "element_id": "2f27b13d-2a87-4c62-bc39-84019db89993",
+            "placeholder": "",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "label_text": ""
+        }
+    },
+    {
+        "id": "97b54435-e375-4079-b3da-f7bd09773c09",
+        "document": "Export",
+        "metadata": {
+            "label_text": "Export",
+            "element_id": "97b54435-e375-4079-b3da-f7bd09773c09",
+            "external": false,
+            "unique_name": "customers_export_button_export_ec306f18",
+            "type": "ocr",
+            "get_by_text": "Export",
+            "intent": "export",
+            "page_name": "customers",
+            "dom_matched": false,
+            "placeholder": "Export",
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "a7e6c9c0-5c9e-4e90-a33e-f153bff400ab",
+        "document": "+ New Customer",
+        "metadata": {
+            "type": "ocr",
+            "intent": "add_customer",
+            "external": false,
+            "label_text": "+ New Customer",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "element_id": "a7e6c9c0-5c9e-4e90-a33e-f153bff400ab",
+            "get_by_text": "+ New Customer",
+            "page_name": "customers",
+            "unique_name": "customers_+_new_customer_button_add_customer_e84a62b3",
+            "placeholder": "+ New Customer"
+        }
+    },
+    {
+        "id": "9ab38c60-65f2-4a00-80e1-c91169e6e9de",
+        "document": "Edit with",
+        "metadata": {
+            "intent": "edit_action",
+            "label_text": "Edit with",
+            "placeholder": "Edit with",
+            "get_by_text": "Edit with",
+            "external": false,
+            "unique_name": "customers_edit_with_button_edit_action_78ed448f",
+            "element_id": "9ab38c60-65f2-4a00-80e1-c91169e6e9de",
+            "page_name": "customers",
+            "dom_matched": false,
+            "type": "ocr",
+            "ocr_type": "button"
+        }
+    }
+]

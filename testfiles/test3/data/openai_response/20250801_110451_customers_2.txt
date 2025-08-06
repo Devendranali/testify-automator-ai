@@ -1,0 +1,41 @@
+Add New Customer - label - form_title  
+Enter the customer details to create a new account. - label - form_instruction  
+Full Name * - label - full_name_label  
+- textbox - full_name_input  
+Email * - label - email_label  
+- textbox - email_input  
+Phone Number * - label - phone_number_label  
+- textbox - phone_number_input  
+Account Type * - label - account_type_label  
+Select account type - select - account_type_select  
+Address - label - address_label  
+- textbox - address_input  
+Occupation - label - occupation_label  
+- textbox - occupation_input  
+Annual Income - label - annual_income_label  
+- textbox - annual_income_input  
+Initial Deposit - label - initial_deposit_label  
+- textbox - initial_deposit_input  
+Cancel - button - cancel  
+Add Customer - button - submit
+---------------------------------------- After Cleaning ----------------------------------------
+Add New Customer - label - form_title  
+Enter the customer details to create a new account. - label - form_instruction  
+Full Name  - label - full_name_label  
+- textbox - full_name_input  
+Email  - label - email_label  
+- textbox - email_input  
+Phone Number  - label - phone_number_label  
+- textbox - phone_number_input  
+Account Type  - label - account_type_label  
+Select account type - select - account_type_select  
+Address - label - address_label  
+- textbox - address_input  
+Occupation - label - occupation_label  
+- textbox - occupation_input  
+Annual Income - label - annual_income_label  
+- textbox - annual_income_input  
+Initial Deposit - label - initial_deposit_label  
+- textbox - initial_deposit_input  
+Cancel - button - cancel  
+Add Customer - button - submit

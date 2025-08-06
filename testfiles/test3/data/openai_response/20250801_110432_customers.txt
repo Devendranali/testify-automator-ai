@@ -1,0 +1,99 @@
+- button - navigation
+Search customers, loans, transactions... - textbox - search
+Dashboard - button - navigation
+Customers - button - navigation
+Loans - button - navigation
+Transactions - button - navigation
+Tasks - button - navigation
+Reports - button - navigation
+Analytics - button - navigation
+Settings - button - navigation
+Customers - label - section_title
+Manage your customer relationships and accounts - label - section_info
+Search customers... - textbox - search
+Filters - button - filter
+Customer List - label - section_title
+3 customers found - label - section_info
+Customer - label - column_title
+Account Type - label - column_title
+Balance - label - column_title
+Status - label - column_title
+Join Date - label - column_title
+Actions - label - column_title
+Sarah Johnson - label - customer_name
+sarah.johnson@email.com - label - customer_email
+Premium - label - account_type
+$1,45,000 - label - balance
+Active - label - status
+2023-01-15 - label - join_date
+- button - view_action
+- button - edit_action
+Michael Chen - label - customer_name
+michael.chen@email.com - label - customer_email
+Standard - label - account_type
+$52,000 - label - balance
+Active - label - status
+2023-03-22 - label - join_date
+- button - view_action
+- button - edit_action
+Emma Davis - label - customer_name
+emma.davis@email.com - label - customer_email
+Premium - label - account_type
+$89,000 - label - balance
+Active - label - status
+2022-11-08 - label - join_date
+- button - view_action
+- button - edit_action
+Export - button - export
++ New Customer - button - add_customer
+Edit with - button - edit_action
+---------------------------------------- After Cleaning ----------------------------------------
+- button - navigation
+Search customers, loans, transactions... - textbox - search
+Dashboard - button - navigation
+Customers - button - navigation
+Loans - button - navigation
+Transactions - button - navigation
+Tasks - button - navigation
+Reports - button - navigation
+Analytics - button - navigation
+Settings - button - navigation
+Customers - label - section_title
+Manage your customer relationships and accounts - label - section_info
+Search customers... - textbox - search
+Filters - button - filter
+Customer List - label - section_title
+3 customers found - label - section_info
+Customer - label - column_title
+Account Type - label - column_title
+Balance - label - column_title
+Status - label - column_title
+Join Date - label - column_title
+Actions - label - column_title
+Sarah Johnson - label - customer_name
+sarah.johnson@email.com - label - customer_email
+Premium - label - account_type
+$1,45,000 - label - balance
+Active - label - status
+2023-01-15 - label - join_date
+- button - view_action
+- button - edit_action
+Michael Chen - label - customer_name
+michael.chen@email.com - label - customer_email
+Standard - label - account_type
+$52,000 - label - balance
+Active - label - status
+2023-03-22 - label - join_date
+- button - view_action
+- button - edit_action
+Emma Davis - label - customer_name
+emma.davis@email.com - label - customer_email
+Premium - label - account_type
+$89,000 - label - balance
+Active - label - status
+2022-11-08 - label - join_date
+- button - view_action
+- button - edit_action
+Export - button - export
++ New Customer - button - add_customer
+Edit with - button - edit_action

@@ -1,0 +1,10 @@
+[
+  {
+    "from": "dashboard.png",
+    "to": "customers.png"
+  },
+  {
+    "from": "customers.png",
+    "to": "customers_2.png"
+  }
+]
