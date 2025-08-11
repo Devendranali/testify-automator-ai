@@ -26,3 +26,4 @@ async def enrich_page(page, page_name):
     match_and_update(ocr_data, dom_data, collection)
 
     set_enriched(page_name, True)
+

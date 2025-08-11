@@ -7,7 +7,7 @@ from apis.image_text_api import router as image_router
 from apis.chroma_debug_api import router as debug_chroma_export_router
 from apis.enrichment_api import router as enrichment_router
 from apis.rag_testcase_runner import router as rag_router
-from apis.generate_from_story import router as generate_from_story_router
+from apis.generate_from_user_story import router as generate_from_story_router
 from apis.generate_page_methods import router as generate_page_methods_router
 from apis.generate_from_manual_testcases import router as generate_from_manual_testcase_router
 from apis.generate_testcases_from_methods import router as generate_test_code_from_methods_router

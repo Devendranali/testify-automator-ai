@@ -42,19 +42,11 @@ def generate_test_from_methods():
     all_imports = set()
     all_func_defs = []
     test_invocations = []
-
+    
     for method_file in method_files:
         methods_code = read_page_methods(method_file)
-        # Separate import lines and function defs
-        for line in methods_code.splitlines():
-            line = line.strip()
-            if line.startswith("from ") or line.startswith("import "):
-                all_imports.add(line)
-            elif line.startswith("def "):
-                all_func_defs.append(line)
-            elif line:  # collect body as well
-                all_func_defs.append(line)
-
+        all_func_defs.append(methods_code)
+        
         # Detect and queue function invocation
         func_defs = re.findall(r'def\s+([a-zA-Z_][a-zA-Z0-9_]*)\((.*?)\):', methods_code)
         for fn, params in func_defs:
