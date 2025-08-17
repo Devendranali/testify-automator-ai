@@ -3,7 +3,7 @@ from utils.match_utils import normalize_page_name
 from logic.manual_capture_mode import extract_dom_metadata, match_and_update
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-
+from utils.metadata_io import save_metadata
 
 async def enrich_page(page, page_name):
     if is_enriched(page_name):
