@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 import pprint
 import time
+import asyncio
+from typing import Any, Dict, Optional
 
 router = APIRouter()
 client = PersistentClient(path="./data/chroma_db")
@@ -77,39 +79,247 @@ class PageNameSetRequest(BaseModel):
 #             print("🔥🔥🔥🔥[ERROR] JSON parsing failed:", e)
 #             return {"status": "fail", "error": "Response parsing failed : {e}"}
 
-async def send_enrichment_requests(page_name: str):
-    from httpx import AsyncClient, HTTPStatusError
+# async def send_enrichment_requests(page_name: str):
+#     from httpx import AsyncClient, HTTPStatusError
 
-    BASE = "http://localhost:8001"  # ← make sure this matches your uvicorn port!
+#     BASE = "http://localhost:8001"  # ← make sure this matches your uvicorn port!
+
+#     async with AsyncClient(timeout=None) as client:
+#         # 1) set the page name
+#         try:
+#             r = await client.post(f"{BASE}/set-current-page-name", json={"page_name": page_name})
+#             r.raise_for_status()
+#         except Exception as e:
+#             print(f"🔥Error setting page name: {e!r}")
+#             return {"status": "fail", "count": 0, "error": str(e)}
+
+#         # 2) call enrichment endpoint
+#         try:
+#             time.sleep(5)
+#             resp = await client.post(f"{BASE}/capture-dom-from-client", json={})
+#             resp.raise_for_status()
+#         except HTTPStatusError as e:
+#             # e.response.status_code & e.response.text will show you 404 or other codes
+#             print(f"🔥HTTP error {e.response.status_code}: {e.response.text!r}")
+#             return {"status": "fail", "count": 0, "error": f"HTTP {e.response.status_code}"}
+#         except Exception as e:
+#             print(f"🔥Network/connection error: {e!r}")
+#             return {"status": "fail", "count": 0, "error": str(e)}
+
+#         # 3) Success → parse JSON
+#         try:
+#             return resp.json()
+#         except Exception as e:
+#             print(f"🔥JSON parse error: {e!r}")
+#             return {"status": "fail", "count": 0, "error": "invalid JSON"}
+
+# async def send_enrichment_requests(
+#     page_name: str,
+#     target_url: str = "https://the-internet.herokuapp.com/login", 
+#     base: str = "http://localhost:8001",
+#     wait_seconds: float = 3.0,
+#     retries: int = 3,
+# ) -> Dict[str, Any]:
+#     """
+#     Ask the enrichment service to navigate to target_url (http/https),
+#     set the page name, and capture DOM metadata.
+#     Works with HTTPS sites like https://the-internet.herokuapp.com/login.
+#     """
+#     from httpx import AsyncClient, HTTPStatusError, RequestError
+
+#     # Ensure the URL has a scheme
+#     if not (target_url.startswith("http://") or target_url.startswith("https://")):
+#         target_url = "https://" + target_url  # default to https if not provided
+
+#     async with AsyncClient(timeout=None) as client:
+#         # 0) (optional) Launch the browser and navigate to the target URL.
+#         # If your backend already has the page open, this will just succeed/NO-OP.
+#         try:
+#             r_launch = await client.post(
+#                 f"{base}/launch-browser",
+#                 json={
+#                     "url": target_url,
+#                     "page_name": page_name,
+#                     "headless": False,
+#                     "ignore_https_errors": True,   # <-- important for HTTPS sites
+#                     "wait_until": "networkidle",    # backend can ignore if unsupported
+#                 },
+#             )
+#             # Some setups won't have /launch-browser; don't fail hard on 404.
+#             if r_launch.status_code not in (200, 404):
+#                 r_launch.raise_for_status()
+#         except RequestError as e:
+#             # It's OK to continue even if /launch-browser doesn't exist;
+#             # but if it's something other than a 404 we surface it.
+#             return {"status": "fail", "count": 0, "error": f"launch error: {e!r}"}
+
+#         # 1) Set the page name (needed by your matching logic)
+#         try:
+#             r = await client.post(
+#                 f"{base}/set-current-page-name",
+#                 json={"page_name": page_name},
+#             )
+#             r.raise_for_status()
+#         except (HTTPStatusError, RequestError) as e:
+#             return {"status": "fail", "count": 0, "error": f"set page name: {e!r}"}
+
+#         # 2) Give the backend a moment to be ready
+#         await asyncio.sleep(wait_seconds)
+
+#         # 3) Try capture a few times (helps when HTTPS pages take longer)
+#         last_err: Optional[str] = None
+#         for attempt in range(1, retries + 1):
+#             try:
+#                 resp = await client.post(f"{base}/capture-dom-from-client", json={"page_name": page_name})
+#                 resp.raise_for_status()
+#                 try:
+#                     data = resp.json()
+#                     # If your backend stores the latest match and expects a separate fetch:
+#                     # If data seems empty, try to poll /latest-match-result
+#                     if not data or (isinstance(data, dict) and data.get("count", 0) == 0):
+#                         # brief poll for a ready result
+#                         for _ in range(10):
+#                             await asyncio.sleep(0.5)
+#                             latest = await client.get(f"{base}/latest-match-result")
+#                             if latest.status_code == 200:
+#                                 jd = latest.json()
+#                                 if jd:
+#                                     return jd
+#                         # fall back to whatever we got
+#                     return data
+#                 except Exception as e:
+#                     return {"status": "fail", "count": 0, "error": f"invalid JSON: {e!r}"}
+#             except HTTPStatusError as e:
+#                 last_err = f"HTTP {getattr(e.response,'status_code', '??')}: {getattr(e.response,'text','')!r}"
+#             except RequestError as e:
+#                 last_err = f"network error: {e!r}"
+
+#             # backoff before next try
+#             await asyncio.sleep(min(2 * attempt, 6))
+
+
+#         return {"status": "fail", "count": 0, "error": last_err or "unknown error"}
+import asyncio
+import re
+from typing import Any, Dict, Optional
+
+URL_RE = re.compile(r'(https?://[^\s"\'\)]+)', re.I)
+
+async def send_enrichment_requests(
+    page_name: str,
+    target_url: Optional[str] = None,          # <- now optional (backward compatible)
+    base: str = "http://localhost:8001",
+    wait_seconds: float = 3.0,
+    retries: int = 3,
+    story: Optional[str] = None,               # <- optional: we can auto-extract URL from a user story
+) -> Dict[str, Any]:
+    """
+    Ask the enrichment service to set the page name and capture DOM metadata.
+
+    Behavior:
+      - If target_url is provided: try to launch/navigate via /launch-browser, then capture.
+      - Else if story is provided: extract the first https? URL from the story and use it.
+      - Else: skip launch (assumes your backend has already opened the right page),
+              still sets page name and captures DOM.
+      - If backend exposes /current-url and target_url is still None, we'll try to use that.
+
+    Works with http/https targets and keeps HTTPS errors ignored when launching.
+    """
+    from httpx import AsyncClient, HTTPStatusError, RequestError
+
+    # Resolve target_url if not passed
+    if not target_url and story:
+        m = URL_RE.search(story)
+        if m:
+            target_url = m.group(1).rstrip(".,);")
 
     async with AsyncClient(timeout=None) as client:
-        # 1) set the page name
+        # If still no target_url, try asking the backend (optional endpoint)
+        if not target_url:
+            try:
+                r_cur = await client.get(f"{base}/current-url")
+                if r_cur.status_code == 200:
+                    jd = r_cur.json()
+                    if isinstance(jd, dict) and jd.get("url"):
+                        target_url = jd["url"]
+            except Exception:
+                # It's fine if /current-url doesn't exist
+                pass
+
+        # Normalize scheme if we got a URL
+        if target_url and not (target_url.startswith("http://") or target_url.startswith("https://")):
+            target_url = "https://" + target_url  # default to https if scheme missing
+
+        # 0) Launch & navigate only if we have a URL; otherwise skip this step
+        if target_url:
+            try:
+                r_launch = await client.post(
+                    f"{base}/launch-browser",
+                    json={
+                        "url": target_url,
+                        "page_name": page_name,
+                        "headless": False,
+                        "ignore_https_errors": True,
+                        "wait_until": "networkidle",
+                    },
+                )
+                # Accept 200 or 404 (some servers don't implement /launch-browser)
+                if r_launch.status_code not in (200, 404):
+                    r_launch.raise_for_status()
+            except RequestError as e:
+                # Non-fatal: you may still want to proceed to set page name and capture
+                # if your page is already open on the backend.
+                # Return early if you prefer strict failure on launch.
+                return {"status": "fail", "count": 0, "error": f"launch error: {e!r}"}
+
+        # 1) Set the page name (your matcher relies on this)
         try:
-            r = await client.post(f"{BASE}/set-current-page-name", json={"page_name": page_name})
+            r = await client.post(
+                f"{base}/set-current-page-name",
+                json={"page_name": page_name},
+            )
             r.raise_for_status()
-        except Exception as e:
-            print(f"🔥Error setting page name: {e!r}")
-            return {"status": "fail", "count": 0, "error": str(e)}
+        except (HTTPStatusError, RequestError) as e:
+            return {"status": "fail", "count": 0, "error": f"set page name: {e!r}"}
 
-        # 2) call enrichment endpoint
-        try:
-            time.sleep(5)
-            resp = await client.post(f"{BASE}/capture-dom-from-client", json={})
-            resp.raise_for_status()
-        except HTTPStatusError as e:
-            # e.response.status_code & e.response.text will show you 404 or other codes
-            print(f"🔥HTTP error {e.response.status_code}: {e.response.text!r}")
-            return {"status": "fail", "count": 0, "error": f"HTTP {e.response.status_code}"}
-        except Exception as e:
-            print(f"🔥Network/connection error: {e!r}")
-            return {"status": "fail", "count": 0, "error": str(e)}
+        # 2) Let the backend settle
+        await asyncio.sleep(wait_seconds)
 
-        # 3) Success → parse JSON
-        try:
-            return resp.json()
-        except Exception as e:
-            print(f"🔥JSON parse error: {e!r}")
-            return {"status": "fail", "count": 0, "error": "invalid JSON"}
+        # 3) Capture with retries
+        last_err: Optional[str] = None
+        for attempt in range(1, retries + 1):
+            try:
+                resp = await client.post(
+                    f"{base}/capture-dom-from-client",
+                    json={"page_name": page_name}
+                )
+                resp.raise_for_status()
+                try:
+                    data = resp.json()
+                    # Optionally poll a "latest" endpoint if capture returns empty
+                    if not data or (isinstance(data, dict) and data.get("count", 0) == 0):
+                        for _ in range(10):
+                            await asyncio.sleep(0.5)
+                            latest = await client.get(f"{base}/latest-match-result")
+                            if latest.status_code == 200:
+                                jd = latest.json()
+                                if jd:
+                                    return jd
+                    return data
+                except Exception as e:
+                    return {"status": "fail", "count": 0, "error": f"invalid JSON: {e!r}"}
+            except HTTPStatusError as e:
+                sc = getattr(e.response, "status_code", "??")
+                txt = getattr(e.response, "text", "")
+                last_err = f"HTTP {sc}: {txt!r}"
+            except RequestError as e:
+                last_err = f"network error: {e!r}"
+
+            # backoff
+            await asyncio.sleep(min(2 * attempt, 6))
+
+        return {"status": "fail", "count": 0, "error": last_err or "unknown error"}
+
 
 
 @router.post("/launch-browser")
