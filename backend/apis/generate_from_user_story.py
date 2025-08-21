@@ -188,7 +188,6 @@ def _dedupe_steps(steps: List[Dict[str, str]]) -> List[Dict[str, str]]:
         out.append(st); last_sig = sig
     return out
 
-# =============================================================================
 # POM method naming
 
 def _method_click(name: str) -> str:
