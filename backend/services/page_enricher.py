@@ -1,3 +1,8 @@
+from pathlib import Path
+
+_THIS_FILE = Path(__file__).resolve()
+_PROJECT_ROOT = _THIS_FILE.parents[1]
+print("services path",_PROJECT_ROOT)
 from utils.enrichment_status import set_enriched, is_enriched
 from utils.match_utils import normalize_page_name
 from logic.manual_capture_mode import extract_dom_metadata, match_and_update

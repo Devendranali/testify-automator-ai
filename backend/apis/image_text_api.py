@@ -213,3 +213,5 @@ def clean_label_text(text: str) -> str:
     # Remove leading/trailing numbers, dots, dashes, and spaces
     cleaned = re.sub(r"^[\s\W\d_]+|[\s\W\d_]+$", "", text, flags=re.UNICODE)
     return cleaned
+
+
