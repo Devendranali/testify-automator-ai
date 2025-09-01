@@ -33,6 +33,28 @@
   --transition-form-elements: all 0.2s ease-in-out;
 }
 
+html {
+  font-size: 14px; /* Reduced default base font size */
+}
+
+@media (max-width: 1024px) { /* New breakpoint for larger tablets/laptops */
+  html {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 12px; /* Even more aggressive smaller base font size for tablets and smaller */
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 10px; /* Very small base font size for mobile */
+  }
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

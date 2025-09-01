@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import styles from "./Execute.module.css";
+import styles from "../styles/Execute.module.css";
 
 const Execute = ({ onBack, fullTestData }) => {
   const [loadingExecution, setLoadingExecution] = useState(false);

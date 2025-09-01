@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import ImageDragDrop from "./imagehandles"; // adjust path if needed
-import styles from "./ImageUpload.module.css";
+import styles from "../styles/ImageUpload.module.css";
 
 const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames, setPageNames }) => {
   const [loadingIngestion, setLoadingIngestion] = useState(false);
@@ -133,7 +133,7 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames,
             type="file"
             accept="image/*,.zip"
             multiple
-            style={{ display: "none" }}
+            className={styles.hiddenInput}
             onChange={handleFileChange}
           />
 
@@ -157,7 +157,7 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames,
         </div>
 
         {selectedFiles.length > 0 && (
-          <div style={{ marginTop: "20px" }}>
+          <div className={styles.marginTop20}>
             <ImageDragDrop files={selectedFiles} setFiles={setSelectedFiles} />
           </div>
         )}

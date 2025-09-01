@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "./dashboard";
 import { toast, ToastContainer } from "react-toastify";
-import styles from "./Home.module.css"; // Import the CSS module
+import styles from "../styles/Home.module.css"; // Import the CSS module
 
 const Home = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ const Home = () => {
           onClick={() => setShowDialog(true)}
           className={styles.newProjectButton}
         >
-          <i className="fa-solid fa-plus" style={{ fontSize: "18px" }}></i>
+          <i className={`fa-solid fa-plus ${styles.plusIcon}`}></i>
           New Project
         </button>
       </nav>

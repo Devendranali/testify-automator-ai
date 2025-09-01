@@ -4,29 +4,30 @@
   align-items: center;
   min-height: 70vh;
   background-color: var(--color-background-light);
-  padding-top: 2rem;
-  padding-bottom: 30px;
+  padding-top: 1.5rem; /* Reduced from 2rem */
+  padding-bottom: 20px; /* Reduced from 30px */
 }
 
 .uploadBox {
-  padding: 1rem 3rem;
+  padding: 0.8rem 2.5rem; /* Reduced from 1rem 3rem */
   border: 1px solid var(--color-border);
-  min-height: 45vh;
-  width: 70vw;
+  min-height: 40vh; /* Reduced from 45vh */
+  width: 90%; /* More flexible width */
+  max-width: 800px; /* Reduced from 900px */
   background-color: var(--color-white);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
 }
 
 .uploadTitle {
-  font-size: 22px;
+  font-size: clamp(16px, 2vw, 20px); /* Adjusted clamp values */
   color: var(--color-text-primary);
 }
 
 .uploadSubtitle {
-  font-size: 18px;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   color: var(--color-text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 15px; /* Reduced from 20px */
 }
 
 .dropzone {
@@ -35,7 +36,7 @@
   align-items: center;
   justify-content: center;
   border: 2px dashed var(--color-border);
-  padding: 1rem;
+  padding: 0.8rem; /* Reduced from 1rem */
   border-radius: var(--border-radius-medium);
   transition: all 0.3s ease;
 }
@@ -46,34 +47,34 @@
 }
 
 .uploadIcon {
-  font-size: 40px;
-  margin-bottom: 10px;
+  font-size: clamp(25px, 4vw, 35px); /* Adjusted clamp values */
+  margin-bottom: 8px; /* Reduced from 10px */
   color: var(--color-gray);
 }
 
 .uploadText {
-  font-size: 18px;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .uploadInstructions {
   color: var(--color-text-secondary);
-  font-size: 18px;
-  margin-top: 8px;
-  margin-bottom: 16px;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
+  margin-top: 6px; /* Reduced from 8px */
+  margin-bottom: 12px; /* Reduced from 16px */
 }
 
 .selectFilesButton {
-  padding: 14px 30px;
+  padding: 10px 25px; /* Reduced from 14px 30px */
   border: 1px solid var(--color-gray);
   border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 15px;
+  font-size: clamp(12px, 1.5vw, 14px); /* Adjusted clamp values */
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Reduced from 10px */
   background-color: var(--color-white);
   transition: var(--transition-button);
 }
@@ -84,35 +85,35 @@
 }
 
 .selectFilesButtonIcon {
-  font-size: 16px;
+  font-size: clamp(12px, 1.8vw, 14px); /* Adjusted clamp values */
 }
 
 .selectFilesButtonText {
-  font-size: 18px;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
 }
 
 .errorText {
   color: var(--color-error);
-  margin-top: 10px;
+  margin-top: 8px; /* Reduced from 10px */
 }
 
 .successMessage {
-  margin-top: 20px;
-  padding: 12px 16px;
+  margin-top: 15px; /* Reduced from 20px */
+  padding: 10px 12px; /* Reduced from 12px 16px */
   background-color: #e6ffed; /* Specific success background */
   color: var(--color-success);
   border: 1.5px solid #b7eb8f; /* Specific success border */
   border-radius: var(--border-radius-medium);
   font-weight: 600;
-  font-size: 15px;
+  font-size: clamp(12px, 1.5vw, 14px); /* Adjusted clamp values */
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px; /* Reduced from 8px */
 }
 
 .availablePagesContainer {
-  margin-top: 20px;
-  padding: 1rem;
+  margin-top: 15px; /* Reduced from 20px */
+  padding: 0.8rem; /* Reduced from 1rem */
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
@@ -121,7 +122,7 @@
 
 .availablePagesTitle {
   color: var(--color-text-primary);
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem; /* Reduced from 1rem */
 }
 
 .pageList {
@@ -132,34 +133,42 @@
 .pageListItem {
   background-color: var(--color-white);
   border-radius: var(--border-radius-small);
-  margin-bottom: 6px;
-  padding: 8px 12px;
+  margin-bottom: 4px; /* Reduced from 6px */
+  padding: 6px 10px; /* Reduced from 8px 12px */
   font-weight: 500;
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: clamp(12px, 1.5vw, 14px); /* Adjusted clamp values */
 }
 
 .actionButtons {
   display: flex;
   justify-content: flex-end;
-  margin-top: 30px;
-  gap: 10px;
+  margin-top: 20px; /* Reduced from 30px */
+  gap: 8px; /* Reduced from 10px */
+}
+
+@media (max-width: 768px) {
+  .actionButtons {
+    flex-direction: column; /* Stack buttons vertically on small screens */
+    align-items: center; /* Center buttons when stacked */
+  }
 }
 
 .uploadImagesButton {
-  padding: 0.8rem 2.2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.8rem;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   color: var(--color-white);
   border: 0px;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
-  min-width: 200px;
-  min-height: 50px;
+  min-width: 120px; /* Reduced from 150px */
+  min-height: 40px; /* Reduced from 50px */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -171,16 +180,16 @@
 }
 
 .generateMethodsButton {
-  padding: 0.8rem 2.2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.8rem;
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   color: var(--color-white);
   border: 0px;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
-  min-width: 250px;
-  min-height: 50px;
+  min-width: 150px; /* Reduced from 180px */
+  min-height: 40px; /* Reduced from 50px */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -192,22 +201,23 @@
 }
 
 .nextButtonContainer {
-  width: 70vw;
-  margin-top: 20px;
+  width: 90%; /* More flexible width */
+  max-width: 800px; /* Reduced from 900px */
+  margin-top: 15px; /* Reduced from 20px */
   display: flex;
   justify-content: flex-end;
 }
 
 .nextButton {
-  padding: 0.7rem 3rem;
-  font-size: 20px;
+  padding: 0.6rem 2.5rem; /* Reduced from 0.7rem 3rem */
+  font-size: clamp(14px, 2vw, 18px); /* Adjusted clamp values */
   color: var(--color-white);
   border: 0px;
   background: var(--color-gray);
   border-radius: var(--border-radius-small);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Reduced from 10px */
   cursor: pointer;
   transition: var(--transition-button);
 }
@@ -219,8 +229,8 @@
 
 .spinner {
   border: 4px dotted #fff;
-  width: 24px;
-  height: 24px;
+  width: 20px; /* Reduced from 24px */
+  height: 20px; /* Reduced from 24px */
   border-radius: 50%;
   animation: spin 1s ease infinite;
 }
@@ -233,4 +243,12 @@
   100% {
     transform: rotate(360deg);
   }
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.marginTop20 {
+  margin-top: 15px; /* Reduced from 20px */
 }

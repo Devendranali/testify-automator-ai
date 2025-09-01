@@ -1,0 +1,340 @@
+.storyInputContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 60vh; /* Reduced from 70vh */
+    background-color: var(--color-background-light);
+    padding-top: 1.5rem; /* Reduced from 2rem */
+    padding-bottom: 20px; /* Reduced from 30px */
+}
+
+.contentBox {
+    padding: 0.8rem 2.5rem; /* Reduced from 1rem 3rem */
+    border: 1px solid var(--color-border);
+    min-height: 40vh; /* Reduced from 45vh */
+    width: 90%; /* More flexible width */
+    max-width: 800px; /* Reduced from 900px */
+    background-color: var(--color-white);
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--shadow-light);
+}
+
+.title {
+    font-size: clamp(16px, 2vw, 20px); /* Adjusted clamp values */
+    color: var(--color-text-primary);
+}
+
+.importOptions {
+    display: flex;
+    gap: 15px; /* Reduced from 20px */
+    margin-top: 15px; /* Reduced from 20px */
+    margin-bottom: 15px; /* Reduced from 20px */
+}
+
+@media (max-width: 768px) {
+    .importOptions {
+        flex-direction: column; /* Stack options vertically on small screens */
+        align-items: center; /* Center options when stacked */
+    }
+}
+
+.optionCard {
+    flex: 1;
+    padding: 0.8rem; /* Reduced from 1rem */
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition-button);
+    min-height: 80px; /* Reduced from 100px */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.optionCard:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-light);
+}
+
+.optionIcon {
+    font-size: clamp(18px, 2.5vw, 22px); /* Adjusted clamp values */
+    margin-bottom: 8px; /* Reduced from 10px */
+}
+
+.optionTitle {
+    font-size: clamp(12px, 1.8vw, 14px); /* Adjusted clamp values */
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.optionDescription {
+    font-size: clamp(10px, 1.5vw, 12px); /* Adjusted clamp values */
+    color: var(--color-text-secondary);
+}
+
+.textArea {
+    width: 100%;
+    padding: 0.8rem; /* Reduced from 1rem */
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    font-size: clamp(12px, 1.8vw, 14px); /* Adjusted clamp values */
+    resize: vertical;
+}
+
+.errorText {
+    color: var(--color-error);
+    margin-top: 8px; /* Reduced from 10px */
+}
+
+.generateButtonContainer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px; /* Reduced from 20px */
+}
+
+.generateButton {
+    padding: 0.6rem 1.8rem; /* Reduced from 0.8rem 2.2rem */
+    font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
+    color: var(--color-white);
+    border: 0px;
+    background: var(--gradient-button);
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: var(--transition-button);
+    min-width: 150px; /* Reduced from 180px */
+    min-height: 40px; /* Reduced from 50px */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.generateButton:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.testCaseCard {
+    margin-top: 15px; /* Reduced from 20px */
+    padding: 0.8rem; /* Reduced from 1rem */
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--shadow-light);
+    background-color: var(--color-white);
+}
+
+.testCaseTitle {
+    font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
+    color: var(--color-text-primary);
+    margin-bottom: 0.8rem; /* Reduced from 1rem */
+}
+
+.testCaseTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.testCaseTable th,
+.testCaseTable td {
+    border: 1px solid var(--color-border);
+    padding: 0.4rem; /* Reduced from 0.5rem */
+    text-align: left;
+}
+
+.testCaseTable th {
+    background-color: var(--color-background-light);
+}
+
+.code {
+    font-family: monospace;
+    background-color: #f5f5f5;
+}
+
+.navigationButtons {
+    width: 90%; /* More flexible width */
+    max-width: 800px; /* Reduced from 900px */
+    margin-top: 15px; /* Reduced from 20px */
+    display: flex;
+    justify-content: space-between;
+}
+
+.navButton {
+    padding: 0.6rem 2.5rem; /* Reduced from 0.7rem 3rem */
+    font-size: clamp(14px, 2vw, 18px); /* Adjusted clamp values */
+    color: var(--color-white);
+    border: 0px;
+    background: var(--color-gray);
+    border-radius: var(--border-radius-small);
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Reduced from 10px */
+    cursor: pointer;
+    transition: var(--transition-button);
+}
+
+.navButton:hover {
+    background-color: var(--color-gray-dark);
+    transform: translateY(-2px);
+}
+
+.next {
+    background: var(--gradient-button);
+}
+
+.spinner {
+    border: 4px dotted #fff; /* Corrected from 44px */
+    width: 16px; /* Reduced from 20px */
+    height: 16px; /* Reduced from 20px */
+    border-radius: 50%;
+    animation: spin 1s ease infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.selectedFileName {
+    font-size: 1.2em;
+    color: #2da551;
+    font-weight: bold;
+    margin-top: 4px;
+    text-align: center;
+    font-style: italic;
+}
+
+.blueIcon {
+  color: blue;
+}
+
+.greenIcon {
+  color: green;
+}
+
+.redIcon {
+  color: red;
+}
+
+.gitPushContainer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.gitPushButton {
+    padding: 0.6rem 1.5rem;
+    font-size: clamp(12px, 1.8vw, 16px);
+    color: var(--color-white);
+    border: 0px;
+    background: var(--color-primary);
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: var(--transition-button);
+}
+
+.gitPushButton:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.gitPushButton:disabled {
+    background-color: var(--color-gray);
+    cursor: not-allowed;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background-color: var(--color-white);
+    border-radius: var(--border-radius-medium);
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-deep);
+    animation: fadeInScale 0.3s ease-out forwards;
+}
+
+.modalContent h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: var(--color-text-primary);
+}
+
+.modalContent label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--color-text-primary);
+}
+
+.modalContent input[type="text"],
+.modalContent textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border);
+    transition: var(--transition-form-elements);
+}
+
+.modalContent input[type="text"]:focus,
+.modalContent textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(91, 75, 234, 0.2);
+    outline: none;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modalCancelButton {
+    padding: 0.6rem 1.2rem;
+    background: var(--color-gray);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: var(--transition-button);
+}
+
+.modalCancelButton:hover {
+    background-color: var(--color-gray-dark);
+}
+
+.modalSubmitButton {
+    padding: 0.6rem 1.2rem;
+    background: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: var(--transition-button);
+}
+
+.modalSubmitButton:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}

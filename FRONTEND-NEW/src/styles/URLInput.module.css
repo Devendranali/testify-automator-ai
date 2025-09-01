@@ -2,34 +2,35 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 70vh;
+  min-height: 60vh; /* Reduced from 70vh */
   background-color: var(--color-background-light);
-  padding-top: 2rem;
-  padding-bottom: 30px;
+  padding-top: 1.5rem; /* Reduced from 2rem */
+  padding-bottom: 20px; /* Reduced from 30px */
 }
 
 .contentBox {
-  padding: 1rem 3rem;
+  padding: 0.8rem 2.5rem; /* Reduced from 1rem 3rem */
   border: 1px solid var(--color-border);
-  min-height: 45vh;
-  width: 70vw;
+  min-height: 40vh; /* Reduced from 45vh */
+  width: 90%; /* More flexible width */
+  max-width: 800px; /* Reduced from 900px */
   background-color: var(--color-white);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
 }
 
 .title {
-  font-size: 30px;
+  font-size: clamp(20px, 3.5vw, 26px); /* Adjusted clamp values */
   color: var(--color-text-primary);
 }
 
 .urlInput {
-  padding: 1rem;
-  font-size: 16px;
+  padding: 0.8rem; /* Reduced from 1rem */
+  font-size: clamp(12px, 1.8vw, 14px); /* Adjusted clamp values */
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
-  margin-top: 10px;
+  margin-top: 8px; /* Reduced from 10px */
   transition: var(--transition-form-elements);
 }
 
@@ -41,18 +42,18 @@
 
 .errorText {
   color: var(--color-error);
-  margin-top: 10px;
+  margin-top: 8px; /* Reduced from 10px */
 }
 
 .enrichButtonContainer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 20px; /* Reduced from 30px */
 }
 
 .enrichButton {
-  padding: 0.7rem 2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.5rem; /* Reduced from 0.7rem 2rem */
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   background: var(--gradient-button-secondary);
   color: var(--color-white);
   border: none;
@@ -67,29 +68,29 @@
 }
 
 .testCaseOutput {
-  margin-top: 30px;
+  margin-top: 20px; /* Reduced from 30px */
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
-  padding: 20px;
+  padding: 15px; /* Reduced from 20px */
   background-color: var(--color-white);
   box-shadow: var(--shadow-light);
 }
 
 .testCaseOutputTitle {
   color: var(--color-text-primary);
-  font-size: 24px;
+  font-size: clamp(16px, 2vw, 20px); /* Adjusted clamp values */
   font-weight: 600;
-  margin-bottom: 15px;
+  margin-bottom: 12px; /* Reduced from 15px */
   border-bottom: 1px solid var(--color-border);
-  padding-bottom: 6px;
+  padding-bottom: 5px; /* Reduced from 6px */
 }
 
 .jsonPre {
   background-color: #1e1e1e;
   color: #00ff00;
-  padding: 15px;
+  padding: 12px; /* Reduced from 15px */
   border-radius: var(--border-radius-medium);
-  font-size: 13px;
+  font-size: clamp(10px, 1.5vw, 12px); /* Adjusted clamp values */
   line-height: 1.6;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -97,15 +98,16 @@
 }
 
 .navigationButtons {
-  width: 70vw;
-  margin-top: 20px;
+  width: 90%; /* More flexible width */
+  max-width: 800px; /* Reduced from 900px */
+  margin-top: 15px; /* Reduced from 20px */
   display: flex;
   justify-content: space-between;
 }
 
 .navButton {
-  padding: 0.7rem 2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.5rem; /* Reduced from 0.7rem 2rem */
+  font-size: clamp(12px, 1.8vw, 16px); /* Adjusted clamp values */
   background: var(--color-gray);
   color: var(--color-white);
   border: 1px solid var(--color-border);
@@ -120,11 +122,11 @@
 }
 
 .navButton i {
-  margin-right: 10px;
+  margin-right: 8px; /* Reduced from 10px */
 }
 
 .navButton.next i {
-  margin-left: 10px;
+  margin-left: 8px; /* Reduced from 10px */
   margin-right: 0;
 }
 

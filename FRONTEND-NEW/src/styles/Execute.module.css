@@ -19,7 +19,7 @@
 }
 
 .heading {
-  font-size: 22px;
+  font-size: clamp(18px, 2.5vw, 22px); /* Responsive font size */
   margin-bottom: 0.5rem;
   color: var(--color-text-primary);
 }
@@ -30,7 +30,7 @@
 }
 
 .subheading {
-  font-size: 17px;
+  font-size: clamp(14px, 2vw, 17px); /* Responsive font size */
   color: var(--color-text-secondary);
 }
 
@@ -41,7 +41,7 @@
 }
 
 .mainIcon {
-  font-size: 45px;
+  font-size: clamp(35px, 5vw, 45px); /* Responsive font size */
   color: var(--color-primary);
 }
 
@@ -51,8 +51,8 @@
 }
 
 .mainDescription {
+  font-size: clamp(14px, 2vw, 17px); /* Responsive font size */
   color: var(--color-text-secondary);
-  font-size: 17px;
 }
 
 .summaryCardsContainer {
@@ -77,7 +77,7 @@
 }
 
 .summaryCardTitle {
-  font-size: 22px;
+  font-size: clamp(18px, 2.5vw, 22px); /* Responsive font size */
   margin-bottom: 1.5rem;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -88,7 +88,7 @@
 .summaryItem {
   display: flex;
   justify-content: space-between;
-  font-size: 16.5px;
+  font-size: clamp(14px, 2vw, 16.5px); /* Responsive font size */
   margin-bottom: 1rem;
   color: var(--color-text-primary);
 }
@@ -106,7 +106,7 @@
   background-color: var(--color-success);
   color: var(--color-white);
   padding: 12px 28px;
-  font-size: 17px;
+  font-size: clamp(14px, 2vw, 17px); /* Responsive font size */
   font-weight: 600;
   border: none;
   border-radius: var(--border-radius-medium);
@@ -135,7 +135,7 @@
 
 .backButton {
   padding: 0.7rem 2rem;
-  font-size: 17px;
+  font-size: clamp(14px, 2vw, 17px); /* Responsive font size */
   background: var(--color-gray);
   color: var(--color-white);
   border: 1px solid var(--color-border);

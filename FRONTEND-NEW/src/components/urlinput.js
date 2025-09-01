@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import styles from "./URLInput.module.css";
+import styles from "../styles/URLInput.module.css";
 
 const URLInput = ({ onBack, onNext }) => {
   const [url, setUrl] = useState("");

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { toast, ToastContainer } from "react-toastify";
-import styles from "./StoryInput.module.css";
+import styles from "../styles/StoryInput.module.css";
 
 const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
     const [userStoriesInput, setUserStoriesInput] = useState("");
@@ -12,8 +12,14 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
     const [loadingJira, setLoadingJira] = useState(false);
     const [loadingExcel, setLoadingExcel] = useState(false);
     const [error, setError] = useState("");
-    const [generationSuccess, setGenerationSuccess] = useState(false);
-    const [generationError, setGenerationError] = useState(false);
+
+    // New state for Git push feature
+    const [selectedTestCasesToPush, setSelectedTestCasesToPush] = useState([]);
+    const [showGitModal, setShowGitModal] = useState(false);
+    const [repoUrl, setRepoUrl] = useState("");
+    const [branchName, setBranchName] = useState("main"); // Default branch
+    const [commitMessage, setCommitMessage] = useState("Add automated test cases"); // Default commit message
+    const [isPushingToGit, setIsPushingToGit] = useState(false);
 
     // Fetch test cases from backend
     const fetchTestCases = async () => {
@@ -28,8 +34,8 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         try {
             setLoadingGeneration(true);
             setError("");
-            setGenerationSuccess(false);
-            setGenerationError(false);
+            // setGenerationSuccess(false); // Removed as per previous refactor
+            // setGenerationError(false); // Removed as per previous refactor
 
             let response;
 
@@ -72,15 +78,15 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
 
             setTestCases(response.data.results);
             toast.success("Test cases generated successfully.");
-            setGenerationSuccess(true);
-            setGenerationError(false);
+            // setGenerationSuccess(true); // Removed as per previous refactor
+            // setGenerationError(false); // Removed as per previous refactor
         } catch (err) {
             console.error(err);
             setError(
                 err.response?.data?.detail || "Error generating test cases."
             );
-            setGenerationError(true);
-            setGenerationSuccess(false);
+            // setGenerationError(true); // Removed as per previous refactor
+            // setGenerationSuccess(false); // Removed as per previous refactor
         } finally {
             setLoadingGeneration(false);
         }
@@ -181,6 +187,69 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         input.click();
     };
 
+    // Git push feature functions
+    const handleCheckboxChange = (index) => {
+        setSelectedTestCasesToPush((prevSelected) =>
+            prevSelected.includes(index)
+                ? prevSelected.filter((i) => i !== index)
+                : [...prevSelected, index]
+        );
+    };
+
+    const handlePushToGitClick = () => {
+        if (selectedTestCasesToPush.length === 0) {
+            toast.warn("Please select at least one test case to push.");
+            return;
+        }
+        setShowGitModal(true);
+    };
+
+    const handleGitModalSubmit = async () => {
+        if (!repoUrl.trim() || !branchName.trim() || !commitMessage.trim()) {
+            toast.error("All Git fields are required.");
+            return;
+        }
+
+        setIsPushingToGit(true);
+        try {
+            const testCasesContent = selectedTestCasesToPush.map(
+                (index) => testCases[index].auto_testcase
+            );
+
+            const response = await axios.post("http://localhost:8001/git/push-testcase", {
+                repo_url: repoUrl,
+                branch_name: branchName,
+                commit_message: commitMessage,
+                test_cases: testCasesContent,
+            });
+
+            if (response.status === 200) {
+                toast.success("Test cases pushed to Git successfully!");
+                setShowGitModal(false);
+                setSelectedTestCasesToPush([]); // Clear selection
+                setRepoUrl("");
+                setBranchName("main");
+                setCommitMessage("Add automated test cases");
+            } else {
+                toast.error(`Failed to push to Git: ${response.data?.detail || "Unknown error"}`);
+            }
+        } catch (err) {
+            console.error("Git push error:", err);
+            toast.error(`Error pushing to Git: ${err.response?.data?.detail || err.message || "Please try again."}`);
+        }
+        finally {
+            setIsPushingToGit(false);
+        }
+    };
+
+    const handleGitModalClose = () => {
+        setShowGitModal(false);
+        setRepoUrl("");
+        setBranchName("main");
+        setCommitMessage("Add automated test cases");
+    };
+
+
     return (
         <div className={styles.storyInputContainer}>
             <ToastContainer />
@@ -199,8 +268,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         className={`${styles.optionCard} ${styles.clickable}`}
                     >
                         <i
-                            className={`fa-solid fa-plus ${styles.optionIcon}`}
-                            style={{ color: "blue" }}
+                            className={`fa-solid fa-plus ${styles.optionIcon} ${styles.blueIcon}`}
                         ></i>
                         <h3 className={styles.optionTitle}>Manual Entry</h3>
                         <p className={styles.optionDescription}>
@@ -215,8 +283,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         className={`${styles.optionCard} ${styles.clickable}`}
                     >
                         <i
-                            className={`fa-solid fa-file-import ${styles.optionIcon}`}
-                            style={{ color: "green" }}
+                            className={`fa-solid fa-file-import ${styles.optionIcon} ${styles.greenIcon}`}
                         ></i>
                         <h3 className={styles.optionTitle}>
                             {loadingJira ? (
@@ -237,29 +304,29 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                         className={`${styles.optionCard} ${styles.clickable}`}
                     >
                         <i
-                            className={`fa-solid fa-file ${styles.optionIcon}`}
-                            style={{ color: "red" }}
+                            className={`fa-solid fa-file ${styles.optionIcon} ${styles.redIcon}`}
                         ></i>
                         <h3 className={styles.optionTitle}>
                             {loadingExcel ? (
                                 <div className={styles.spinner}></div>
                             ) : (
-                                "Import Excel"
+                                "Import Excel"+
+                                (selectedFile ? ` (${selectedFile.name})` : "")
                             )}
                         </h3>
                         <p className={styles.optionDescription}>
                             Import Excel file
                         </p>
                         {/* Show file name if selected */}
-                        {selectedFile && (
+                        {/* {selectedFile && (
                             <div className={styles.selectedFileName}>
                                 {selectedFile.name}
                             </div>
-                        )}
+                        )} */}
                     </button>
                 </div>
 
-                {/* Textarea for user stories */}
+                {/* Textarea for user stories */} 
                 <textarea
                     rows="5"
                     cols="60"
@@ -289,41 +356,121 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                 </div>
 
                 {/* Render test cases if available */}
-                {Array.isArray(testCases) &&
-                    testCases.map((tc, idx) => (
-                        <div key={idx} className={styles.testCaseCard}>
-                            <h4 className={styles.testCaseTitle}>
-                                Generated Test Case : {idx + 1}
-                            </h4>
-                            <table className={styles.testCaseTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Prompt</th>
-                                        <th>Automated Test Cases</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className={styles.testCaseTableTd}>
-                                            {tc.manual_testcase}
-                                        </td>
-                                        <td
-                                            className={`${styles.testCaseTableTd} ${styles.code}`}
-                                        >
-                                            <pre>
-                                                <code>
-                                                    {" "}
-                                                    {tc.auto_testcase ||
-                                                        "No output generated"}{" "}
-                                                </code>
-                                            </pre>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                {Array.isArray(testCases) && testCases.length > 0 && (
+                    <>
+                        <div className={styles.gitPushContainer}>
+                            <button
+                                onClick={handlePushToGitClick}
+                                disabled={selectedTestCasesToPush.length === 0 || isPushingToGit}
+                                className={styles.gitPushButton}
+                            >
+                                {isPushingToGit ? (
+                                    <div className={styles.spinner}></div>
+                                ) : (
+                                    "Push Selected to Git"
+                                )}
+                            </button>
                         </div>
-                    ))}
+
+                        {testCases.map((tc, idx) => (
+                            <div key={idx} className={styles.testCaseCard}>
+                                <div className={styles.testCaseHeader}>
+                                    <h4 className={styles.testCaseTitle}>
+                                        Generated Test Case : {idx + 1}
+                                    </h4>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedTestCasesToPush.includes(idx)}
+                                        onChange={() => handleCheckboxChange(idx)}
+                                    />
+                                </div>
+                                <table className={styles.testCaseTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Prompt</th>
+                                            <th>Automated Test Cases</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td className={styles.testCaseTableTd}>
+                                                {tc.manual_testcase}
+                                            </td>
+                                            <td
+                                                className={`${styles.testCaseTableTd} ${styles.code}`}
+                                            >
+                                                <pre>
+                                                    <code>
+                                                        {" "}
+                                                        {tc.auto_testcase ||
+                                                            "No output generated"}{" "}
+                                                    </code>
+                                                </pre>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        ))}
+                    </>
+                )}
             </div>
+
+            {/* Git Push Modal */}
+            {showGitModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent}>
+                        <h2>Push to Git</h2>
+                        <label>
+                            Repository URL:
+                            <input
+                                type="text"
+                                value={repoUrl}
+                                onChange={(e) => setRepoUrl(e.target.value)}
+                                placeholder="e.g., https://github.com/user/repo.git"
+                            />
+                        </label>
+                        <label>
+                            Branch Name:
+                            <input
+                                type="text"
+                                value={branchName}
+                                onChange={(e) => setBranchName(e.target.value)}
+                                placeholder="e.g., main or feature/my-tests"
+                            />
+                        </label>
+                        <label>
+                            Commit Message:
+                            <textarea
+                                rows="3"
+                                value={commitMessage}
+                                onChange={(e) => setCommitMessage(e.target.value)}
+                                placeholder="Enter commit message"
+                            ></textarea>
+                        </label>
+                        <div className={styles.modalActions}>
+                            <button
+                                onClick={handleGitModalClose}
+                                className={styles.modalCancelButton}
+                                disabled={isPushingToGit}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleGitModalSubmit}
+                                className={styles.modalSubmitButton}
+                                disabled={isPushingToGit}
+                            >
+                                {isPushingToGit ? (
+                                    <div className={styles.spinner}></div>
+                                ) : (
+                                    "Push"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Navigation buttons */}
             <div className={styles.navigationButtons}>
