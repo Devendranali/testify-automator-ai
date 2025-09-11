@@ -1,0 +1,189 @@
+.homeContainer {
+  background-color: var(--color-background-light);
+  min-height: 100vh;
+}
+
+.navbar {
+  background-color: var(--color-white);
+  min-height: 4vh;
+  padding: 1.5rem 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.navbarBrand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbarIcon {
+  background: var(--gradient-primary); /* Reverted to original variable */
+  color: var(--color-white);
+  padding: 1rem;
+  border-radius: 20%;
+  font-size: var(--font-size-lg);
+}
+
+.navbarTitle {
+  margin: 0;
+  font-size: clamp(var(--font-size-base), 1.8vw, var(--font-size-base));
+}
+
+.navbarSubtitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.newProjectButton {
+  padding: var(--button-padding);
+  background: var(--gradient-button);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  font-size: var(--button-font-size);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.newProjectButton:hover {
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-deep);
+}
+
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--color-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialogContent {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-large);
+  padding: 2rem 2.5rem;
+  width: 90%;
+  max-width: 32rem;
+  box-shadow: var(--shadow-deep);
+  animation: fadeInScale 0.3s ease-out forwards;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border: 1px solid var(--color-border);
+}
+
+.closeDialogButton {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  border-radius: var(--border-radius-round);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.closeDialogButton:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-gray-light);
+}
+
+.dialogContent h2 {
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.loginButton,
+.signupButton,
+.ctaButton {
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+}
+
+.loginButton {
+  background-color: var(--color-white);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.loginButton:hover {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* Removed box-shadow: var(--shadow-light); */
+}
+
+.signupButton,
+.ctaButton {
+  background: var(--gradient-button);
+  color: var(--color-white);
+  border: none;
+}
+
+.signupButton:hover,
+.ctaButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  /* Removed box-shadow: var(--shadow-light); */
+}
+
+@media (max-width: var(--breakpoint-sm)) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .navbarBrand {
+    margin-bottom: 1rem;
+  }
+
+  .newProjectButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

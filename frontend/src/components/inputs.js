@@ -1,0 +1,117 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ImageUpload from "./imageuploads";
+import StoryInput from "./storyinput";
+import URLInput from "./urlinput";
+import Execute from "./execute"; // 👈 Add your final step component here
+import styles from "../css/Inputs.module.css";
+
+const Input = () => {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [persistedFiles, setPersistedFiles] = useState([]);
+  const [pageNames, setPageNames] = useState([]);
+  const [testCases, setTestCases] = useState([]);
+
+  const handleNext = () => {
+    setCurrentStep((prev) => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep((prev) => prev - 1);
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <ImageUpload
+            handleNext={handleNext}
+            persistedFiles={persistedFiles}
+            setPersistedFiles={setPersistedFiles}
+            pageNames={pageNames}
+            setPageNames={setPageNames}
+          />
+        );
+      case 2:
+        return <StoryInput onBack={handleBack} onNext={handleNext} testCases={testCases} setTestCases={setTestCases} />;
+      case 3:
+        return <URLInput onBack={handleBack} onNext={handleNext} />; 
+      case 4:
+        return <Execute onBack={handleBack} />; 
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className={styles.inputContainer}>
+      <div className={styles.inputContainer}>
+        <nav className={styles.navbar}>
+          <div className={styles.navbarBrand}>
+            <i className={`fa fa-code ${styles.navbarIcon}`}></i>
+            <div>
+              <h4 className={styles.navbarTitle}>AutoTest Studio</h4>
+              <p className={styles.navbarSubtitle}>
+                Automation Development Platform
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate("/")}
+            className={styles.backButton}
+          >
+            Back to Dashboard
+          </button>
+        </nav>
+
+        <h1 className={styles.wizardTitle}>
+          Project Setup Wizard
+        </h1>
+
+        <div className={styles.stepContainer}>
+          <div className={styles.stepItem}>
+            <div className={styles.stepIconContainer}>
+              <i className={`fa-solid fa-arrow-up-from-bracket ${styles.stepIcon}`}></i>
+            </div>
+            <div className={styles.stepTextContainer}>
+              <h2>Upload Design</h2>
+              <p>
+                Upload screenshots or visual designs of your application
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.stepItem}>
+            <div className={styles.stepIconContainer}>
+              <i className={`fa-regular fa-message ${styles.stepIcon}`}></i>
+            </div>
+            <div className={styles.stepTextContainer}>
+              <h2>Import User Stories</h2>
+              <p>
+                Add user stories from Jira, Excel, or create them manually
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.stepItem}>
+            <div className={styles.stepIconContainer}>
+              <i className={`fa-solid fa-code ${styles.stepIcon}`}></i>
+            </div>
+            <div className={styles.stepTextContainer}>
+              <h2>Generate Scripts</h2>
+              <p>
+                Configure framework and generate test scripts
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {renderStep()}
+      </div>
+    </div>
+  );
+};
+
+export default Input;

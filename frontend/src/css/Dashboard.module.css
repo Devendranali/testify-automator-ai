@@ -1,0 +1,201 @@
+.dashboardContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem; /* Reduced */
+  padding: 1.5rem 2vw; /* Reduced */
+}
+
+.card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-light);
+  padding: 1.2rem 1.5rem; /* Reduced */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1 1 min(14rem, 18rem); /* Reduced */
+  transition: var(--transition-button);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-medium);
+}
+
+.cardTitle {
+  margin: 0 0 4px 0; /* Reduced */
+  font-size: 16px; /* Reduced */
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.cardValue {
+  margin: 0;
+  font-size: 26px; /* Reduced */
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.cardIcon {
+  font-size: var(--font-size-xl); /* Reduced */
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  padding: 1rem; /* Reduced */
+  border-radius: var(--border-radius-round);
+}
+
+.recentProjectsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2vw; /* Reduced */
+}
+
+.recentProjectsTitle {
+  margin: 0;
+  font-size: 24px; /* Reduced */
+  font-weight: 500;
+}
+
+.viewAllButton {
+  padding: 0.8rem 1rem; /* Reduced */
+  background-color: var(--color-white);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-small);
+  font-size: 16px; /* Reduced */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-button);
+}
+
+.viewAllButton:hover {
+  box-shadow: var(--shadow-light);
+  transform: translateY(-2px);
+}
+
+.projectList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem; /* Reduced */
+  padding: 1rem 2vw; /* Reduced */
+}
+
+.projectCard {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-medium);
+  padding: 1.5rem; /* Reduced */
+  flex: 1 1 min(18rem, 28rem); /* Reduced */
+  margin-left: 0; /* Removed large margin */
+  transition: var(--transition-button);
+}
+
+.projectCard:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-deep);
+}
+
+.projectCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.projectCardTitle {
+  font-size: 20px; /* Reduced */
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.projectStatus {
+  background-color: var(--color-text-primary);
+  color: var(--color-white);
+  border-radius: 1.5rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 12px; /* Reduced */
+  font-weight: 500;
+}
+
+.projectDescription {
+  font-size: 15px; /* Reduced */
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+  margin-bottom: 20px;
+}
+
+.projectDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Reduced */
+  font-size: 14px; /* Reduced */
+  color: var(--color-text-primary);
+}
+
+.projectDetailRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.projectDetailLabel {
+  color: var(--color-text-secondary);
+}
+
+.projectDetailValue {
+  color: var(--color-text-primary);
+}
+
+.projectCardDivider {
+  margin: 20px 0;
+  border-color: var(--color-border);
+}
+
+.projectCardActions {
+  display: flex;
+  gap: 10px;
+}
+
+.actionButton {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: var(--border-radius-medium);
+  border: 1px solid var(--color-gray);
+  background-color: transparent;
+  color: var(--color-gray-dark);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition-button);
+}
+
+.actionButton:hover {
+  box-shadow: var(--shadow-light);
+  transform: translateY(-2px);
+}
+
+.executeButton {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: var(--border-radius-medium);
+  border: none;
+  background: var(--gradient-button);
+  color: var(--color-white);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition-button);
+}
+
+.executeButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}

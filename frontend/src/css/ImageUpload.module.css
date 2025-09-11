@@ -1,0 +1,289 @@
+.imageUploadContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 70vh;
+  background-color: var(--color-background-light);
+  padding-top: 2rem;
+  padding-bottom: 1.875rem;
+}
+
+.uploadBox {
+  padding: 1.5rem 3.0rem;
+  border: 1px solid var(--color-border);
+  min-height: 45vh;
+  width: 70vw;
+  max-width: 60rem;
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-medium);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.uploadTitle {
+  font-size: clamp(var(--font-size-lg), 2.5vw, var(--font-size-md));
+  color: var(--color-text-primary);
+}
+
+.uploadSubtitle {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  margin-bottom: 1.0rem;
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--color-gray); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  border-radius: var(--border-radius-medium);
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary), 0.1);
+}
+
+.uploadIcon {
+  font-size: var(--font-size-xxxl);
+  margin-bottom: 1rem;
+  color: var(--color-gray); /* Reverted to original variable */
+}
+
+.uploadText {
+  font-size: clamp(var(--font-size-base), 1.8vw, var(--font-size-base));
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.uploadInstructions {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: 0.8rem;
+  margin-bottom: 1.0rem;
+}
+
+.selectFilesButton {
+  padding: var(--button-padding);
+  border: 1px solid var(--color-gray);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  font-size: var(--button-font-size);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background-color: var(--color-white);
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.selectFilesButton:hover {
+  background-color: var(--color-background-light);
+  box-shadow: var(--shadow-medium);
+  transform: translateY(-1px);
+}
+
+.selectFilesButtonIcon {
+  font-size: var(--font-size-md);
+}
+
+.selectFilesButtonText {
+  font-size: var(--font-size-base);
+}
+
+.errorText {
+  color: var(--color-error);
+  margin-top: 0.6rem;
+}
+
+.successMessage {
+  margin-top: 1.0rem;
+  padding: 1.0rem 1.5rem;
+  background-color: rgba(40, 167, 69, 0.08);
+  color: var(--color-success);
+  border: 1px solid rgba(40, 167, 69, 0.4);
+  border-radius: var(--border-radius-medium);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.availablePagesContainer {
+  margin-top: 1.0rem;
+  padding: 1.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium); /* Reverted to original variable */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  background-color: var(--color-white);
+}
+
+.availablePagesTitle {
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+  font-size: var(--font-size-md);
+}
+
+.pageList {
+  list-style: none;
+  padding: 0;
+}
+
+.pageListItem {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius-small);
+  margin-bottom: 0.3rem;
+  padding: 0.7rem 1.0rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-base);
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  gap: 0.6rem;
+}
+
+.uploadImagesButton {
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  color: var(--color-white);
+  border: 0px;
+  background: var(--gradient-button);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.uploadImagesButton:hover {
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-deep);
+}
+
+.generateMethodsButton {
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  color: var(--color-white);
+  border: 0px;
+  background: var(--gradient-button);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.generateMethodsButton:hover {
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-deep);
+}
+
+.nextButtonContainer {
+  margin-top: 1.0rem;
+  display: flex;
+  justify-content: flex-end;
+  width: 70vw;
+  max-width: 60rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.nextButton {
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  color: var(--color-white);
+  border: 0px;
+  background: var(--gradient-button);
+  border-radius: var(--button-border-radius);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.nextButton:hover {
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-deep);
+}
+
+.spinner {
+  border: 4px dotted #fff;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  animation: spin 1s ease infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: var(--breakpoint-md)) {
+  .dropzone {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .selectFilesButton {
+    width: 90%;
+    max-width: 18.75rem;
+    justify-content: center;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .uploadImagesButton,
+  .generateMethodsButton {
+    width: 90%;
+    max-width: 18.75rem;
+    justify-content: center;
+  }
+
+  .nextButtonContainer {
+    justify-content: center;
+  }
+
+  .nextButton {
+    width: 90%;
+    max-width: 18.75rem;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,178 @@
+.executeContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--color-background-light);
+  padding-top: 1.5rem;
+  padding-bottom: 2.5rem;
+}
+
+.contentBox {
+  width: 90%;
+  max-width: 60rem;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  padding: 2.5rem 3.0rem;
+  margin: 0 auto; /* Center the content box */
+}
+
+.heading {
+  font-size: clamp(var(--font-size-lg), 2.5vw, var(--font-size-md));
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.headingIcon {
+  color: var(--color-primary);
+  margin-right: 1.0rem;
+}
+
+.subheading {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+
+.centerContent {
+  text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.mainIcon {
+  font-size: var(--font-size-xxxl);
+  background-color: rgba(var(--color-primary), 0.1);
+  color: var(--color-primary);
+  padding: 1.2rem;
+  border-radius: var(--border-radius-round);
+}
+
+.mainTitle {
+  margin: 0.5rem 0;
+  color: var(--color-text-primary);
+  font-size: clamp(var(--font-size-xl), 3.5vw, var(--font-size-lg));
+}
+
+.mainDescription {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.summaryCardsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center; /* Center cards if they don't fill the row */
+}
+
+.summaryCard {
+  flex: 1 1 min(30rem, 90%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-medium);
+  padding: 2rem;
+  background-color: var(--color-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: var(--transition-button);
+}
+
+.summaryCard:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-deep);
+}
+
+.summaryCardTitle {
+  font-size: clamp(var(--font-size-base), 1.8vw, var(--font-size-base));
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.5rem;
+}
+
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-base);
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.summaryItemValue {
+  color: var(--color-text-primary);
+}
+
+.executeButtonContainer {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.executeButton {
+  background-color: var(--color-success);
+  color: var(--color-white);
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.executeButton:hover {
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-deep);
+}
+
+.executeButton:disabled {
+  background-color: var(--color-gray);
+  cursor: not-allowed;
+}
+
+.backButtonContainer {
+  width: 90%;
+  max-width: 60rem;
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-start;
+  margin: 1.5rem auto 0; /* Center the back button container */
+}
+
+.backButton {
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  background: var(--color-gray);
+  color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: var(--transition-button);
+  min-width: var(--button-min-width);
+  min-height: var(--button-min-height);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.backButton:hover {
+  background-color: var(--color-gray-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+.backButton i {
+  margin-right: 1.0rem;
+}
+
+@media (max-width: 768px) {
+  .summaryCardsContainer {
+    flex-direction: column;
+  }
+
+  .executeButtonContainer {
+    text-align: center;
+  }
+}

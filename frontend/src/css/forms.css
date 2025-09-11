@@ -1,0 +1,75 @@
+.formLabel {
+  display: block;
+  margin-bottom: 1.5rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+}
+
+.formInput,
+.formSelect {
+  width: 100%;
+  padding: 0.75rem 0.25rem;
+  font-size: var(--font-size-base);
+  margin-top: 0.5rem;
+  border: none;
+  border-bottom: 2px solid var(--color-border);
+  background-color: transparent;
+  border-radius: 0;
+  transition: border-color 0.2s ease;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  border-bottom-color: var(--color-primary);
+  outline: none;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.cancelButton {
+  padding: var(--button-padding);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.cancelButton:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-gray-light);
+}
+
+.startButton {
+  padding: var(--button-padding);
+  background: var(--gradient-button);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-weight: 600;
+  box-shadow: var(--shadow-medium);
+}
+
+.startButton:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-deep);
+}
+
+.formInput::placeholder,
+.formSelect::placeholder,
+.textArea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}

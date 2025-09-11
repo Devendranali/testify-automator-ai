@@ -5,15 +5,10 @@ from PIL import Image
 from datetime import datetime
 from utils.match_utils import assign_intent_semantic
 from services.ocr_type_classifier import classify_ocr_type 
-from services.yolo_detector import detect_ui_elements_yolo
 
 def save_region(image: Image.Image, x: int, y: int, w: int, h: int, output_dir: str, page_name: str = "page", image_path: str = "") -> str:
-    if image_path and os.path.exists(image_path):
-        try:
-            x, y, w, h = detect_ui_elements_yolo(image_path, (x, y, w, h))
-        except Exception as e:
-            # print(f"[YOLO FALLBACK] Using default bbox due to: {e}")
-            pass
+    # YOLO-based bounding box detection removed
+    # If needed, add alternative logic here
 
     # ✅ Clamp bounding box to image dimensions
     x = max(0, min(x, image.width - 1))
