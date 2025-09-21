@@ -371,7 +371,7 @@ async def generate_from_user_story(
                 f"""def {runner_name}():
     import time
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=300)
+        browser = p.chromium.launch(headless=True, slow_mo=300)
         page = browser.new_page()
         # Patch SmartAI
         metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
