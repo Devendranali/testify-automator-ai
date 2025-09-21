@@ -565,8 +565,8 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thres
     dom_texts = []
     dom_candidates = []
     for dom in dom_data:
-        dom_text = dom.get("label_text", "") or dom.get(
-            "text", "") or dom.get("placeholder", "") or dom.get("value", "")
+        dom_text = dom.get("placeholder", "") or dom.get(
+            "text", "") or dom.get("label_text", "") or dom.get("value", "")
         dom_texts.append(dom_text.lower())
         # dom_text = build_dom_context_string(dom)
         # dom_texts.append(dom_text)

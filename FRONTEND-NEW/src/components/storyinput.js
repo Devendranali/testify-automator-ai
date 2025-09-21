@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 import * as XLSX from "xlsx";
 import { toast, ToastContainer } from "react-toastify";
 import styles from "./StoryInput.module.css";
@@ -40,7 +41,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                 formData.append("site_url", "https://www.saucedemo.com");
 
                 response = await axios.post(
-                    "http://localhost:8001/rag/generate-from-story",
+                    `${API_BASE_URL}/rag/generate-from-story`,
                     formData,
                     {
                         headers: { "Content-Type": "multipart/form-data" },
@@ -62,7 +63,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
                 }
 
                 response = await axios.post(
-                    "http://localhost:8001/rag/generate-from-story",
+                    `${API_BASE_URL}/rag/generate-from-story`,
                     new URLSearchParams({
                         user_story: stories.join("\n"),
                         site_url: "https://www.saucedemo.com",
@@ -91,7 +92,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         setLoadingJira(true);
         try {
             const response = await axios.get(
-                "http://localhost:8001/jira/import"
+                `${API_BASE_URL}/jira/import`
             );
             const importedStories = response.data?.stories || [];
 
@@ -344,3 +345,4 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
 };
 
 export default StoryInput;
+

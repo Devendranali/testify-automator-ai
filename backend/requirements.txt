@@ -24,6 +24,7 @@ filelock==3.18.0
 flatbuffers==25.2.10
 fonttools==4.58.2
 fsspec==2025.5.1
+GitPython==3.1.37
 google-auth==2.40.3
 googleapis-common-protos==1.70.0
 gpt==0.2
@@ -52,12 +53,12 @@ matplotlib==3.10.3
 mdurl==0.1.2
 mmh3==5.1.0
 mpmath==1.3.0
-networkx==3.5
-numpy==2.3.0
+networkx==3.4.2
+numpy==1.26.4
 oauthlib==3.2.2
 onnxruntime==1.22.0
 openai==1.86.0
-opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 openpyxl==3.1.5
 opentelemetry-api==1.34.1
 opentelemetry-exporter-otlp-proto-common==1.34.1

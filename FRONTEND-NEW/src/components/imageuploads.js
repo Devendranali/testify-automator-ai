@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
 import ImageDragDrop from "./imagehandles"; // adjust path if needed
 import styles from "./ImageUpload.module.css";
@@ -9,7 +10,6 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames,
   const [loadingMethods, setLoadingMethods] = useState(false);
   const [ingestionSuccess, setIngestionSuccess] = useState(false);
   const [error, setError] = useState("");
-  
 
   const selectedFiles = persistedFiles;
   const setSelectedFiles = setPersistedFiles;
@@ -73,7 +73,7 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames,
 
     try {
       const response = await axios.post(
-        "http://localhost:8001/upload-image",
+        `${API_BASE_URL}/upload-image`,
         formData,
         {
           headers: {
@@ -98,7 +98,7 @@ const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames,
   const handleGenerateMethods = async () => {
     setLoadingMethods(true);
     try {
-      const response = await fetch("http://localhost:8001/rag/generate-page-methods", {
+      const response = await fetch(`${API_BASE_URL}/rag/generate-page-methods`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

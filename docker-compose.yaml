@@ -1,12 +1,20 @@
+version: "3.8"
+
 services:
   frontend:
     build:
-      context: ./frontend-demo
+      context: ./FRONTEND-NEW
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL}
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     depends_on:
       - backend
+    networks:
+      - testify-net
 
   backend:
     build:
@@ -18,16 +26,23 @@ services:
       - .env
     depends_on:
       - chromadb
-    environment:
-      - CHROMA_DB_HOST=chromadb
-      - CHROMA_DB_PORT=8000
+    networks:
+      - testify-net
 
   chromadb:
     image: chromadb/chroma
-    ports:
-      - "8000:8000"
     volumes:
       - chroma_data:/chroma/.chroma/index
+    networks:
+      - testify-net
+    # optional: expose if needed outside
+    # ports:
+    #   - "8000:8000"
 
 volumes:
   chroma_data:
+
+networks:
+  testify-net:
+    driver: bridge
+

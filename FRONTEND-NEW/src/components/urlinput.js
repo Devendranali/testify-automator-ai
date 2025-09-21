@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
 import styles from "./URLInput.module.css";
 
@@ -27,7 +28,7 @@ const URLInput = ({ onBack, onNext }) => {
     setFullTestData(null);
 
     try {
-      const response = await axios.post("http://localhost:8001/launch-browser", {
+      const response = await axios.post(`${API_BASE_URL}/launch-browser`, {
         url: url
       });
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
 import styles from "./Execute.module.css";
 
@@ -16,7 +17,8 @@ const Execute = ({ onBack, fullTestData }) => {
     setExecutionResult(null);
 
     try {
-      const response = await axios.post("http://localhost:8001/rag/run-generated-story-test");
+      const response = await axios.post(`${API_BASE_URL}/rag/run-generated-story-test`);
+
       setExecutionResult(response.data);
       toast.success("✅ Execution successful.");
       setExecutionSuccess(true);
@@ -55,9 +57,7 @@ const Execute = ({ onBack, fullTestData }) => {
         <div className={styles.summaryCardsContainer}>
           {/* Project Summary Card */}
           <div className={styles.summaryCard}>
-            <h3 className={styles.summaryCardTitle}>
-              Project Summary
-            </h3>
+            <h3 className={styles.summaryCardTitle}>Project Summary</h3>
 
             <div className={styles.summaryItem}>
               <span>Design Files:</span>
@@ -74,7 +74,6 @@ const Execute = ({ onBack, fullTestData }) => {
               <strong className={styles.summaryItemValue}>Selenium (Web)</strong>
             </div>
           </div>
-
         </div>
 
         {/* Execute Button */}
@@ -104,3 +103,4 @@ const Execute = ({ onBack, fullTestData }) => {
 };
 
 export default Execute;
+

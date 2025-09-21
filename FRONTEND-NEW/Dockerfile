@@ -1,7 +1,6 @@
 # ----------- Stage 1: Build ----------- #
 FROM node:22.12.0-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Install dependencies
@@ -11,23 +10,25 @@ RUN npm install
 # Copy app source
 COPY . .
 
-# Build the app
-RUN npm run build
+# Inject API URL at build time
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
+# Build React app
+RUN npm run build
 
 # ----------- Stage 2: Serve ----------- #
 FROM node:22.12.0-alpine
 
-# Install lightweight static file server
 RUN npm install -g serve
-
-# Copy built assets from builder stage
 WORKDIR /app
+
+# Copy build output
 COPY --from=builder /app/build ./build
 
-# Expose the port used by `serve`
+# Expose frontend port
 EXPOSE 3000
 
-# Start the static server
+# Start static file server
 CMD ["serve", "-s", "build", "-l", "3000"]
 
