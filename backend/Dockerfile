@@ -1,9 +1,8 @@
-# -------- Stage 1: Builder -------- #
-FROM python:3.12.3-slim-bookworm AS builder
+FROM python:3.12.3-slim-bookworm
 
 WORKDIR /app
 
-# Install build dependencies + Playwright browser deps
+# Install system dependencies for Playwright + OCR
 RUN apt-get update && apt-get install -y \
     build-essential \
     libglib2.0-0 \
@@ -27,42 +26,18 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --target=/python_deps -r requirements.txt && \
-    pip install --no-cache-dir uvicorn playwright && \
-    python -m playwright install --with-deps
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir uvicorn "playwright==1.52.0" && \
+    python -m playwright install --with-deps chromium
 
-# -------- Stage 2: Runtime -------- #
-FROM python:3.12.3-slim-bookworm
-
-WORKDIR /app
-
-# Install only runtime system dependencies for Playwright and Tesseract
-RUN apt-get update && apt-get install -y \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    libgl1 \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libx11-xcb1 \
-    libdrm2 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libgtk-3-0 \
-    tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy installed dependencies and app code
-COPY --from=builder /python_deps /usr/local/lib/python3.12/site-packages
+# Copy application code
 COPY . .
+
+# Disable tokenizer warnings from HuggingFace
+ENV TOKENIZERS_PARALLELISM=false
 
 EXPOSE 8001
 
