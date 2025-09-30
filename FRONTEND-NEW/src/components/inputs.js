@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ImageUpload from "./imageuploads";
 import StoryInput from "./storyinput";
 import URLInput from "./urlinput";
@@ -8,6 +8,10 @@ import styles from "./Inputs.module.css";
 
 const Input = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const projectName = location.state?.projectName;
+  
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [persistedFiles, setPersistedFiles] = useState([]);
   const [pageNames, setPageNames] = useState([]);
@@ -34,7 +38,7 @@ const Input = () => {
           />
         );
       case 2:
-        return <StoryInput onBack={handleBack} onNext={handleNext} testCases={testCases} setTestCases={setTestCases} />;
+        return <StoryInput onBack={handleBack} onNext={handleNext} testCases={testCases} setTestCases={setTestCases} projectName={projectName} />;
       case 3:
         return <URLInput onBack={handleBack} onNext={handleNext} />; 
       case 4:

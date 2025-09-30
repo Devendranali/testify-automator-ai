@@ -1,7 +1,5 @@
-# # image_text_extractor.py
-
+# image_text_extractor.py
 # ############################ Open AI Logic for Image API ############################
-
 
 from PIL import Image
 from openai import OpenAI
@@ -12,131 +10,123 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 import re
+
 from config.settings import DATA_PATH
 from utils.file_utils import save_region, build_standard_metadata
-from utils.match_utils import normalize_page_name,assign_intent_semantic
-from services.chroma_service import upsert_text_record  
+from utils.match_utils import normalize_page_name
+from services.chroma_service import upsert_text_record
 
+# ------------------------------------------------------------------------------------
+# Setup
+# ------------------------------------------------------------------------------------
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-# OLD PROMPT
-# PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
 
-# Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element, accurately identifying its type and intent.
-
-# 1. Element Extraction:
-#    - Extract ALL visible UI text from the image, including:
-#      • Input fields 
-#      • Buttons
-#      • Labels (including credentials, instructions)
-#      • Dropdowns, checkboxes
-
-# 2. Element Classification:
-#    - For each element, output:
-#      • Label text (exact as visible)
-#      • Element type (one of: `textbox`, `button`, `label`, `checkbox`, `select`)
-#      • Intent (like: `login`, `username`, `password`, `price_label`, `submit`, `add_to_cart`, `password_info`, `username_info`, etc.)
-
-#    - For credentials or user types like `standard_user`, `secret_sauce`, assign type as `label` and use intent like `username_info`, `password_info`.
-
-# 3. Format:
-#    - Each element on its own line:
-#      <label text> - <element type> - <intent>
-
-# 4. Rules:
-#    - Do NOT rephrase or skip lines.
-#    - Preserve punctuation, line breaks.
-#    - Traverse from top-left to bottom-right.
-
-# 5. Only output newline-separated lines like:
-#    Username - textbox - login
-#    Login - button - login
-#    secret_sauce - label - password_info
-# """
-
+# Prompt: keep simple & consistent formatting; we will compute intent ourselves.
 PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
 
-Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element, accurately identifying its type and intent.
+Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element.
 
-1. Element Extraction:
-   - Extract ALL visible UI text from the image, including:
-     • Input fields
-     • Buttons
-     • Labels (including credentials, instructions)
-     • Dropdowns, checkboxes
+For EACH element, output exactly one line in one of the following formats:
+  <label_text> - <ocr_type> - <intent>
+  - <ocr_type> - <intent>            (if label_text is truly empty/absent)
 
-2. Element Classification:
-   - For each element, output:
-     • Label text (exact as visible)
-     • Element type (one of: `textbox`, `button`, `label`, `checkbox`, `select`)
-     • Intent (like: `login`, `username`, `password`, `price_label`, `submit`, `add_to_cart`, `password_info`, `username_info`, etc.)
+Where:
+- <label_text> is the exact on-screen text (preserve punctuation and case).
+- <ocr_type> is one of: textbox, button, label, checkbox, select.
+- <intent> is a short lowercase_snake_case token derived only from the element text (not from any fixed business taxonomy). If unsure, you may repeat the label in snake_case or leave it minimal.
 
-   - For credentials or user types like `standard_user`, `secret_sauce`, assign type as `label` and use intent like `username_info`, `password_info`.
+Rules:
+1) Extract ALL visible UI elements from top-left to bottom-right.
+2) Do NOT paraphrase <label_text>.
+3) Keep <intent> minimal; do not invent categories or business terms.
+4) If the element has no text (pure icon), leave label empty and still output the line.
+5) No extra commentary; just the lines.
 
-   - If the UI element appears as part of a vertical or horizontal navigation menu, always classify it as `button` or `link`.
-   - If uncertain whether an element is clickable or navigational, prefer classifying it as a `button` over a `label`.
-
-3. Format:
-    - Each element on its own line:
-    Always give response in the below format:
-    Either
-        <label_text> - <ocr_type> - <intent> => if label_text present 
-    or 
-        - <ocr_type> - <intent> => if label_text is empty 
-
-4. Rules:
-   - Do NOT rephrase or skip lines.
-   - Preserve punctuation, line breaks.
-   - Traverse from top-left to bottom-right.
-
-5. Only output newline-separated lines like:
-   Username - textbox - login
-   Login - button - login
-   secret_sauce - label - password_info
-   Dashboard - button - navigation
-
+Examples:
+  Username - textbox - username
+  Password - textbox - password
+  Login - button - login
+  Dashboard - button - dashboard
+  secret_sauce - label - secret_sauce
 """
 
-# PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
+# ------------------------------------------------------------------------------------
+# Robust parsing + deterministic intent (no hardcoded vocab)
+# ------------------------------------------------------------------------------------
 
-# Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element, accurately identifying its type and intent.
+def _normalize_separators(s: str) -> str:
+    """
+    Normalize separators to canonical ' - ' and remove common noise:
+      - convert en/em dashes to hyphen
+      - support ':' as a separator
+      - ensure single spaces around hyphens
+      - collapse spaces
+      - strip leading bullets/markers
+    """
+    s = s.replace("–", "-").replace("—", "-")
+    s = re.sub(r"^[\s>*•\-]+\s*", "", s)         # leading bullets/markers
+    s = re.sub(r"\s*:\s*", " - ", s)             # colon as separator
+    s = re.sub(r"\s*-\s*", " - ", s)             # tidy hyphen spacing
+    s = re.sub(r"\s{2,}", " ", s).strip()        # collapse spaces
+    return s
 
-# 1. Element Extraction:
-#    - Extract ALL visible UI text from the image, including:
-#      • Input fields (textboxes), even if empty
-#      • Buttons
-#      • Labels (e.g. "Full Name", "Phone Number", etc.)
-#      • Dropdowns, checkboxes
+def _clean_line(line: str) -> str:
+    """Remove numbering/markdown, then normalize separators."""
+    # Remove leading numbering like '1. ', '2) ', '(3) '
+    line = re.sub(r"^\s*(\(?\d+\)?[.)]\s*)", "", line)
+    # Strip markdown bold/italic/backticks/underscores (formatting only)
+    line = re.sub(r"(\*\*|\*|`|__|_)", "", line)
+    return _normalize_separators(line)
 
-#    - For each input-related label, generate a corresponding textbox/select entry even if it has no typed value.
+def _snake(s: str) -> str:
+    """
+    Convert arbitrary label text to lowercase_snake_case:
+      - collapse whitespace
+      - drop non-alphanumeric (except spaces)
+      - convert spaces to underscores
+    """
+    s = (s or "").strip()
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"[^A-Za-z0-9 ]+", "", s)
+    s = s.lower().strip()
+    return re.sub(r"\s+", "_", s)
 
-# 2. Element Classification:
-#    - For each element, output:
-#      • Label text (exact as visible)
-#      • Element type (one of: `textbox`, `button`, `label`, `checkbox`, `select`)
-#      • Intent — infer from label (e.g. "Full Name" → `fullname`, "Phone Number" → `phonenumber`, "Email" → `email`, etc.). Use lowercase and remove spaces/underscores.
+def build_intent(label_text: str, ocr_type: str) -> str:
+    """
+    Deterministic, taxonomy-free intent built only from (label_text, ocr_type).
+    No hardcoded business lists or aliases.
 
-#    - If the element is a textbox, dropdown, or select without filled values, still extract it using the label.
+    Rules:
+      textbox   -> <label>_field      (or "field" if label empty)
+      select    -> <label>_select     (or "select" if label empty)
+      checkbox  -> <label>_checkbox   (or "checkbox" if label empty)
+      button    -> <label>_action     (or "action" if label empty)
+      link      -> <label>_action     (or "action" if label empty)
+      label     -> <label>_info       (or "info" if label empty)
+      unknown   -> <label> or "unknown" if both empty
 
-#    - Use generic fallback intent `valueinput` if unsure.
+    This ensures "Full Name" + textbox -> "full_name_field", etc.
+    """
+    t = (ocr_type or "").strip().lower()
+    base = _snake(label_text)
 
-# 3. Format:
-#    - Each element on its own line:
-#      <label text> - <element type> - <intent>
+    if t == "textbox":
+        return f"{base}_field" if base else "field"
+    if t == "select":
+        return f"{base}_select" if base else "select"
+    if t == "checkbox":
+        return f"{base}_checkbox" if base else "checkbox"
+    if t in ("button", "link"):
+        return f"{base}_action" if base else "action"
+    if t == "label":
+        return f"{base}_info" if base else "info"
+    # Fallback for unexpected types
+    return base or "unknown"
 
-# 4. Rules:
-#    - Do NOT rephrase or skip lines.
-#    - Preserve punctuation, line breaks.
-#    - Traverse from top-left to bottom-right.
-#    - Even if the textbox has no content, generate its label and input as two elements.
-
-# 5. Examples:
-#    Full Name - textbox - fullname
-#    Email - textbox - email
-#    Account Type - select - accounttype
-#    Add Customer - button - submit
-# """
-
+# ------------------------------------------------------------------------------------
+# Main entry
+# ------------------------------------------------------------------------------------
 
 async def process_image_gpt(
     image: Image.Image,
@@ -144,7 +134,7 @@ async def process_image_gpt(
     image_path: str = "",
     debug_log_path: str = None
 ) -> list:
-    
+
     page_name = normalize_page_name(filename)
 
     # Convert image to base64 for OpenAI Vision API
@@ -154,98 +144,95 @@ async def process_image_gpt(
     # Call OpenAI Vision API with your prompt
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": PROMPT},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
-                ]
-            }
-        ],
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": PROMPT},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
+            ],
+        }],
         max_tokens=1500,
         temperature=0
     )
 
-    raw_lines = response.choices[0].message.content.strip().splitlines()
-    results = []    
-    
-    # raw_lines = ...   # (your OpenAI output as a list of strings)
+    # Raw lines from model
+    raw = (response.choices[0].message.content or "").strip()
+    raw_lines = raw.splitlines() if raw else []
+
+    # Clean & normalize lines
     clean_lines = []
     for line in raw_lines:
-        # Remove leading serial numbers (like '1. ')
-        line = re.sub(r'^\d+\.\s*', '', line)
-        # Remove markdown symbols
-        line = re.sub(r'(\*\*|\*|`)', '', line)
-        # Count dashes
-        dash_count = line.count('-')
-        if dash_count > 2:
-            # Remove leading dash only if there are at least two ' - '
-            line = re.sub(r'^\s*-\s*', '', line)
-
+        if not line or not line.strip():
+            continue
+        line = _clean_line(line)
+        if not line:
+            continue
         clean_lines.append(line)
 
+    # Persist raw and cleaned for audit
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = os.path.splitext(os.path.basename(filename))[0]
+        file_name = f"{timestamp}_{base_name}.txt"
+        folder = "data/openai_response"
+        os.makedirs(folder, exist_ok=True)
+        out_file = os.path.join(folder, file_name)
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write("---- RAW ----\n")
+            for l in raw_lines:
+                f.write((l or "") + "\n")
+            f.write("\n---- CLEANED ----\n")
+            for l in clean_lines:
+                f.write((l or "") + "\n")
+    except Exception:
+        pass
 
-    # Timestamped file naming
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base = os.path.splitext(os.path.basename(filename))[0]
-    file_name = f"{timestamp}_{base}.txt"
-    folder = "data/openai_response"
-    os.makedirs(folder, exist_ok=True)
-    out_file = os.path.join(folder, file_name)
-    with open(out_file, "w", encoding="utf-8") as f:
-        for line in raw_lines:
-            f.write(line + "\n")
-        f.write(f"{'-'*40} After Cleaning {'-'*40}\n")
-        for line in clean_lines:
-            f.write(line + "\n")
+    results = []
 
-    # ====================
-    for line in clean_lines:
-        line = line.strip()
-        if not line or " - " not in line:
+    # Parse each normalized line
+    for orig in clean_lines:
+        line = orig.strip()
+        if not line:
             continue
 
-        # Always split into parts from right
-        parts = line.rsplit(" - ", 2)
-        if len(parts) == 3:
-            label_text, ocr_type, intent = [p.strip() for p in parts]
-            if not intent:
-                intent = assign_intent_semantic(label_text)
-        elif len(parts) == 2:
-            first, second = [p.strip() for p in parts]
+        # Split with canonical ' - ' separator
+        tokens = [t.strip() for t in line.split(" - ") if t and t.strip()]
 
-            if line.startswith("-") or not first:
-                # Case: - textbox - phone_number_input
-                ocr_type = first.lstrip("-").strip()
-                intent = second.strip()
+        label_text = ""
+        ocr_type = ""
+        # We intentionally ignore the model-provided intent; we compute our own.
 
-                # Extract label from intent by removing the last underscore-separated word
-                label_base = "_".join(intent.split("_")[:-1])  # "phone_number"
-                label_text = label_base.replace("_", " ").title()  # "Phone Number"
+        if len(tokens) >= 3:
+            # Take the LAST 3 tokens to tolerate extra dashes in label
+            label_text, ocr_type = tokens[-3], tokens[-2]
+            intent = build_intent(label_text, ocr_type)
 
+        elif len(tokens) == 2:
+            first, second = tokens[0], tokens[1]
+            # Detect "no label" by looking at original (pre-split) line
+            no_label = orig.lstrip().startswith("-")
+
+            if no_label:
+                # "- <ocr_type> - <intent>" after normalization becomes "<ocr_type> - <intent>"
+                ocr_type = first
+                label_text = ""  # don't fabricate labels
+                intent = build_intent(label_text, ocr_type)
             else:
-                # Case: label - ocr_type
+                # "<label> - <ocr_type>" (no intent given)
                 label_text = first
                 ocr_type = second
-                intent = assign_intent_semantic(label_text)
+                intent = build_intent(label_text, ocr_type)
         else:
+            # Not parseable; skip
             continue
 
-        # # Handle both 3-part and 2-part formats
-        # parts = line.rsplit(" - ", 2)
-        # if len(parts) == 3:
-        #     label_text, ocr_type, intent = [p.strip() for p in parts]
-        #     if not intent:
-        #         intent = assign_intent_semantic(label_text)
-        # elif len(parts) == 2:
-        #     label_text, ocr_type = [p.strip() for p in parts]
-        #     intent = assign_intent_semantic(label_text)
-        # else:
-        #     continue
+        # Optional: warn on ultra-generic/unknown intents for later tuning
+        if intent in ("unknown", "action", "field", "select", "checkbox", "info"):
+            print(f"[INTENT-NOTE] Generic intent → label='{label_text}' type='{ocr_type}' line='{orig}'")
 
+        # Dummy bbox (plug in detector later)
         unique_id = str(uuid.uuid4())
-        x, y, w, h = 10, 10, 100, 40  # Dummy values; plug in YOLO here if needed
+        x, y, w, h = 10, 10, 100, 40
 
         region_path = save_region(
             image, x, y, w, h,
@@ -282,9 +269,12 @@ async def process_image_gpt(
         except Exception as e:
             print(f"[ERROR] Failed to upsert to ChromaDB for label='{label_text}': {e}")
 
-        # if debug_log_path:
-        #     with open(debug_log_path, "a", encoding="utf-8") as log_file:
-        #         log_file.write(json.dumps(metadata, ensure_ascii=False) + "\n")
+        # Optional debug log file
+        if debug_log_path:
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as log_file:
+                    log_file.write(json.dumps(metadata, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
 
-        
     return results

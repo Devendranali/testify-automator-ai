@@ -1,7 +1,11 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import traceback
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from apis.image_text_api import router as image_router
 from apis.chroma_debug_api import router as debug_chroma_export_router
@@ -12,9 +16,8 @@ from apis.generate_page_methods import router as generate_page_methods_router
 from apis.generate_from_manual_testcases import router as generate_from_manual_testcase_router
 from apis.generate_testcases_from_methods import router as generate_test_code_from_methods_router
 from apis.manual_add_metadata import router as manual_add_metadata
-import sys
+import auth
 import asyncio
-import os
 import subprocess
 import logging
 from dotenv import load_dotenv
@@ -49,6 +52,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Hardcoded user credentials
+HARDCODED_USERNAME = "Admin@123"
+HARDCODED_PASSWORD = "admin123"
+
+@app.post("/login")
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not (form_data.username == HARDCODED_USERNAME and form_data.password == HARDCODED_PASSWORD):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = auth.create_access_token(
+        data={"sub": form_data.username}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 # ✅ Global exception handler with CORS headers
 @app.exception_handler(Exception)

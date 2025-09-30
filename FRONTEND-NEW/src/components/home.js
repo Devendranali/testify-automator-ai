@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "./dashboard";
 import { toast, ToastContainer } from "react-toastify";
@@ -11,6 +11,28 @@ const Home = () => {
   const [projectName, setProjectName] = useState("");
   const [framework, setFramework] = useState("Playwright");
   const [language, setLanguage] = useState("python");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        // This is a simple way to decode the JWT payload.
+        // In a real-world application, you should use a library like 'jwt-decode'
+        // and also verify the token's signature on the server-side.
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        setUserEmail(payload.sub);
+      } catch (e) {
+        console.error("Invalid token:", e);
+        handleLogout();
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   const handleStartProject = () => {
     if (!projectName.trim()) {
@@ -23,7 +45,7 @@ const Home = () => {
     console.log("Programming Language:", language);
 
     setShowDialog(false);
-    navigate("/input");
+    navigate("/input", { state: { projectName: projectName } });
   };
 
 
@@ -43,6 +65,16 @@ const Home = () => {
               Automation Development Platform
             </p>
           </div>
+        </div>
+
+        <div className={styles.navbarUser}>
+          <span>{userEmail}</span>
+          <button
+            onClick={handleLogout}
+            className={styles.logoutButton}
+          >
+            Logout
+          </button>
         </div>
 
         <button
@@ -94,8 +126,8 @@ const Home = () => {
                 onChange={(e) => setLanguage(e.target.value)}
                 className={styles.formSelect}
               >
-                <option>Java</option>
                 <option>Python</option>
+                <option>Java</option>
                 <option>JavaScript</option>
                 <option>C#</option>
               </select>
@@ -123,4 +155,3 @@ const Home = () => {
 };
 
 export default Home;
-
