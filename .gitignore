@@ -7,6 +7,9 @@ venv/
 frontend-demo/node_modules
 node_modules
 
+#for cookies
+backend/storage/cookies.json
+
 # Logs
 logs
 *.log
