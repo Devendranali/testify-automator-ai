@@ -8,7 +8,7 @@ frontend-demo/node_modules
 node_modules
 
 #for cookies
-backend/storage/cookies.json
+backend/storage/
 
 # Logs
 logs
