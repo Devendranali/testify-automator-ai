@@ -555,7 +555,7 @@ def clean_metadata(d):
 
 
 # New Optimized match_and_update
-def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thresh=300):
+def match_and_update(ocr_data, dom_data, collection, text_thresh=0.25, bbox_thresh=300):
     global LAST_MATCHED_RESULTS
     matched_records = []
 
@@ -566,7 +566,7 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.5, bbox_thres
     dom_candidates = []
     for dom in dom_data:
         dom_text = dom.get("placeholder", "") or dom.get(
-            "text", "") or dom.get("label_text", "") or dom.get("value", "")
+            "text", "") or dom.get("label_text", "") or dom.get("value", "") 
         dom_texts.append(dom_text.lower())
         # dom_text = build_dom_context_string(dom)
         # dom_texts.append(dom_text)

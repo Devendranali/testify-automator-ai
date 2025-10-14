@@ -78,6 +78,9 @@ def _assert_method_for_select(unique: str, label_text: str, method_name: str) ->
     Validates native <select> (value/label) and custom combobox text.
     """
     label_json = json.dumps(label_text or "")
+    # More robust select assertion: check native value, selected label via evaluate,
+    # option[selected] text, aria-selected options, and custom combobox text using an
+    # escaped regex for the label.
     return (
         f"def assert_{method_name}(page, expected: str, timeout: int = 6000):\n"
         f"    exp = str(expected)\n"
@@ -95,13 +98,30 @@ def _assert_method_for_select(unique: str, label_text: str, method_name: str) ->
         f"                return\n"
         f"        except Exception:\n"
         f"            pass\n"
+        f"        try:\n"
+        f"            # Try option[selected] text or value if available\n"
+        f"            opt = el.locator('option[selected]').first\n"
+        f"            try:\n"
+        f"                txt = opt.inner_text()\n"
+        f"                if _ci(txt) == _ci(exp):\n"
+        f"                    return\n"
+        f"            except Exception:\n"
+        f"                pass\n"
+        f"            try:\n"
+        f"                val = opt.get_attribute('value')\n"
+        f"                if val is not None and _ci(val) == _ci(exp):\n"
+        f"                    return\n"
+        f"            except Exception:\n"
+        f"                pass\n"
+        f"        except Exception:\n"
+        f"            pass\n"
         f"    except Exception:\n"
         f"        pass\n"
         f"    # 2) Custom combobox: trigger text by label\n"
         f"    lbl = {label_json}\n"
         f"    if lbl:\n"
         f"        try:\n"
-        f"            cmb = page.get_by_role('combobox', name=re.compile(lbl, re.I))\n"
+        f"            cmb = page.get_by_role('combobox', name=re.compile(re.escape(lbl), re.I))\n"
         f"            expect(cmb).to_contain_text(exp, timeout=timeout)\n"
         f"            return\n"
         f"        except Exception:\n"
@@ -109,10 +129,15 @@ def _assert_method_for_select(unique: str, label_text: str, method_name: str) ->
         f"    # 3) Fallback: selected option with aria-selected=true\n"
         f"    try:\n"
         f"        opt = page.locator(\"[role='option'][aria-selected='true']\").first\n"
-        f"        expect(opt).to_contain_text(exp, timeout=timeout)\n"
-        f"        return\n"
-        f"    except Exception as e:\n"
-        f"        raise AssertionError(f\"Assertion failed for select '{{lbl or '{unique}'}}' expecting '{{exp}}': {{e}}\")\n"
+        f"        try:\n"
+        f"            expect(opt).to_contain_text(exp, timeout=timeout)\n"
+        f"            return\n"
+        f"        except Exception:\n"
+        f"            pass\n"
+        f"    except Exception:\n"
+        f"        pass\n"
+        f"    # Final failure\n"
+        f"    raise AssertionError(f\"Assertion failed for select '{{lbl or '{unique}'}}' expecting '{{exp}}'.\")\n"
     )
 
 # -------- Build one method from a metadata entry --------
@@ -127,6 +152,7 @@ def build_method(entry, used_names):
         return safe(label_text or intent or name)
 
     code_blocks = []
+    fn_names = []
 
     # ---------- TEXT INPUTS ----------
     if ocr_type in ("textbox", "text", "input", "textarea", "email", "password"):
@@ -144,7 +170,6 @@ def build_method(entry, used_names):
             f"        except Exception: pass\n"
             f"        page.keyboard.press('Control+A'); page.keyboard.press('Backspace')\n"
             f"        loc.type(str(value), delay=30)\n"
-            f"        return\n"
             f"    except Exception:\n"
             f"        pass\n\n"
             f"    _ph = {placeholder_json}\n"
@@ -193,6 +218,7 @@ def build_method(entry, used_names):
         # Emit method-specific assertion
         assert_code = _assert_method_for_input(unique, label_text, placeholder, fn)
         code_blocks += [method_code, assert_code]
+        fn_names += [fn, f"assert_{fn}"]
 
     # ---------- BUTTONS ----------
     elif ocr_type in ("button", "submit", "iconbutton"):
@@ -290,7 +316,7 @@ def build_method(entry, used_names):
         )
         code_blocks.append(method_code)
 
-    return "\n".join(code_blocks)
+    return "\n".join(code_blocks), fn_names
 
 def _ensure_assert_helper(code: str) -> str:
     if "def _ci(" not in code:
@@ -357,9 +383,20 @@ def smartai_page(page):
         # Append SmartAI method implementations (built from metadata)
         used = {}
         blocks = []
+        created = set()  # track function names already added for this page
         for e in entries:
             try:
-                blocks.append(build_method(e, used))
+                code, names = build_method(e, used)
+                # skip if any of the function names were already created
+                if any(n in created for n in names):
+                    # avoid duplicate definitions; skip or only include new parts
+                    new_names = [n for n in names if n not in created]
+                    if not new_names:
+                        continue
+                    # If some names are new, include full code block but filter created set
+                blocks.append(code)
+                for n in names:
+                    created.add(n)
             except Exception:
                 continue
 

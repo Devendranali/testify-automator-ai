@@ -1,3 +1,5 @@
+
+
 # apis/generate_from_user_story.py
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pathlib import Path
@@ -6,6 +8,7 @@ import json
 import ast
 import pandas as pd
 from typing import List, Optional
+import os
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path  # noqa: F401 (kept for future use)
 from services.test_generation_utils import openai_client  # OpenAI client
 from utils.prompt_utils import build_prompt
@@ -46,12 +49,28 @@ def inject_assertions_after_actions(code: str) -> str:
 
 # ----------------------------------------------------------------------
 
-def create_default_test_data(run_folder: Path) -> None:
-    data = {
-        "login": {"username": "standard_user", "password": "secret_sauce"},
-        "checkout": {"first_name": "John", "last_name": "Doe", "zip_code": "12345"},
-        "product": {"name": "Sauce Labs Backpack"}
-    }
+def create_default_test_data(run_folder: Path, method_map_full: Optional[dict] = None, test_data_json: Optional[str] = None) -> None:
+    """
+    Create or write test data for the run. If `test_data_json` is provided it will be used (must be JSON string).
+    Otherwise a minimal scaffold is created by scanning method_map_full for common keys.
+    """
+    data = {}
+    if test_data_json:
+        try:
+            data = json.loads(test_data_json)
+        except Exception:
+            # If passed data is invalid JSON, fall back to empty scaffold
+            data = {}
+    else:
+        # Build a minimal scaffold from method_map_full if available
+        if method_map_full:
+            for page_key, methods in method_map_full.items():
+                # Use page_key as top-level key with an empty dict value for user to fill
+                data[page_key] = {}
+        # Keep at least an empty object so code expecting file won't fail
+        if not data:
+            data = {"__meta__": {}}
+
     data_dir = Path(run_folder) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "__init__.py").touch()
@@ -139,11 +158,12 @@ def generate_test_code_from_methods(user_story: str, method_map: dict, page_name
         f.write(prompt)
 
     # Call LLM to generate test code
+    model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
     result = openai_client.chat.completions.create(
-        model="gpt-4o",
+        model=model_name,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096,
-        temperature=0
+        max_tokens=int(os.getenv("AI_MAX_TOKENS", "4096")),
+        temperature=float(os.getenv("AI_TEMPERATURE", "0"))
     )
 
     clean_output = re.sub(
@@ -184,11 +204,12 @@ Here is a user story:
 
 Output ONLY a Python list (in order) of the page keys (use the keys exactly as shown) that must be visited for this story. Do not explain.
 """
+    model_name = os.getenv("AI_INFER_MODEL", "gpt-5o")
     result = openai_client.chat.completions.create(
-        model="gpt-5o",
+        model=model_name,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096,
-        temperature=0
+        max_tokens=int(os.getenv("AI_MAX_TOKENS", "4096")),
+        temperature=float(os.getenv("AI_TEMPERATURE", "0"))
     )
 
     output = (result.choices[0].message.content or "").strip()
@@ -203,8 +224,11 @@ Output ONLY a Python list (in order) of the page keys (use the keys exactly as s
 @router.post("/rag/generate-from-story")
 async def generate_from_user_story(
     user_story: Optional[str] = Form(None),
-    site_url: Optional[str] = Form("https://www.saucedemo.com"),
-    file: Optional[UploadFile] = File(None)
+    site_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    ai_model: Optional[str] = Form(None),
+    infer_pages: Optional[bool] = Form(False),
+    test_data_json: Optional[str] = Form(None),
 ):
     run_folder = Path("generated_runs") / "src"
     pages_dir = run_folder / "pages"
@@ -262,10 +286,20 @@ async def generate_from_user_story(
     results, test_functions = [], []
     all_path_pages: List[str] = []
 
+    # Determine site_url: param -> env -> empty
+    if not site_url:
+        site_url = os.getenv("SITE_URL", "")
+
+    # Optional: set AI model for this request
+    if ai_model:
+        os.environ["AI_MODEL_NAME"] = ai_model
+
     for story in stories:
-        # You can switch to LLM-inferred path if desired:
-        # path_pages = get_inferred_pages(story, method_map_full, openai_client)
-        path_pages = [key for key in method_map_full.keys()]
+        # Optionally use LLM-inferred path
+        if infer_pages or os.getenv("AI_INFER_PAGES", "false").lower() in ("1", "true", "yes"):
+            path_pages = get_inferred_pages(story, method_map_full, openai_client)
+        else:
+            path_pages = [key for key in method_map_full.keys()]
         if not path_pages:
             continue
         all_path_pages.extend(path_pages)
@@ -284,7 +318,7 @@ async def generate_from_user_story(
 
     page_method_files = sorted(pages_dir.glob("*_page_methods.py"))
     import_lines = [
-        "from playwright.sync_api import sync_playwright, expect",  # keep expect import for any direct assertions
+        "from playwright.sync_api import sync_playwright",
         "import json",
         "from pathlib import Path",
         "from lib.smart_ai import patch_page_with_smartai",
@@ -293,7 +327,7 @@ async def generate_from_user_story(
         module_name = file.stem
         import_lines.append(f"from pages.{module_name} import *")
 
-    # Write the raw test(s) (already assertion-injected)
+    # Write the raw test(s) as produced by LLM
     test_file.write_text("\n\n".join(import_lines + test_functions), encoding="utf-8")
 
     if all_path_pages:
@@ -334,7 +368,24 @@ async def generate_from_user_story(
             body = ''.join(func_body)
             func_blocks.append((func_name, body))
 
-        # Compose one run_* function for each
+        # Compose one run_* function for each, adding robust waits after goto
+        # If the user story included an explicit storage_state path (e.g.:
+        # And I use storage state "C:\...\cookies.json"), capture it and
+        # inject into the generated runner so Playwright will reuse it.
+        storage_override_js = None
+        try:
+            storage_override = None
+            for s in stories:
+                m = re.search(r'storage state\s*"([^"]+)"', s, re.I)
+                if m:
+                    storage_override = m.group(1)
+                    break
+            if storage_override:
+                # embed as JSON string literal so backslashes are preserved
+                storage_override_js = json.dumps(storage_override)
+        except Exception:
+            storage_override_js = None
+
         wrapper_blocks: List[str] = []
         for func_name, func_body in func_blocks:
             runner_name = "run_" + func_name.replace("test_", "")
@@ -343,12 +394,56 @@ async def generate_from_user_story(
             for l in dedented.strip('\n').splitlines():
                 step_lines.append("        " + l if l.strip() else "")
             steps = "\n".join(step_lines)
+            # Build the storage-state snippet depending on whether a storage override was found
+            if storage_override_js:
+                storage_snippet = (
+                    f"""        try:
+            context = browser.new_context(storage_state={storage_override_js})
+            page = context.new_page()
+            print(f\"[ui_runner] Restored storage_state from provided path\")
+        except Exception as e:
+            print(f\"[ui_runner] Failed to restore provided storage_state: {{e}}\")
+            context = browser.new_context()
+            page = context.new_page()
+"""
+                )
+            else:
+                storage_snippet = (
+                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.
+        # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)
+        storage_file = None
+        env_sf = os.getenv("UI_STORAGE_FILE", "").strip()
+        if env_sf:
+            storage_file = _Path(env_sf)
+        else:
+            guessed = _Path(__file__).resolve().parents[3] / "backend" / "storage" / "cookies.json"
+            if guessed.exists():
+                storage_file = guessed
+
+        if storage_file and storage_file.exists():
+            try:
+                context = browser.new_context(storage_state=str(storage_file))
+                page = context.new_page()
+                print(f"[ui_runner] Restored storage_state from: {{storage_file}}")
+            except Exception as e:
+                print(f"[ui_runner] Failed to restore storage_state: {{e}}")
+                context = browser.new_context()
+                page = context.new_page()
+        else:
+            context = browser.new_context()
+            page = context.new_page()
+"""
+                )
+
             wrapper_blocks.append(
                 f"""def {runner_name}():
     import time
+    import os
+    from pathlib import Path as _Path
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=500)
-        page = browser.new_page()
+        browser = p.chromium.launch(headless=False, slow_mo=300)
+
+{storage_snippet}
         # Patch SmartAI
         metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
         with open(metadata_path, "r") as f:
@@ -358,11 +453,16 @@ async def generate_from_user_story(
         time.sleep(3)
         browser.close()
 
-"""
-            )
+""")
 
         header = """# Auto-generated UI runner
-
+import sys
+from pathlib import Path as _Path
+# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running
+# this script from the repository root or the backend folder.
+_ROOT = _Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 from playwright.sync_api import sync_playwright
 import json
 from pathlib import Path
@@ -390,4 +490,4 @@ from lib.smart_ai import patch_page_with_smartai
         "results": results,
         "test_file": str(test_file),
         "log_file": str(log_file)
-    }
+    }  

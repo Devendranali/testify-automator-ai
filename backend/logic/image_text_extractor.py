@@ -23,94 +23,84 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Prompt: keep simple & consistent formatting; we will compute intent ourselves.
-PROMPT = """You are an expert computer vision model using OpenAI's capabilities.
+PROMPT = """You are an expert UI vision parser. You must extract *all* visible UI elements from this screenshot.
 
-Your task is to analyze a given screenshot of a user interface (UI) and extract every visible UI element.
-
-For EACH element, output exactly one line in one of the following formats:
+Output one line per element, using this exact format:
   <label_text> - <ocr_type> - <intent>
-  - <ocr_type> - <intent>            (if label_text is truly empty/absent)
-
-Where:
-- <label_text> is the exact on-screen text (preserve punctuation and case).
-- <ocr_type> is one of: textbox, button, label, checkbox, select.
-- <intent> is a short lowercase_snake_case token derived only from the element text (not from any fixed business taxonomy). If unsure, you may repeat the label in snake_case or leave it minimal.
 
 Rules:
-1) Extract ALL visible UI elements from top-left to bottom-right.
-2) Do NOT paraphrase <label_text>.
-3) Keep <intent> minimal; do not invent categories or business terms.
-4) If the element has no text (pure icon), leave label empty and still output the line.
-5) No extra commentary; just the lines.
+1. <label_text> — The **visible label or text** closest to the interactive element.  
+   - For input fields, use the *label* or *placeholder* ("Email", "Full Name", etc.).  
+   - For buttons, use the button text ("Submit", "Save", "Cancel").  
+   - For dropdowns or picklists (any field with ▼, chevron, or option list), use their label ("Country", "Account Type", "Time Zone").  
+   - If the label appears above or beside the field, capture it.  
+   - Never leave label_text blank unless nothing is visible nearby.
+
+2. <ocr_type> — One of: textbox, button, label, checkbox, **select**, link, image.  
+   - **Always classify dropdowns, picklists, comboboxes, or any field with an angle-down (▼) icon or down arrow symbol as `select`.**  
+   - If the field displays a default or pre-selected value (for example, showing a word or option inside), but also has a dropdown indicator or opens a list of options, it must still be categorized as `select`.  
+   - Fields with free text entry and no dropdown or arrow indicator → `textbox`.  
+   - When in doubt, if the element visually includes a chevron, down-arrow, caret, or expandable menu indicator, treat it as a `select`.
+
+3. <intent> — A concise snake_case token describing the element’s role.  
+   - Derived directly from label_text. Examples:  
+       "Email" → email_field  
+       "Password" → password_field  
+       "Login" → login_action  
+       "Account Type" → account_type_select  
+       "Primary Time Zone" → primary_time_zone_select  
+
+4. Do NOT include any commentary, numbering, or blank lines.
+
+5. Do NOT paraphrase label_text — use the **exact on-screen wording**.
+
+6. Be exhaustive: every visible field, dropdown, or button must appear as one output line.
 
 Examples:
-  Username - textbox - username
-  Password - textbox - password
-  Login - button - login
-  Dashboard - button - dashboard
-  secret_sauce - label - secret_sauce
+  Username - textbox - username_field
+  Password - textbox - password_field
+  Login - button - login_action
+  Remember Me - checkbox - remember_me_checkbox
+  Account Type - select - account_type_select
+  Preferred Method of Contact - select - preferred_method_of_contact_select
+  Primary Time Zone - select - primary_time_zone_select
+
 """
 
 # ------------------------------------------------------------------------------------
-# Robust parsing + deterministic intent (no hardcoded vocab)
+# Helper normalization functions
 # ------------------------------------------------------------------------------------
 
 def _normalize_separators(s: str) -> str:
-    """
-    Normalize separators to canonical ' - ' and remove common noise:
-      - convert en/em dashes to hyphen
-      - support ':' as a separator
-      - ensure single spaces around hyphens
-      - collapse spaces
-      - strip leading bullets/markers
-    """
+    """Normalize separators like ':' and '-', tidy spaces, remove bullets."""
     s = s.replace("–", "-").replace("—", "-")
-    s = re.sub(r"^[\s>*•\-]+\s*", "", s)         # leading bullets/markers
-    s = re.sub(r"\s*:\s*", " - ", s)             # colon as separator
-    s = re.sub(r"\s*-\s*", " - ", s)             # tidy hyphen spacing
-    s = re.sub(r"\s{2,}", " ", s).strip()        # collapse spaces
+    s = re.sub(r"^[\s>*•\-]+\s*", "", s)
+    s = re.sub(r"\s*:\s*", " - ", s)
+    s = re.sub(r"\s*-\s*", " - ", s)
+    s = re.sub(r"\s{2,}", " ", s).strip()
     return s
 
+
 def _clean_line(line: str) -> str:
-    """Remove numbering/markdown, then normalize separators."""
-    # Remove leading numbering like '1. ', '2) ', '(3) '
+    """Remove numbering/markdown and normalize separators."""
     line = re.sub(r"^\s*(\(?\d+\)?[.)]\s*)", "", line)
-    # Strip markdown bold/italic/backticks/underscores (formatting only)
     line = re.sub(r"(\*\*|\*|`|__|_)", "", line)
     return _normalize_separators(line)
 
+
 def _snake(s: str) -> str:
-    """
-    Convert arbitrary label text to lowercase_snake_case:
-      - collapse whitespace
-      - drop non-alphanumeric (except spaces)
-      - convert spaces to underscores
-    """
+    """Convert arbitrary label text to lowercase_snake_case."""
     s = (s or "").strip()
     s = re.sub(r"\s+", " ", s)
     s = re.sub(r"[^A-Za-z0-9 ]+", "", s)
     s = s.lower().strip()
     return re.sub(r"\s+", "_", s)
 
+
 def build_intent(label_text: str, ocr_type: str) -> str:
-    """
-    Deterministic, taxonomy-free intent built only from (label_text, ocr_type).
-    No hardcoded business lists or aliases.
-
-    Rules:
-      textbox   -> <label>_field      (or "field" if label empty)
-      select    -> <label>_select     (or "select" if label empty)
-      checkbox  -> <label>_checkbox   (or "checkbox" if label empty)
-      button    -> <label>_action     (or "action" if label empty)
-      link      -> <label>_action     (or "action" if label empty)
-      label     -> <label>_info       (or "info" if label empty)
-      unknown   -> <label> or "unknown" if both empty
-
-    This ensures "Full Name" + textbox -> "full_name_field", etc.
-    """
+    """Deterministic, taxonomy-free intent built from label_text + ocr_type."""
     t = (ocr_type or "").strip().lower()
     base = _snake(label_text)
-
     if t == "textbox":
         return f"{base}_field" if base else "field"
     if t == "select":
@@ -121,11 +111,39 @@ def build_intent(label_text: str, ocr_type: str) -> str:
         return f"{base}_action" if base else "action"
     if t == "label":
         return f"{base}_info" if base else "info"
-    # Fallback for unexpected types
     return base or "unknown"
 
+
+def detect_likely_select(orig_line: str, label_text: str, ocr_type: str) -> str:
+    """Heuristic to detect dropdowns/selects that the LLM labelled as textbox/label.
+
+    Looks for common keywords (select, dropdown, choose, option) and visual
+    arrow characters often used in UI dropdowns. Returns a possibly-updated
+    ocr_type (usually 'select' or the original).
+    """
+    try:
+        s = (orig_line or "") + " " + (label_text or "")
+        s_l = s.lower()
+        # keywords indicating a select/dropdown
+        kws = ("select", "dropdown", "choose", "choose an", "choose a", "pick", "option", "options")
+        if any(k in s_l for k in kws):
+            return "select"
+
+        # common arrow glyphs used in dropdown UI elements
+        arrows = set(["▾", "▿", "▼", "˅", "˄", "▸", "▶", "⌄", "˅", "ˇ"])
+        if any(ch in (orig_line or "") for ch in arrows):
+            return "select"
+
+        # if LLM guessed 'label' or 'textbox' but the label contains 'option: ' patterns
+        if ocr_type and ocr_type.lower() in ("textbox", "label") and "option" in s_l:
+            return "select"
+
+    except Exception:
+        pass
+    return ocr_type
+
 # ------------------------------------------------------------------------------------
-# Main entry
+# Main image processor
 # ------------------------------------------------------------------------------------
 
 async def process_image_gpt(
@@ -155,21 +173,19 @@ async def process_image_gpt(
         temperature=0
     )
 
-    # Raw lines from model
     raw = (response.choices[0].message.content or "").strip()
     raw_lines = raw.splitlines() if raw else []
 
-    # Clean & normalize lines
+    # Clean and normalize
     clean_lines = []
     for line in raw_lines:
-        if not line or not line.strip():
+        if not line.strip():
             continue
         line = _clean_line(line)
-        if not line:
-            continue
-        clean_lines.append(line)
+        if line:
+            clean_lines.append(line)
 
-    # Persist raw and cleaned for audit
+    # Save audit logs
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = os.path.splitext(os.path.basename(filename))[0]
@@ -188,49 +204,59 @@ async def process_image_gpt(
         pass
 
     results = []
+    known_types = {"textbox", "button", "label", "checkbox", "select", "dropdown", "combobox", "link"}
 
-    # Parse each normalized line
+    # ---------------------------------------------------------------
+    # Robust parsing with type detection (handles hyphens and colons)
+    # ---------------------------------------------------------------
     for orig in clean_lines:
         line = orig.strip()
         if not line:
             continue
 
-        # Split with canonical ' - ' separator
         tokens = [t.strip() for t in line.split(" - ") if t and t.strip()]
-
-        label_text = ""
-        ocr_type = ""
-        # We intentionally ignore the model-provided intent; we compute our own.
-
-        if len(tokens) >= 3:
-            # Take the LAST 3 tokens to tolerate extra dashes in label
-            label_text, ocr_type = tokens[-3], tokens[-2]
-            intent = build_intent(label_text, ocr_type)
-
-        elif len(tokens) == 2:
-            first, second = tokens[0], tokens[1]
-            # Detect "no label" by looking at original (pre-split) line
-            no_label = orig.lstrip().startswith("-")
-
-            if no_label:
-                # "- <ocr_type> - <intent>" after normalization becomes "<ocr_type> - <intent>"
-                ocr_type = first
-                label_text = ""  # don't fabricate labels
-                intent = build_intent(label_text, ocr_type)
-            else:
-                # "<label> - <ocr_type>" (no intent given)
-                label_text = first
-                ocr_type = second
-                intent = build_intent(label_text, ocr_type)
-        else:
-            # Not parseable; skip
+        if not tokens:
             continue
 
-        # Optional: warn on ultra-generic/unknown intents for later tuning
+        label_text, ocr_type, intent = "", "", ""
+
+        # Detect type position dynamically
+        ocr_index = next((i for i, t in enumerate(tokens) if t.lower() in known_types), -1)
+
+        if ocr_index != -1:
+            label_text = " - ".join(tokens[:ocr_index]).strip()
+            ocr_type = tokens[ocr_index].lower()
+            intent_part = tokens[ocr_index + 1:] if ocr_index + 1 < len(tokens) else []
+            intent = " ".join(intent_part).strip()
+        else:
+            # Fallback: guess structure if no known type
+            if len(tokens) == 2:
+                label_text, ocr_type = tokens
+            elif len(tokens) == 1:
+                label_text = tokens[0]
+                ocr_type = "label"
+            else:
+                continue
+
+        # Clean fake labels like 'textbox' or 'button'
+        if label_text.lower() in known_types:
+            label_text = ""
+
+        ocr_type = ocr_type.lower().strip()
+        label_text = label_text.strip()
+
+        # Heuristic: some dropdowns are mislabelled by the LLM. Detect and fix.
+        new_type = detect_likely_select(orig, label_text, ocr_type)
+        if new_type and new_type != ocr_type:
+            ocr_type = new_type
+
+        # Deterministic intent
+        intent = build_intent(label_text, ocr_type)
+
         if intent in ("unknown", "action", "field", "select", "checkbox", "info"):
             print(f"[INTENT-NOTE] Generic intent → label='{label_text}' type='{ocr_type}' line='{orig}'")
 
-        # Dummy bbox (plug in detector later)
+        # Dummy bounding box (placeholder until detector)
         unique_id = str(uuid.uuid4())
         x, y, w, h = 10, 10, 100, 40
 
@@ -251,6 +277,7 @@ async def process_image_gpt(
             "height": h,
             "bbox": f"{x},{y},{w},{h}",
             "confidence_score": 1.0,
+            "data_id" : "",
         }
 
         metadata = build_standard_metadata(
@@ -262,14 +289,14 @@ async def process_image_gpt(
         metadata["ocr_id"] = unique_id
         metadata["get_by_text"] = label_text
 
-        # Storing metadata in ChromaDB
+        # Store metadata
         try:
             stored_metadata = upsert_text_record(metadata)
             results.append(stored_metadata)
         except Exception as e:
             print(f"[ERROR] Failed to upsert to ChromaDB for label='{label_text}': {e}")
 
-        # Optional debug log file
+        # Optional debug log
         if debug_log_path:
             try:
                 with open(debug_log_path, "a", encoding="utf-8") as log_file:

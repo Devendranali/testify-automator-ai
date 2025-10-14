@@ -28,99 +28,174 @@ class SmartAIWrappedLocator:
         self._safe_scroll()
         return self._locator.first.click(*args, **kwargs)
 
-    def fill(self, *args, **kwargs):
-        self._safe_scroll()
-        return self._locator.first.fill(*args, **kwargs)
+    def fill(self, value, retries: int = 3, timeout: int = 3000, force: bool = False):
+        '''Fill value with validation and retries.
+        Raises Exception if after retries the field does not reflect the value.
+        '''
+        self._safe_scroll(timeout=timeout)
+        backoff = 0.12
+        last_exc = None
+        for attempt in range(1, retries + 1):
+            try:
+                # verify locator visibility & enabled
+                if not self._locator.first.is_visible():
+                    raise Exception("Locator not visible")
+                if not self._locator.first.is_enabled():
+                    raise Exception("Locator not enabled")
 
-    def select_option(self, value, index: int | None = None, timeout: int = 5000, force: bool = False):
+                self._locator.first.fill(value, timeout=timeout, force=force)
+
+                # Post-fill validation: ensure input_value matches intended value
+                try:
+                    current = self._locator.first.input_value()
+                    if str(current) == str(value):
+                        print(f"[SmartAI][fill] Success: value set to '{value}'")
+                        return
+                except Exception:
+                    # input_value may not be supported; fallback to evaluate
+                    try:
+                        current = self._locator.first.evaluate('el => el.value')
+                        if str(current) == str(value):
+                            print(f"[SmartAI][fill] Success (eval): value set to '{value}'")
+                            return
+                    except Exception:
+                        pass
+
+                # If not matched, raise to retry
+                raise Exception(f"Post-fill validation failed: expected '{value}', got '{current if 'current' in locals() else 'unknown'}'")
+            except Exception as e:
+                last_exc = e
+                wait = backoff * (2 ** (attempt - 1))
+                try:
+                    self._page.wait_for_timeout(int(wait * 1000))
+                except Exception:
+                    pass
+                continue
+
+        # exhausted retries
+        raise Exception(f"SmartAI.fill failed after {retries} attempts: {last_exc}")
+
+    def select_option(self, value, index: int | None = None, retries: int = 3, timeout: int = 5000, force: bool = False):
         '''
         Robust select handler:
         1) Try native select_option(label=...) then value=...
         2) If native fails, open combobox (optionally by index) and click an option with proper waits
         3) As a last resort on real <select>, map label->value case-insensitively via DOM
         '''
-        self._safe_scroll()
+        self._safe_scroll(timeout=timeout)
 
-        # --- Native fast-path for real <select> ---
-        try:
-            return self._locator.first.select_option(label=value)
-        except Exception:
+        # --- Native fast-path for real <select> with retries ---
+        last_exc = None
+        backoff = 0.12
+        for attempt in range(1, retries + 1):
             try:
-                return self._locator.first.select_option(value=value)
-            except Exception:
-                pass  # fall through to combobox flow
+                # ensure native select is visible/enabled
+                if not self._locator.first.is_visible():
+                    raise Exception("Locator not visible")
+                if not self._locator.first.is_enabled():
+                    raise Exception("Locator not enabled")
 
-        # --- Combobox / custom dropdown flow with waits ---
-        try:
-            trigger = self._page.get_by_role("combobox")
-            trigger = trigger.nth(index) if index is not None else trigger.first
-            trigger.scroll_into_view_if_needed(timeout=timeout)
-            trigger.click(timeout=timeout)
-
-            # Wait for options to show up
-            try:
-                self._page.get_by_role("listbox").first.wait_for(state="visible", timeout=timeout)
-            except Exception:
-                self._page.wait_for_selector("[role='option']", timeout=timeout)
-
-            # Exact name first
-            try:
-                self._page.get_by_role("option", name=value, exact=True).first.click(timeout=timeout, force=force)
-                return
-            except Exception:
-                pass
-
-            # Contains text
-            try:
-                self._page.locator("[role='option']", has_text=value).first.click(timeout=timeout, force=force)
-                return
-            except Exception:
-                pass
-
-            # Case-insensitive attempts
-            for v in (value, str(value).strip(), str(value).capitalize(), str(value).title(), str(value).lower(), str(value).upper()):
                 try:
-                    self._page.get_by_role("option", name=v).first.click(timeout=timeout, force=force)
-                    return
+                    res = self._locator.first.select_option(label=value)
+                    # validate selected value if possible
+                    try:
+                        sel = self._locator.first.evaluate('el => el.value')
+                        if sel is not None:
+                            print(f"[SmartAI][select_option] Native select chose value '{sel}'")
+                            return res
+                    except Exception:
+                        return res
                 except Exception:
-                    continue
+                    try:
+                        res = self._locator.first.select_option(value=value)
+                        return res
+                    except Exception:
+                        pass
 
-            # Final: iterate options and compare text
-            opts = self._page.locator("[role='option']")
-            n = opts.count()
-            target_low = str(value).strip().lower()
-            for i in range(n):
+                # --- Combobox / custom dropdown flow with waits ---
                 try:
-                    txt = opts.nth(i).inner_text().strip()
-                    if txt.lower() == target_low:
-                        opts.nth(i).click(timeout=timeout, force=force)
+                    trigger = self._page.get_by_role("combobox")
+                    trigger = trigger.nth(index) if index is not None else trigger.first
+                    trigger.scroll_into_view_if_needed(timeout=timeout)
+                    trigger.click(timeout=timeout)
+
+                    # Wait for options to show up
+                    try:
+                        self._page.get_by_role("listbox").first.wait_for(state="visible", timeout=timeout)
+                    except Exception:
+                        try:
+                            self._page.wait_for_selector("[role='option']", timeout=timeout)
+                        except Exception:
+                            pass
+
+                    # Exact name first
+                    try:
+                        self._page.get_by_role("option", name=value, exact=True).first.click(timeout=timeout, force=force)
+                        print(f"[SmartAI][select_option] Combobox matched exact '{value}'")
                         return
-                except Exception:
-                    continue
+                    except Exception:
+                        pass
 
-        except Exception as e:
-            print(f"[SmartAI][select_option fallback] Combobox flow failed: {e}")
+                    # Contains text then case-insensitive attempts
+                    try:
+                        self._page.locator("[role='option']", has_text=value).first.click(timeout=timeout, force=force)
+                        return
+                    except Exception:
+                        pass
 
-        # --- Last-resort: if this truly was a <select> with label/value mismatch, map by DOM ---
-        try:
-            opts = self._locator.first.evaluate(
-                "el => Array.from(el.options).map(o => ({value:o.value, label:o.label || o.text}))"
-            )
-            if isinstance(opts, list) and opts:
-                target = str(value).strip().lower()
-                # try exact label match (case-insensitive)
-                for o in opts:
-                    if (o.get('label') or '').strip().lower() == target:
-                        return self._locator.first.select_option(value=o.get('value'))
-                # try value equals (case-insensitive)
-                for o in opts:
-                    if (o.get('value') or '').strip().lower() == target:
-                        return self._locator.first.select_option(value=o.get('value'))
-            print(f"[SmartAI][select_option fallback] Could not map '{value}' to an option value on native <select>.")
-        except Exception as e3:
-            print(f"[SmartAI][select_option fallback] Native <select> mapping failed: {e3}")
+                    for v in (value, str(value).strip(), str(value).capitalize(), str(value).title(), str(value).lower(), str(value).upper()):
+                        try:
+                            self._page.get_by_role("option", name=v).first.click(timeout=timeout, force=force)
+                            return
+                        except Exception:
+                            continue
 
-        raise Exception(f"SmartAI: unable to select option '{value}' (index={index})")
+                    # Final: iterate visible options and compare text with normalization
+                    opts = self._page.locator("[role='option']")
+                    n = opts.count()
+                    target_low = str(value).strip().lower()
+                    for i in range(n):
+                        try:
+                            txt = opts.nth(i).inner_text().strip()
+                            if txt and txt.lower() == target_low:
+                                opts.nth(i).click(timeout=timeout, force=force)
+                                return
+                        except Exception:
+                            continue
+
+                except Exception as e:
+                    last_exc = e
+
+                # Last-resort mapping for native select
+                try:
+                    opts = self._locator.first.evaluate(
+                        "el => Array.from(el.options).map(o => ({value:o.value, label:o.label || o.text}))"
+                    )
+                    if isinstance(opts, list) and opts:
+                        target = str(value).strip().lower()
+                        for o in opts:
+                            if (o.get('label') or '').strip().lower() == target:
+                                return self._locator.first.select_option(value=o.get('value'))
+                        for o in opts:
+                            if (o.get('value') or '').strip().lower() == target:
+                                return self._locator.first.select_option(value=o.get('value'))
+                    last_exc = Exception(f"Could not map '{value}' to native select options")
+                except Exception as e3:
+                    last_exc = e3
+
+            except Exception as e_outer:
+                last_exc = e_outer
+
+            # retry/backoff
+            wait = backoff * (2 ** (attempt - 1))
+            try:
+                self._page.wait_for_timeout(int(wait * 1000))
+            except Exception:
+                pass
+            continue
+
+        # exhausted retries
+        raise Exception(f"SmartAI: unable to select option '{value}' (index={index}) after {retries} attempts; last error: {last_exc}")
 
 class SmartAISelfHealing:
     def __init__(self, metadata):
@@ -181,10 +256,10 @@ class SmartAISelfHealing:
                     strategies.append((lambda nm=nm, role=role: page.get_by_role(role, name=nm), f"get_by_role({role}, name={nm})"))
 
         # If we know the tag, try the mapped role with label_text
-        if element.get("tag_name") and element.get("label_text"):
+        if element.get("tag_name"):
             role = self._map_tag_to_role(element["tag_name"])
             if role:
-                strategies.append((lambda: page.get_by_role(role, name=element["label_text"]), f"get_by_role({role}, name={element['label_text']})"))
+                strategies.append((lambda: page.get_by_role(role, name=element["tag_name"]), f"get_by_role({role}, name={element['tag_name']})"))
 
         # Try by label (best for inputs/selects with associated <label>)
         if element.get("label_text"):
@@ -207,6 +282,12 @@ class SmartAISelfHealing:
         for k, v in data_attrs.items():
             if "test" in k.lower() or "qa" in k.lower():
                 strategies.append((lambda v=v: page.get_by_test_id(v), f"get_by_test_id({v}) for {k}"))
+
+        # 🆕 NEW: Try by data-id (exact & partial)
+        data_id = element.get("data_id") or ""
+        if data_id:
+            strategies.append((lambda data_id=data_id: page.locator(f'[data-id="{data_id}"]'), f'locator([data-id="{data_id}"]) [data-id exact]'))
+            strategies.append((lambda data_id=data_id: page.locator(f'[data-id*="{data_id}"]'), f'locator([data-id*="{data_id}"]) [data-id partial]'))
 
         # By id (exact and partial)
         if element.get("dom_id"):
@@ -234,7 +315,7 @@ class SmartAISelfHealing:
         for func, desc in strategies:
             try:
                 locator = func()
-                if locator and locator.count() > 0:
+                if locator:
                     print(f"[SmartAI][Return] {desc} succeeded.")
                     self.locator_fail_count[element.get("unique_name")] = 0
                     return locator.first
@@ -247,25 +328,21 @@ class SmartAISelfHealing:
         return None
 
     def find_element(self, unique_name, page):
-        # Main entry for SmartAI: tries direct lookup, then ML self-healing, then heuristics.
         element = self._find_by_unique_name(unique_name)
         if element:
             locator = self._try_all_locators(element, page)
             if locator:
                 print(f"[SmartAI] Element '{unique_name}' found using primary metadata.")
-                return SmartAIWrappedLocator(locator, page)  # WRAPPED
-
+                return SmartAIWrappedLocator(locator, page)
             print(f"[SmartAI] Primary methods failed for '{unique_name}', trying ML self-healing...")
 
-        # ML-based fallback
         element_ml, ml_score = self._ml_self_heal(unique_name)
         if element_ml:
             locator_ml = self._try_all_locators(element_ml, page)
             if locator_ml:
                 print(f"[SmartAI] Healed element via ML ({ml_score:.2f}): '{element_ml.get('unique_name')}'")
-                return SmartAIWrappedLocator(locator_ml, page)  # WRAPPED
+                return SmartAIWrappedLocator(locator_ml, page)
 
-        # Intent-aware fallback
         target_intent = element_ml.get("intent") if element_ml else None
         if target_intent:
             for e in self.metadata:
@@ -273,7 +350,7 @@ class SmartAISelfHealing:
                     locator = self._try_all_locators(e, page)
                     if locator:
                         print(f"[SmartAI] Healed element by intent ('{target_intent}'): '{e.get('unique_name')}'")
-                        return SmartAIWrappedLocator(locator, page)  # WRAPPED
+                        return SmartAIWrappedLocator(locator, page)
 
         raise SmartAILocatorError(f"Element '{unique_name}' not found and cannot self-heal.")
 
@@ -291,18 +368,14 @@ class SmartAISelfHealing:
         return tag_role_map.get(tag.lower(), None)
 
     def _ml_self_heal(self, unique_name):
-        # Returns best-matched element and score.
         query_embedding = self.model.encode(unique_name, convert_to_tensor=True, show_progress_bar=False)
-        # NOTE: util.cos_sim expects 2-D tensors; we encoded each metadata element already
         scores = [util.cos_sim(query_embedding, emb).item() for emb in self.embeddings]
         best_idx = int(np.argmax(scores)) if scores else -1
         best_score = scores[best_idx] if best_idx >= 0 else 0.0
         print(f"[SmartAI] ML healed best match score: {best_score:.2f}")
-        # Higher threshold for accuracy
         return (self.metadata[best_idx], best_score) if best_idx >= 0 and best_score > 0.6 else (None, best_score)
 
     def _element_to_string(self, element):
-        # Enhancement: Fast string construction, no json.dumps.
         fields = [
             element.get('unique_name', ''),
             element.get('label_text', ''),
@@ -312,9 +385,9 @@ class SmartAISelfHealing:
             element.get('tag_name', ''),
             element.get('placeholder', ''),
             ' '.join(element.get('class_list', []) or []),
-            # Fast join for data_attrs
-            ' '.join(f\"{k}:{v}\" for k, v in (element.get('data_attrs', {}) or {}).items()),
+            ' '.join(f"{k}:{v}" for k, v in (element.get('data_attrs', {}) or {}).items()),
             element.get('sample_value', ''),
+            element.get('data_id', ''),
         ]
         return ' '.join([str(f) for f in fields if f])
 
