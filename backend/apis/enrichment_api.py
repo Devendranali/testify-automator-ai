@@ -59,12 +59,32 @@ AUTOSCROLL_ENABLED: bool = True           # on by default for better capture
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-SRC_DIR = Path(os.environ.get("SMARTAI_SRC_DIR", "generated_runs/src"))
+# Determine SRC_DIR in this priority order:
+# 1) SMARTAI_SRC_DIR env var
+# 2) repo/generated_runs/src if it exists
+# 3) testfiles/generated_runs/src (useful when running tests/debug dumps)
+# 4) fallback to generated_runs/src
+env_src = os.environ.get("SMARTAI_SRC_DIR")
+if env_src:
+    SRC_DIR = Path(env_src)
+else:
+    candidate = Path("generated_runs/src")
+    test_candidate = Path("testfiles/generated_runs/src")
+    if candidate.exists():
+        SRC_DIR = candidate
+    elif test_candidate.exists():
+        SRC_DIR = test_candidate
+    else:
+        SRC_DIR = candidate
+
 PAGES_DIR = Path(os.environ.get("SMARTAI_PAGES_DIR", str(SRC_DIR / "pages")))
 META_DIR = Path(os.environ.get("SMARTAI_META_DIR", str(SRC_DIR / "metadata")))
 DEBUG_DIR = SRC_DIR / "ocr-dom-metadata"
+# Ensure debug/meta directories exist
 DEBUG_DIR.mkdir(parents=True, exist_ok=True)
 META_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"[DEBUG] Using SRC_DIR={SRC_DIR} (SMARTAI_SRC_DIR={'set' if env_src else 'unset'})")
 
 
 # For default cookie path: backend/apis/enrichment_api.py -> backend/

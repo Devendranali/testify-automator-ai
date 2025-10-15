@@ -3,6 +3,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { toast, ToastContainer } from "react-toastify";
 import styles from "./StoryInput.module.css";
+import API_BASE_URL from "../config";
 
 const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
   const [userStoriesInput, setUserStoriesInput] = useState("");
@@ -36,13 +37,10 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
       if (selectedFile) {
         const formData = new FormData();
         formData.append("file", selectedFile);
-        formData.append("site_url", "https://www.saucedemo.com");
 
-        response = await axios.post(
-          "http://localhost:8001/rag/generate-from-story",
-          formData,
-          { headers: { "Content-Type": "multipart/form-data" } }
-        );
+        response = await axios.post(`${API_BASE_URL}/rag/generate-from-story`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
         setTestCases(response.data.results || []);
         toast.success("Test cases generated successfully.");
@@ -63,10 +61,9 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         const aggregated = [];
         for (const s of stories) {
           const res = await axios.post(
-            "http://localhost:8001/rag/generate-from-story",
+            `${API_BASE_URL}/rag/generate-from-story`,
             new URLSearchParams({
               user_story: s, // ← send a single story per request
-              site_url: "https://www.saucedemo.com",
             })
           );
           if (Array.isArray(res.data?.results)) {
@@ -89,7 +86,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
   const handleJiraImport = async () => {
     setLoadingJira(true);
     try {
-      const response = await axios.get("http://localhost:8001/jira/import");
+      const response = await axios.get(`${API_BASE_URL}/jira/import`);
       const importedStories = response.data?.stories || [];
 
       if (importedStories.length > 0) {
@@ -181,7 +178,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
     try {
       const testCasesContent = testCases.map((tc) => tc.auto_testcase);
 
-      const response = await axios.post("http://localhost:8001/git/push-generated-runs", {
+      const response = await axios.post(`${API_BASE_URL}/git/push-generated-runs`, {
         repo_url: repoUrl,
         branch_name: branchName,
         commit_message: commitMessage,
@@ -204,6 +201,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
       setIsPushingToGit(false);
     }
   };
+
 
   const handleGitModalClose = () => {
     setShowGitModal(false);

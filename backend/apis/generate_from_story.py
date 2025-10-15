@@ -176,6 +176,19 @@ def generate_test_code_from_methods(user_story: str, method_map: dict, page_name
     # ⬇️ Inject method-specific assertions after enter_/fill_/select_ calls
     clean_output = inject_assertions_after_actions(clean_output)
 
+    # If a site_url was provided to the API, ensure any page.goto(...) in the
+    # generated code uses that site_url instead of a default (e.g., saucedemo).
+    # This replaces occurrences like: page.goto("https://www.saucedemo.com")
+    # with: page.goto("<provided site_url>")
+    try:
+        if site_url and str(site_url).strip():
+            # Use json.dumps to safely quote the URL as a Python string literal
+            goto_literal = json.dumps(site_url)
+            clean_output = re.sub(r"page\.goto\([^\)]*\)", f"page.goto({goto_literal})", clean_output)
+    except Exception:
+        # If anything goes wrong, leave clean_output unchanged
+        pass
+
     # Save generated test code (for debugging)
     output_dir = Path("generated_runs/src/logs/test_output")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -435,8 +448,16 @@ async def generate_from_user_story(
 """
                 )
 
-            wrapper_blocks.append(
-                f"""def {runner_name}():
+            # If a site_url was provided to the API, embed a page.goto(...) call in the runner so
+            # the generated UI script navigates to the dynamic URL instead of relying on a default.
+            goto_line = ""
+            try:
+                if site_url and str(site_url).strip():
+                    goto_line = f"        page.goto({json.dumps(site_url)})\n"
+            except Exception:
+                goto_line = ""
+
+            runner_block = f"""def {runner_name}():
     import time
     import os
     from pathlib import Path as _Path
@@ -448,12 +469,13 @@ async def generate_from_user_story(
         metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
         with open(metadata_path, "r") as f:
             actual_metadata = json.load(f)
-        patch_page_with_smartai(page, actual_metadata)
+{goto_line}        patch_page_with_smartai(page, actual_metadata)
 {steps}
         time.sleep(3)
         browser.close()
 
-""")
+"""
+            wrapper_blocks.append(runner_block)
 
         header = """# Auto-generated UI runner
 import sys

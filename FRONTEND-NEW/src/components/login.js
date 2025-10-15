@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
+import API_BASE_URL from '../config';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -16,8 +17,8 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // In a production environment, you should use a configurable API endpoint.
-        const response = await fetch('http://localhost:8001/login', {
+        // Use dynamic API base URL (prop -> env -> default)
+        const response = await fetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
