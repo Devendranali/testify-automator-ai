@@ -16,6 +16,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from chromadb import PersistentClient
+from config.settings import get_chroma_path
 from playwright.async_api import (
     async_playwright,
     Page,
@@ -37,10 +38,12 @@ from utils.file_utils import build_standard_metadata
 # Router & DB
 # -----------------------------------------------------------------------------
 router = APIRouter()
-client = PersistentClient(path=os.environ.get("SMARTAI_CHROMA_PATH", "./data/chroma_db"))
-collection = client.get_or_create_collection(
-    name=os.environ.get("SMARTAI_CHROMA_COLLECTION", "element_metadata")
-)
+# Lazy chroma accessor to avoid creating repo-level data folder before a project is active
+def _get_chroma_collection():
+    client = PersistentClient(path=get_chroma_path())
+    return client.get_or_create_collection(
+        name=os.environ.get("SMARTAI_CHROMA_COLLECTION", "element_metadata")
+    )
 
 # -----------------------------------------------------------------------------
 # Runtime state
@@ -62,27 +65,21 @@ AUTOSCROLL_ENABLED: bool = True           # on by default for better capture
 # Determine SRC_DIR in this priority order:
 # 1) SMARTAI_SRC_DIR env var
 # 2) repo/generated_runs/src if it exists
-# 3) testfiles/generated_runs/src (useful when running tests/debug dumps)
-# 4) fallback to generated_runs/src
+# 3) fallback to generated_runs/src
 env_src = os.environ.get("SMARTAI_SRC_DIR")
 if env_src:
     SRC_DIR = Path(env_src)
 else:
     candidate = Path("generated_runs/src")
-    test_candidate = Path("testfiles/generated_runs/src")
     if candidate.exists():
         SRC_DIR = candidate
-    elif test_candidate.exists():
-        SRC_DIR = test_candidate
     else:
         SRC_DIR = candidate
 
 PAGES_DIR = Path(os.environ.get("SMARTAI_PAGES_DIR", str(SRC_DIR / "pages")))
 META_DIR = Path(os.environ.get("SMARTAI_META_DIR", str(SRC_DIR / "metadata")))
-DEBUG_DIR = SRC_DIR / "ocr-dom-metadata"
-# Ensure debug/meta directories exist
-DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-META_DIR.mkdir(parents=True, exist_ok=True)
+DEBUG_DIR = SRC_DIR / "ocr-dom-metadata"  # legacy default (unused at runtime)
+# Do not create folders at import-time; they will be created on demand under SMARTAI_SRC_DIR
 
 print(f"[DEBUG] Using SRC_DIR={SRC_DIR} (SMARTAI_SRC_DIR={'set' if env_src else 'unset'})")
 
@@ -264,9 +261,15 @@ def _canonical(name: str) -> str:
     return n or "page"
 
 def _ensure_dirs() -> Dict[str, Path]:
-    paths = {"debug": DEBUG_DIR, "meta": META_DIR}
-    for p in paths.values(): p.mkdir(parents=True, exist_ok=True)
-    return paths
+    src_env = os.environ.get("SMARTAI_SRC_DIR")
+    if not src_env:
+        raise HTTPException(status_code=400, detail="No active project. Start a project first (SMARTAI_SRC_DIR not set).")
+    base = Path(src_env)
+    debug = base / "ocr-dom-metadata"
+    meta = base / "metadata"
+    for p in (debug, meta):
+        p.mkdir(parents=True, exist_ok=True)
+    return {"debug": debug, "meta": meta}
 
 def _same_origin(a: Optional[str], b: Optional[str]) -> bool:
     pa, pb = urlparse(a or ""), urlparse(b or "")
@@ -294,7 +297,7 @@ def _resolve_storage_file(env_val: Optional[str] = None) -> Path:
 def _ocr_name_counts() -> Dict[str, int]:
     counts: Dict[str, int] = {}
     try:
-        recs = collection.get() or {}
+        recs = _get_chroma_collection().get() or {}
         for m in (recs.get("metadatas") or []):
             pn = (m or {}).get("page_name")
             if not pn: continue
@@ -451,9 +454,13 @@ async def __snapshot_if_blank(page: Page, tag: str):
           return rect && rect.width>0 && rect.height>0 && len===0;
         }""")
         if is_blank:
-            path = DEBUG_DIR / f"blank_{tag}_{_ts()}.png"
-            await page.screenshot(path=str(path), full_page=True)
-            _safe_log(f"[blank-detector] Saved screenshot: {path}")
+            try:
+                dbg = _ensure_dirs()["debug"]
+                path = dbg / f"blank_{tag}_{_ts()}.png"
+                await page.screenshot(path=str(path), full_page=True)
+                _safe_log(f"[blank-detector] Saved screenshot: {path}")
+            except Exception as e:
+                _safe_log(f"[blank-detector] could not write blank snapshot: {e}")
     except Exception as e:
         _safe_log(f"[blank-detector] snapshot error: {e}")
 
@@ -573,7 +580,7 @@ def _candidate_urls_for_page(page_name: str) -> List[str]:
     url_fields = ("source_url", "url", "page_url", "origin_url")
     freq: Dict[str, int] = {}
     try:
-        recs = collection.get() or {}
+        recs = _get_chroma_collection().get() or {}
         for m in (recs.get("metadatas") or []):
             if _canonical((m or {}).get("page_name", "")) != can:
                 continue
@@ -938,7 +945,7 @@ async def _refresh_target(reason: str = ""):
 
 def _get_ocr_data_by_canonical(canonical_page_name: str) -> List[Dict[str, Any]]:
     try:
-        recs = collection.get() or {}
+        recs = _get_chroma_collection().get() or {}
         metas = recs.get("metadatas", []) or []
         return [m for m in metas if _canonical((m or {}).get("page_name", "")) == canonical_page_name]
     except Exception:
@@ -954,10 +961,10 @@ def _assess_dom_quality(recs: List[Dict[str, Any]]) -> bool:
     return n < 5 or (labeled / max(1, n) < 0.30) or (with_bbox / max(1, n) < 0.30)
 
 async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
-    global PAGE, TARGET, collection, CURRENT_PAGE_NAME, AUTOSCROLL_ENABLED
+    global PAGE, TARGET, CURRENT_PAGE_NAME, AUTOSCROLL_ENABLED
     if PAGE is None: raise HTTPException(status_code=500, detail="❌ Cannot extract. No active page handle.")
     if hasattr(PAGE, "is_closed") and PAGE.is_closed(): raise HTTPException(status_code=500, detail="❌ Cannot extract. Page is already closed.")
-    if collection is None: raise HTTPException(status_code=500, detail="❌ Chroma collection is not initialized.")
+    # Ensure chroma path is available via project activation
 
     CURRENT_PAGE_NAME = _canonical(page_name)
 
@@ -1009,16 +1016,25 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
         except Exception:
             pass
 
-    dom_data = await extract_dom_metadata(TARGET, CURRENT_PAGE_NAME) or []
-    try: _ = len(dom_data)
-    except Exception: dom_data = list(dom_data)
+    # Prefer fast, rich, single-eval extraction first
+    dom_data = await _rich_extract_dom_metadata(TARGET) or []
+    try:
+        _ = len(dom_data)
+    except Exception:
+        dom_data = list(dom_data)
 
+    # If still low-quality or empty, supplement with Playwright locator-based extraction
     if _assess_dom_quality(dom_data):
-        dom_data = await _rich_extract_dom_metadata(TARGET)
+        try:
+            basic = await extract_dom_metadata(TARGET, CURRENT_PAGE_NAME) or []
+            if basic:
+                dom_data = _dedupe_records(list(dom_data) + list(basic))
+        except Exception:
+            pass
 
     dom_data = _dedupe_records(dom_data)
 
-    # norm fields for matching (include nearby_label as fallback)
+    # Normalize fields for matching (include nearby_label as fallback)
     for rec in dom_data:
         try:
             # prefer explicit label_text, then nearby_label, then aria/placeholder/text
@@ -1041,7 +1057,7 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
     (paths["debug"] / f"ocr_data_{CURRENT_PAGE_NAME}.txt").write_text(pprint.pformat(ocr_data), encoding="utf-8")
 
     # matching
-    updated_matches = match_and_update(ocr_data, dom_data, collection)
+    updated_matches = match_and_update(ocr_data, dom_data, _get_chroma_collection())
     (paths["debug"] / f"after_match_and_update_{CURRENT_PAGE_NAME}.txt").write_text(pprint.pformat(updated_matches), encoding="utf-8")
 
     standardized_matches = [
@@ -1067,7 +1083,7 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
     out_path.write_text(json.dumps(standardized_matches, indent=2), encoding="utf-8")
 
     # refresh global snapshot
-    chroma_all = collection.get() or {}
+    chroma_all = _get_chroma_collection().get() or {}
     chroma_all_metadatas = chroma_all.get("metadatas", []) or []
     (paths["meta"] / "after_enrichment.json").write_text(json.dumps(chroma_all_metadatas, indent=2), encoding="utf-8")
 
@@ -1367,12 +1383,12 @@ async def disable_ui():
 @router.post("/capture-dom-from-client")
 async def capture_from_keyboard(_: CaptureRequest):
     # Manual trigger kept; does NOT auto-close.
-    global PAGE, TARGET, CURRENT_PAGE_NAME, collection, AUTOSCROLL_ENABLED
+    global PAGE, TARGET, CURRENT_PAGE_NAME, AUTOSCROLL_ENABLED
     try:
         if PAGE is None: raise HTTPException(status_code=500, detail="❌ Cannot extract. No active page handle.")
         if hasattr(PAGE, "is_closed") and PAGE.is_closed(): raise HTTPException(status_code=500, detail="❌ Cannot extract. Page is already closed.")
         if not CURRENT_PAGE_NAME: CURRENT_PAGE_NAME = await _derive_page_name(PAGE)
-        if collection is None: raise HTTPException(status_code=500, detail="❌ Chroma collection is not initialized.")
+        # Ensure chroma path is available via project activation
 
         page_name = CURRENT_PAGE_NAME
         _safe_log(f"[INFO] Enrichment triggered for: {page_name}")
@@ -1425,7 +1441,7 @@ async def shutdown_browser():
 @router.get("/latest-match-result")
 async def get_latest_match_result():
     try:
-        records = collection.get()
+        records = _get_chroma_collection().get()
         matched = [r for r in records.get("metadatas", []) if r.get("dom_matched") is True]
         return {"status": "success", "matched_elements": matched, "count": len(matched)}
     except Exception as e:

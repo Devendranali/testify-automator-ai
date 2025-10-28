@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from logic.image_text_extractor import process_image_gpt
 from services.graph_service import build_dependency_graph
 from utils.match_utils import normalize_page_name
-from config.settings import DATA_PATH
+from config.settings import get_data_path, get_chroma_path
 import chromadb
 from datetime import datetime
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
@@ -24,9 +24,10 @@ load_dotenv()
 
 router = APIRouter()
 
-# Logging
-os.makedirs("data", exist_ok=True)
-file_handler = logging.FileHandler("upload_image_logs.txt", encoding="utf-8")
+# Logging (project-scoped)
+log_path = os.path.join(get_data_path(), "upload_image_logs.txt")
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
+file_handler = logging.FileHandler(log_path, encoding="utf-8")
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ logger.addHandler(file_handler)
 
 # ChromaDB setup
 embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-chroma_client = chromadb.PersistentClient(path="./data/chroma_db")
+chroma_client = chromadb.PersistentClient(path=get_chroma_path())
 chroma_collection = chroma_client.get_or_create_collection(name="element_metadata", embedding_function=embedding_function)
 
 
@@ -44,8 +45,12 @@ async def upload_image(
     images: List[UploadFile] = File(...),
     ordered_images: str = Form(None)
 ):
-    os.makedirs("data/regions", exist_ok=True)
-    os.makedirs("data/images", exist_ok=True)
+    # Require an active project so we don't write to repo-level defaults
+    if not os.environ.get("SMARTAI_PROJECT_DIR") or not os.environ.get("SMARTAI_SRC_DIR"):
+        raise HTTPException(status_code=400, detail="No active project. Start a project first (POST /projects/save-details).")
+    dp = get_data_path()
+    os.makedirs(os.path.join(dp, "regions"), exist_ok=True)
+    os.makedirs(os.path.join(dp, "images"), exist_ok=True)
     results = []
     ordered_image_list = []
 
@@ -124,7 +129,7 @@ async def upload_image(
                     logger.debug(f"📷 Processing image: {image_name}")
 
                     permanent_image_path = os.path.join(
-                        DATA_PATH, "images", image_name)
+                        get_data_path(), "images", image_name)
                     img.save(permanent_image_path)
 
                     # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -146,9 +151,9 @@ async def upload_image(
                         return obj
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     base_image_name = os.path.splitext(os.path.basename(image_name))[0]
-                    os.makedirs("data/stored", exist_ok=True)
+                    os.makedirs(os.path.join(get_data_path(), "stored"), exist_ok=True)
                     out_file = os.path.join(
-                        "data", "stored", f"{timestamp}_{base_image_name}.json")
+                        get_data_path(), "stored", f"{timestamp}_{base_image_name}.json")
                     with open(out_file, "w", encoding="utf-8") as f:
                         json.dump(metadata_list, f, indent=4, ensure_ascii=False, default=to_serializable)
 
@@ -188,12 +193,12 @@ async def upload_image(
         # Step 5: Store dependency graph
         if ordered_image_list:
             build_dependency_graph(
-                ordered_image_list, output_path="data/dependency_graph.json")
+                ordered_image_list, output_path=os.path.join(get_data_path(), "dependency_graph.json"))
             logger.info(
                 "📄 Dependency graph stored in data/dependency_graph.json")
 
         # Step 6: Log order metadata
-        order_json_path = os.path.join("data", "image_order.json")
+        order_json_path = os.path.join(get_data_path(), "image_order.json")
         with open(order_json_path, "w") as f:
             json.dump({
                 "ordered_from_frontend": ordered_image_list,

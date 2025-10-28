@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse, FileResponse
-from services.chroma_service import collection as chroma_collection
+from utils.chroma_client import get_collection
 import json
 from pathlib import Path
 
@@ -16,6 +16,7 @@ async def export_chroma_data(
     as_file: bool = Query(False, description="If true, return as downloadable JSON file")
 ):
     try:
+        chroma_collection = get_collection("element_metadata")
         data = chroma_collection.get(include=["documents", "metadatas", "embeddings"])
         results = []
 

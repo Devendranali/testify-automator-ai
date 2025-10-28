@@ -8,16 +8,13 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import json
 import orjson
 from utils.match_utils import normalize_page_name
-from chromadb import PersistentClient
+from utils.chroma_client import get_collection
 
 
 from pathlib import Path
 
-# This works regardless of where the script is run from
-CHROMA_PATH = Path(__file__).resolve().parent.parent / "data" / "chroma_db"
-collection = PersistentClient(path=str(CHROMA_PATH)).get_or_create_collection(name="element_metadata")
-
-
+# This works regardless of where the script is run from and honors active project
+collection = get_collection("element_metadata")
 records = collection.get()
 page_names = list({meta.get("page_name", "unknown") for meta in records.get("metadatas", [])})
 

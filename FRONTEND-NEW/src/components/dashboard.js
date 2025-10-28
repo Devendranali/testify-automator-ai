@@ -1,14 +1,15 @@
 import React from "react";
 import styles from "./Dashboard.module.css";
 
-const Dashboard = () => {
+const Dashboard = ({ projects = [], onOpen }) => {
+  const totalProjects = Array.isArray(projects) ? projects.length : 0;
   return (
     <div>
       <div className={styles.dashboardContainer}>
         <div className={styles.card}>
           <div>
             <h2 className={styles.cardTitle}> My Projects</h2>
-            <p className={styles.cardValue}>2</p>
+            <p className={styles.cardValue}>{totalProjects}</p>
           </div>
           <i className={`fa-regular fa-folder ${styles.cardIcon}`}></i>
         </div>
@@ -46,43 +47,39 @@ const Dashboard = () => {
       </div>
 
       <div className={styles.projectList}>
-        <div className={styles.projectCard}>
-          <div className={styles.projectCardHeader}>
-            <h2 className={styles.projectCardTitle}>E-commerce App</h2>
-            <span className={styles.projectStatus}>active</span>
-          </div>
-
-          <p className={styles.projectDescription}>
-            Mobile app automation testing
-          </p>
-
-          <div className={styles.projectDetails}>
-            <div className={styles.projectDetailRow}>
-              <span className={styles.projectDetailLabel}>Test Cases</span>
-              <strong className={styles.projectDetailValue}>45</strong>
+        {totalProjects === 0 ? (
+          <div style={{ color: '#666' }}>No projects yet. Create one to get started.</div>
+        ) : (
+          projects.map((p, idx) => (
+            <div key={`${p.project_name}-${idx}`} className={styles.projectCard}>
+              <div className={styles.projectCardHeader}>
+                <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
+                <span className={styles.projectStatus}>saved</span>
+              </div>
+              <p className={styles.projectDescription}>
+                {(p.framework || '').trim()} {p.language ? ` / ${p.language}` : ''}
+              </p>
+              <div className={styles.projectDetails}>
+                <div className={styles.projectDetailRow}>
+                  <span className={styles.projectDetailLabel}>Created</span>
+                  <strong className={styles.projectDetailValue}>{p.created_at ? new Date(p.created_at).toLocaleString() : '-'}</strong>
+                </div>
+              </div>
+              <hr className={styles.projectCardDivider} />
+              <div className={styles.projectCardActions}>
+                <button className={styles.actionButton} disabled>
+                  <i className="fa-solid fa-gear"></i> Configure
+                </button>
+                <button
+                  className={styles.executeButton}
+                  onClick={() => onOpen && onOpen(p)}
+                >
+                  <i className="fa-solid fa-play"></i> Open
+                </button>
+              </div>
             </div>
-            <div className={styles.projectDetailRow}>
-              <span className={styles.projectDetailLabel}>Framework</span>
-              <strong className={styles.projectDetailValue}>Appium</strong>
-            </div>
-            <div className={styles.projectDetailRow}>
-              <span className={styles.projectDetailLabel}>Last Updated</span>
-              <strong className={styles.projectDetailValue}>2 hours ago</strong>
-            </div>
-          </div>
-
-          <hr className={styles.projectCardDivider} />
-
-          <div className={styles.projectCardActions}>
-            <button className={styles.actionButton}>
-              <i className="fa-solid fa-gear"></i> Configure
-            </button>
-
-            <button className={styles.executeButton}>
-              <i className="fa-solid fa-play"></i> Execute
-            </button>
-          </div>
-        </div>
+          ))
+        )}
       </div>
     </div>
   );

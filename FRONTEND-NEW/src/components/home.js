@@ -10,8 +10,9 @@ const Home = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [framework, setFramework] = useState("Playwright");
-  const [language, setLanguage] = useState("python");
+  const [language, setLanguage] = useState("Python");
   const [userEmail, setUserEmail] = useState("");
+  const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -27,6 +28,13 @@ const Home = () => {
         handleLogout();
       }
     }
+
+    // Load projects from backend
+    const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+    fetch(`${apiBase}/projects`)
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(data => Array.isArray(data?.projects) ? setProjects(data.projects) : setProjects([]))
+      .catch(() => setProjects([]));
   }, []);
 
   const handleLogout = () => {
@@ -34,15 +42,46 @@ const Home = () => {
     navigate("/login");
   };
 
-  const handleStartProject = () => {
+  const handleStartProject = async () => {
     if (!projectName.trim()) {
       toast.error("Please enter a project name."); // Using toast for better UX
+      return;
+    }
+
+    // Prevent duplicate project names (client-side)
+    const exists = projects.some(
+      (p) => (p?.project_name || "").trim().toLowerCase() === projectName.trim().toLowerCase()
+    );
+    if (exists) {
+      toast.error(`Project '${projectName.trim()}' already exists.`);
       return;
     }
 
     console.log("Project Name:", projectName);
     console.log("Test Framework:", framework);
     console.log("Programming Language:", language);
+
+    // Send details to backend
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const res = await fetch(`${apiBase}/projects/save-details`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_name: projectName.trim(), framework, language }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      await res.json();
+      toast.success('Project saved');
+      // Optimistically add to local list
+      setProjects([{ project_name: projectName.trim(), framework, language, created_at: new Date().toISOString() }, ...projects]);
+    } catch (e) {
+      console.error('Failed to save project:', e);
+      toast.error(`Failed to save: ${e.message || e}`);
+      return;
+    }
 
     setShowDialog(false);
     navigate("/input", { state: { projectName: projectName } });
@@ -86,7 +125,30 @@ const Home = () => {
         </button>
       </nav>
 
-      <Dashboard />
+      <Dashboard
+        projects={projects}
+        onOpen={async (p) => {
+          try {
+            const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+            const res = await fetch(`${apiBase}/projects/activate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ project_name: p.project_name })
+            });
+            if (!res.ok) {
+              const txt = await res.text().catch(() => null);
+              throw new Error(txt || `Server returned ${res.status}`);
+            }
+            toast.success(`Activated project: ${p.project_name}`);
+            navigate('/input', { state: { projectName: p.project_name } });
+          } catch (e) {
+            console.error('Failed to activate project:', e);
+            toast.error(`Failed to open project: ${e.message || e}`);
+          }
+        }}
+      />
+
+      {/* Projects are now displayed inside Dashboard's Recent Projects */}
 
       {/* Project Setup Dialog */}
       {showDialog && (

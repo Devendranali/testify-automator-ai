@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pathlib import Path
 import re
+import os
 
 router = APIRouter()
 
@@ -22,7 +23,10 @@ def read_page_methods(page_method_path):
 
 @router.post("/rag/generate-from-method")
 def generate_test_from_methods():
-    run_folder = Path("generated_runs")
+    src_dir = os.environ.get("SMARTAI_SRC_DIR")
+    if not src_dir:
+        raise HTTPException(status_code=400, detail="No active project. Start a project to set SMARTAI_SRC_DIR.")
+    run_folder = Path(src_dir)
     pages_dir = run_folder / "pages"
     tests_dir = run_folder / "tests"
     metadata_dir = run_folder / "metadata"

@@ -1,17 +1,14 @@
 # chroma_services.py
 
-import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-from config.settings import CHROMA_PATH
+from utils.chroma_client import get_collection
 from fastapi.concurrency import run_in_threadpool
 from services.ocr_type_classifier import classify_ocr_type
 import logging
 import json
 
-# Setup ChromaDB client and collection
+# Setup embedding function; collection resolved at call-time for active project
 embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-client = chromadb.PersistentClient(path=CHROMA_PATH)
-collection = client.get_or_create_collection(name="element_metadata", embedding_function=embedding_function)
 
 # Logger
 error_logger = logging.getLogger("chroma_upsert_errors")
@@ -32,25 +29,25 @@ def upsert_text_record(record: dict):
     bbox_values = record.get('bbox') or [0, 0, 0, 0]
     bbox_str = ",".join(map(str, bbox_values))
 
+    # Only persist application-facing fields in OCR metadata
     metadata = {
-        "element_id": _sanitize_metadata_value(record.get("id")),
         "page_name": _sanitize_metadata_value(record.get("page_name")),
-        
         "label_text": _sanitize_metadata_value(record.get("label_text")),
         "ocr_type": _sanitize_metadata_value(record.get("ocr_type", "")),
         "intent": _sanitize_metadata_value(record.get("intent")),
-        
-        "unique_name": _sanitize_metadata_value(record.get("unique_name")),
         "external": _sanitize_metadata_value(record.get("external")),
-        "dom_matched": _sanitize_metadata_value(record.get("dom_matched")),      
-        "placeholder": _sanitize_metadata_value(record.get("label_text", "intent")),
-        
-        "get_by_text": _sanitize_metadata_value(record.get("label_text")),
+        "dom_matched": _sanitize_metadata_value(record.get("dom_matched")),
+        "placeholder": _sanitize_metadata_value(record.get("placeholder") or record.get("label_text")),
+        "get_by_text": _sanitize_metadata_value(record.get("get_by_text") or record.get("label_text")),
         "type": "ocr",
+        # Keep stable identifiers available to consumers
+        "unique_name": _sanitize_metadata_value(record.get("unique_name")),
+        "element_id": _sanitize_metadata_value(record.get("element_id") or record.get("id")),
     }
     
     # ---- DUPLICATE CHECK START ----
     # 1. Query by the broadest field (the one with the most candidates)
+    collection = get_collection("element_metadata", embedding_function)
     possible_matches = collection.get(
         where={"label_text": metadata.get("label_text")},
         include=["metadatas"]
@@ -140,6 +137,7 @@ def upsert_element_record(record: dict):
     }
 
     try:
+        collection = get_collection("element_metadata", embedding_function)
         embedding_value = record.get("combined_embedding") or record.get("text_embedding")
         if not embedding_value:
             embedding_value = embedding_function([document_content])[0]
@@ -155,6 +153,7 @@ def upsert_element_record(record: dict):
 
 def fetch_ocr_entries():
     try:
+        collection = get_collection("element_metadata", embedding_function)
         results = collection.get(where={"type": "ocr"})
         ocr_entries = []
         for id_, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
@@ -177,6 +176,7 @@ def fetch_ocr_entries():
 def _update_locator_by_text_sync(entry_id: str, locator: str):
     """Synchronously update the locator field for a given record."""
     try:
+        collection = get_collection("element_metadata", embedding_function)
         item = collection.get(ids=[entry_id])
         doc = item["documents"][0]
         meta = item["metadatas"][0]

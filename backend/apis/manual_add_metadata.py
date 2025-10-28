@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from services.test_generation_utils import collection  # Your ChromaDB collection instance
+from utils.chroma_client import get_collection
 
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -29,6 +29,7 @@ async def manual_add_metadata(input: ManualMetadataInput):
     # 1. Build full metadata from minimal input
     metadata = build_complete_metadata(input)
     # 2. Insert into ChromaDB
+    collection = get_collection("element_metadata")
     collection.add(
         ids=[metadata["id"]],
         documents=[metadata["label_text"]],

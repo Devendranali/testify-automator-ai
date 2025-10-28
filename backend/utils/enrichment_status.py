@@ -1,18 +1,34 @@
 import json
 from pathlib import Path
+import os
 
-STATUS_FILE = Path("generated_runs/src/metadata/enrichment_status.json")
+def _status_file() -> Path | None:
+    src = os.environ.get("SMARTAI_SRC_DIR")
+    if not src:
+        return None
+    return Path(src) / "metadata" / "enrichment_status.json"
 
 
 def load_status():
-    if STATUS_FILE.exists():
-        return json.loads(STATUS_FILE.read_text())
+    sf = _status_file()
+    if sf and sf.exists():
+        try:
+            return json.loads(sf.read_text())
+        except Exception:
+            return {}
     return {}
 
 
 def save_status(status):
-    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATUS_FILE.write_text(json.dumps(status, indent=2))
+    sf = _status_file()
+    if not sf:
+        # No active project; skip persisting status
+        return
+    try:
+        sf.parent.mkdir(parents=True, exist_ok=True)
+        sf.write_text(json.dumps(status, indent=2))
+    except Exception:
+        pass
 
 
 def is_enriched(page_name):

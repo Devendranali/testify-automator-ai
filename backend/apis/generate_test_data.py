@@ -3,10 +3,11 @@ import uvicorn
 
 router=APIRouter()
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pathlib import Path
 import json
 from services.test_generation_utils import collection  # <-- Your chromadb client
+import os
 
 router = APIRouter()
 
@@ -25,9 +26,11 @@ def generate_test_data_from_chromadb():
         if ocr_type in {"textbox", "select"} and label:
             test_data[label] = "fakedata"
     
-    # Directory and file path
-    run_folder = Path("generated_runs")
-    data_dir = run_folder / "data"
+    # Directory and file path (project-scoped)
+    proj = os.environ.get("SMARTAI_PROJECT_DIR")
+    if not proj:
+        raise HTTPException(status_code=400, detail="No active project. Start a project to set SMARTAI_PROJECT_DIR.")
+    data_dir = Path(proj) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     test_data_file = data_dir / "test_data.json"
     
