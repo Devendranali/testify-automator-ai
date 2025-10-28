@@ -45,4 +45,3 @@ volumes:
 networks:
   testify-net:
     driver: bridge
-
