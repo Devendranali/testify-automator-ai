@@ -22,6 +22,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8001:8001"
+      - "6080:6080"
     env_file:
       - .env
     depends_on:
@@ -35,9 +36,6 @@ services:
       - chroma_data:/chroma/.chroma/index
     networks:
       - testify-net
-    # optional: expose if needed outside
-    # ports:
-    #   - "8000:8000"
 
 volumes:
   chroma_data:
@@ -45,3 +43,4 @@ volumes:
 networks:
   testify-net:
     driver: bridge
+
