@@ -1,18 +1,20 @@
-# apis/generate_page_methods.py
+# # apis/generate_page_methods.py
 
+
+from fastapi import APIRouter
+from pathlib import Path
 import re
 import json
-from fastapi import APIRouter
-from services.test_generation_utils import filter_all_pages, runtime_collection
+from services.test_generation_utils import runtime_collection, filter_all_pages
 from utils.match_utils import normalize_page_name
 from utils.smart_ai_utils import ensure_smart_ai_module, get_smartai_src_dir
 from orchestrator.orchestrator import send_message
-
+ 
 router = APIRouter()
-
+ 
 def safe(s: str) -> str:
     return re.sub(r'\W+', '_', (s or '').lower()).strip('_') or 'element'
-
+ 
 def ensure_unique(base_name: str, used: dict) -> str:
     """
     Ensures function names are unique by appending _2, _3, ... when needed.
@@ -24,17 +26,17 @@ def ensure_unique(base_name: str, used: dict) -> str:
         return name
     used[name] += 1
     return f"{base_name}_{used[name]}"
-
+ 
 # ---------- Helper block to prepend to every page file ----------
 ASSERT_HELPER_BLOCK = """import re
 from playwright.sync_api import expect
-
+ 
 def _ci(s):  # case-insensitive canonical
     return (s or "").strip().lower()
-
+ 
 def _digits_only(s):
     return re.sub(r"\\D+", "", (s or ""))
-
+ 
 def _values_match(actual, expected):
     a = "" if actual is None else str(actual)
     e = "" if expected is None else str(expected)
@@ -43,7 +45,7 @@ def _values_match(actual, expected):
     da = _digits_only(a)
     de = _digits_only(e)
     return bool(da and de and da == de)
-
+ 
 def _safe_input_value(locator):
     if locator is None:
         return None
@@ -61,7 +63,7 @@ def _safe_input_value(locator):
             continue
     return None
 """
-
+ 
 def _assert_method_for_input(unique: str, label_text: str, placeholder: str, method_name: str) -> str:
     """
     Emits: def assert_<method_name>(page, expected, timeout=...)
@@ -125,7 +127,7 @@ def _assert_method_for_input(unique: str, label_text: str, placeholder: str, met
         f"    except Exception as e:\n"
         f"        raise AssertionError(f\"Assertion failed for '{{lbl or ph or '{unique}'}}' expecting '{{exp}}': {{e}}\")\n"
     )
-
+ 
 def _assert_method_for_select(unique: str, label_text: str, method_name: str) -> str:
     """
     Emits: def assert_<method_name>(page, expected, timeout=...)
@@ -204,7 +206,7 @@ def _assert_method_for_select(unique: str, label_text: str, method_name: str) ->
         f"    # Final failure\n"
         f"    raise AssertionError(f\"Assertion failed for select '{{lbl or '{unique}'}}' expecting '{{exp}}'.\")\n"
     )
-
+ 
 # -------- Build one method from a metadata entry --------
 def build_method(entry, used_names):
     ocr_type    = (entry.get("ocr_type") or "").lower()
@@ -212,13 +214,13 @@ def build_method(entry, used_names):
     label_text  = (entry.get("label_text") or intent or "element").strip()
     unique      = entry.get("unique_name")
     placeholder = entry.get("placeholder") or ""
-
+ 
     def stem(name):
         return safe(label_text or intent or name)
-
+ 
     code_blocks = []
     fn_names = []
-
+ 
     # ---------- TEXT INPUTS ----------
     if ocr_type in ("textbox", "text", "input", "textarea", "email", "password"):
         fn = ensure_unique(f"enter_{stem('input')}", used_names)
@@ -285,7 +287,7 @@ def build_method(entry, used_names):
         assert_code = _assert_method_for_input(unique, label_text, placeholder, fn)
         code_blocks += [method_code, assert_code]
         fn_names += [fn, f"assert_{fn}"]
-
+ 
     # ---------- BUTTONS ----------
     elif ocr_type in ("button", "submit", "iconbutton"):
         lbl = label_text.lower()
@@ -314,7 +316,7 @@ def build_method(entry, used_names):
             )
         code_blocks.append(method_code)
         # (No per-button assertion added automatically)
-
+ 
     # ---------- COMBOBOX / DROPDOWN ----------
     elif ocr_type in ("select", "dropdown", "combobox"):
         fn = ensure_unique(f"select_{stem('option')}", used_names)
@@ -324,7 +326,7 @@ def build_method(entry, used_names):
         )
         assert_code = _assert_method_for_select(unique, label_text, fn)
         code_blocks += [method_code, assert_code]
-
+ 
     # ---------- CHECKBOX / RADIO / TOGGLE ----------
     elif ocr_type == "checkbox":
         fn = ensure_unique(f"toggle_{stem('checkbox')}", used_names)
@@ -351,9 +353,9 @@ def build_method(entry, used_names):
             f"    page.smartAI('{unique}').click()\n"
         )
         code_blocks.append(method_code)
-
+ 
     # ---------- DATE/TIME ----------
-    elif ocr_type in ("date", "datepicker", "date_input", "calendar", "time", "timepicker"):
+    elif ocr_type in ("date", "datepicker", "time", "timepicker"):
         base = "date" if "date" in ocr_type else "time"
         fn = ensure_unique(f"pick_{stem(base)}", used_names)
         method_code = (
@@ -363,41 +365,7 @@ def build_method(entry, used_names):
         # Input-like assertion for date/time
         assert_code = _assert_method_for_input(unique, label_text, placeholder, fn)
         code_blocks += [method_code, assert_code]
-
-    # ---------- CONTENTEDITABLE / RICH TEXT ----------
-    elif ocr_type in ("contenteditable", "richtext", "editor"):
-        fn = ensure_unique(f"enter_{stem('rich_text')}", used_names)
-        method_code = (
-            f"def {fn}(page, value):\n"
-            f"    loc = page.smartAI('{unique}')\n"
-            f"    try:\n"
-            f"        loc.fill(str(value))\n"
-            f"        return\n"
-            f"    except Exception:\n"
-            f"        pass\n"
-            f"    try:\n"
-            f"        loc.evaluate(\"(el, val) => {{ if (el.isContentEditable) {{ el.innerText = val; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }} }}\", str(value))\n"
-            f"    except Exception as e:\n"
-            f"        raise AssertionError(f\"Unable to set rich text '{{'{unique}'}}': {{e}}\")\n"
-        )
-        assert_code = _assert_method_for_input(unique, label_text, placeholder, fn)
-        code_blocks += [method_code, assert_code]
-
-    # ---------- GRID / COMPLEX DROPDOWN ----------
-    elif ocr_type in ("combo_grid", "gridselect", "token_input"):
-        fn = ensure_unique(f"select_{stem('option')}_grid", used_names)
-        method_code = (
-            f"def {fn}(page, value):\n"
-            f"    loc = page.smartAI('{unique}')\n"
-            f"    try:\n"
-            f"        loc.click()\n"
-            f"        page.get_by_text(str(value), exact=False).first.click()\n"
-            f"    except Exception:\n"
-            f"        loc.fill(str(value))\n"
-        )
-        assert_code = _assert_method_for_input(unique, label_text, placeholder, fn)
-        code_blocks += [method_code, assert_code]
-
+ 
     # ---------- FILE UPLOAD ----------
     elif ocr_type in ("file", "fileinput", "upload"):
         fn = ensure_unique(f"upload_{stem('file')}", used_names)
@@ -406,7 +374,7 @@ def build_method(entry, used_names):
             f"    page.smartAI('{unique}').set_input_files(file_path)\n"
         )
         code_blocks.append(method_code)
-
+ 
     # ---------- DEFAULT/FALLBACK ----------
     else:
         fn = ensure_unique(f"verify_{stem('element')}_visible", used_names)
@@ -415,23 +383,23 @@ def build_method(entry, used_names):
             f"    assert page.smartAI('{unique}').is_visible()\n"
         )
         code_blocks.append(method_code)
-
+ 
     return "\n".join(code_blocks), fn_names
-
+ 
 def _ensure_assert_helper(code: str) -> str:
     if "def _ci(" not in code:
         code = ASSERT_HELPER_BLOCK + "\n" + code
     elif "from playwright.sync_api import expect" not in code:
         code = "from playwright.sync_api import expect\n" + code
     return code
-
+ 
 @router.post("/rag/generate-page-methods")
 def generate_page_methods():
     ensure_smart_ai_module()
     target_pages = filter_all_pages()
+    collection = runtime_collection()
     print("apis.generate_page_methods.py | target_pages = ", target_pages)
     result = {}
-    collection = runtime_collection()
 
     # Build a lookup of page metadata keyed by multiple normalized variants so
     # we don't miss pages whose stored page_name differs by case/formatting.
@@ -446,19 +414,19 @@ def generate_page_methods():
         keys.discard("")
         for key in keys:
             page_entries.setdefault(key, []).append(meta)
-
+ 
     # Ensure SmartAI is auto-patched for pytest runs + force headed
     def create_conftest_file():
         conftest_content = '''import pytest
 import json
 from pathlib import Path
 from lib.smart_ai import patch_page_with_smartai
-
+ 
 @pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
     # Force headed + visible speed for local debug
     return {**browser_type_launch_args, "headless": False, "slow_mo": 300}
-
+ 
 @pytest.fixture(autouse=True)
 def smartai_page(page):
     script_dir = Path(__file__).parent
@@ -483,21 +451,21 @@ def smartai_page(page):
 
     outdir = get_smartai_src_dir() / "pages"
     outdir.mkdir(parents=True, exist_ok=True)
-
+ 
     for page in target_pages:
         entries = list(page_entries.get(page, []))
         if not entries:
             # Fallback to exact lookups for edge cases and keep existing behaviour.
             page_data = collection.get(where={"page_name": page})
             entries = [r for r in page_data.get("metadatas", [])]
-
+ 
         response = send_message("python", "generate_page_file", {"entries": entries, "page_name": page})
         payload = response.payload   # {"filename": ..., "code": ...}
-
+ 
         # Inject assertion helper + keep generated code, then append our SmartAI-aware methods+asserts
         generated = payload["code"]
         generated = _ensure_assert_helper(generated)
-
+ 
         # Append SmartAI method implementations (built from metadata)
         used = {}
         blocks = []
@@ -517,16 +485,16 @@ def smartai_page(page):
                     created.add(n)
             except Exception:
                 continue
-
+ 
         page_code = generated.rstrip() + "\n\n# ==== SmartAI methods & assertions ====\n\n" + "\n\n".join(blocks) + "\n"
-
+ 
         filename = outdir / payload["filename"]
         with open(filename, "w", encoding="utf-8") as f:
             f.write(page_code)
-
+ 
         result[page] = {
             "filename": str(filename),
             "code": page_code
         }
-
-    return result
+ 
+    return result 

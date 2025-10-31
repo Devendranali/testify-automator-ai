@@ -1,6 +1,5 @@
 # manual_capture_mode.py
 
-from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -9,6 +8,8 @@ from typing import List, Dict, Any
 from datetime import datetime
 from playwright.async_api import Page
 from utils.file_utils import build_standard_metadata
+from utils.smart_ai_utils import get_smartai_src_dir
+from utils.chroma_client import get_collection
 import json
 import traceback
 
@@ -18,11 +19,8 @@ embedding_fn = SentenceTransformerEmbeddingFunction(
 text_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # 🔧 Persistent ChromaDB
-client = PersistentClient(path="./data/chroma_db")
-collection = client.get_or_create_collection(
-    name="element_metadata",
-    embedding_function=embedding_fn
-)
+def _collection():
+    return get_collection("element_metadata", embedding_function=embedding_fn)
 
 # 🧠 Memory store
 CURRENT_PAGE_NAME = None
@@ -143,9 +141,7 @@ async def extract_dom_metadata(page: Page, page_name: str) -> list:
     print(f"[DEBUG] Got {len(elements_data)} locator from dom except ocrModal")
 
     try:
-        from pathlib import Path
-        debug_metadata_dir = Path("generated_runs") / \
-            "src" / "ocr-dom-metadata"
+        debug_metadata_dir = get_smartai_src_dir() / "ocr-dom-metadata"
         debug_metadata_dir.mkdir(parents=True, exist_ok=True)
         out_file = debug_metadata_dir / f"dom_elements_{page_name}.txt"
         output_lines = ["All DOM elements"]

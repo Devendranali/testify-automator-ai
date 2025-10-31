@@ -24,12 +24,14 @@ def save_region(image: Image.Image, x: int, y: int, w: int, h: int, output_dir: 
     # Generate file name
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
     filename = f"{page_name}_{x}_{y}_{w}_{h}_{timestamp}.png"
-    region_path = os.path.join(output_dir, filename)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    region_path = output_path / filename
 
     # Crop and save
     cropped = image.crop((x, y, x + w, y + h))
-    cropped.save(region_path)
-    return region_path
+    cropped.save(str(region_path))
+    return str(region_path)
     
     
     

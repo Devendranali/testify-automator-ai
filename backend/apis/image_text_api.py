@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 from logic.image_text_extractor import process_image_gpt
 from services.graph_service import build_dependency_graph
 from utils.match_utils import normalize_page_name
-from config.settings import get_data_path, get_chroma_path
-import chromadb
+from config.settings import get_data_path
+from utils.chroma_client import get_collection
 from datetime import datetime
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import re
@@ -36,8 +36,10 @@ logger.addHandler(file_handler)
 
 # ChromaDB setup
 embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-chroma_client = chromadb.PersistentClient(path=get_chroma_path())
-chroma_collection = chroma_client.get_or_create_collection(name="element_metadata", embedding_function=embedding_function)
+
+
+def _chroma_collection():
+    return get_collection("element_metadata", embedding_function=embedding_function)
 
 
 @router.post("/upload-image")
@@ -106,7 +108,7 @@ async def upload_image(
         for page_name, image_group in page_images.items():
             # Fetch existing label_texts for this page from chroma
             try:
-                existing = chroma_collection.get(
+                existing = _chroma_collection().get(
                     where={"page_name": page_name})
                 existing_label_texts = set(
                     m["label_text"].strip().lower()

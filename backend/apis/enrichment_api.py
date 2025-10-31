@@ -33,6 +33,7 @@ from logic.manual_capture_mode import (
 )
 from utils.match_utils import normalize_page_name
 from utils.file_utils import build_standard_metadata
+from utils.smart_ai_utils import get_smartai_src_dir
 
 # -----------------------------------------------------------------------------
 # Router & DB
@@ -60,28 +61,36 @@ ENRICH_UI_ENABLED: bool = False           # modal disabled by default
 AUTOSCROLL_ENABLED: bool = True           # on by default for better capture
 
 # -----------------------------------------------------------------------------
-# Config
+# Config (paths resolved lazily so project activation can update them)
 # -----------------------------------------------------------------------------
-# Determine SRC_DIR in this priority order:
-# 1) SMARTAI_SRC_DIR env var
-# 2) repo/generated_runs/src if it exists
-# 3) fallback to generated_runs/src
-env_src = os.environ.get("SMARTAI_SRC_DIR")
-if env_src:
-    SRC_DIR = Path(env_src)
-else:
-    candidate = Path("generated_runs/src")
-    if candidate.exists():
-        SRC_DIR = candidate
-    else:
-        SRC_DIR = candidate
+def _src_dir() -> Path:
+    env_src = os.environ.get("SMARTAI_SRC_DIR")
+    path = Path(env_src) if env_src else get_smartai_src_dir()
+    path.mkdir(parents=True, exist_ok=True)
+    if not getattr(_src_dir, "_logged", False):
+        print(f"[DEBUG] Using SRC_DIR={path} (SMARTAI_SRC_DIR={'set' if env_src else 'unset'})")
+        _src_dir._logged = True
+    return path
 
-PAGES_DIR = Path(os.environ.get("SMARTAI_PAGES_DIR", str(SRC_DIR / "pages")))
-META_DIR = Path(os.environ.get("SMARTAI_META_DIR", str(SRC_DIR / "metadata")))
-DEBUG_DIR = SRC_DIR / "ocr-dom-metadata"  # legacy default (unused at runtime)
-# Do not create folders at import-time; they will be created on demand under SMARTAI_SRC_DIR
 
-print(f"[DEBUG] Using SRC_DIR={SRC_DIR} (SMARTAI_SRC_DIR={'set' if env_src else 'unset'})")
+def _pages_dir() -> Path:
+    env_pages = os.environ.get("SMARTAI_PAGES_DIR")
+    path = Path(env_pages) if env_pages else _src_dir() / "pages"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _meta_dir() -> Path:
+    env_meta = os.environ.get("SMARTAI_META_DIR")
+    path = Path(env_meta) if env_meta else _src_dir() / "metadata"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _debug_dir() -> Path:
+    path = _src_dir() / "ocr-dom-metadata"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 # For default cookie path: backend/apis/enrichment_api.py -> backend/
@@ -261,15 +270,7 @@ def _canonical(name: str) -> str:
     return n or "page"
 
 def _ensure_dirs() -> Dict[str, Path]:
-    src_env = os.environ.get("SMARTAI_SRC_DIR")
-    if not src_env:
-        raise HTTPException(status_code=400, detail="No active project. Start a project first (SMARTAI_SRC_DIR not set).")
-    base = Path(src_env)
-    debug = base / "ocr-dom-metadata"
-    meta = base / "metadata"
-    for p in (debug, meta):
-        p.mkdir(parents=True, exist_ok=True)
-    return {"debug": debug, "meta": meta}
+    return {"debug": _debug_dir(), "meta": _meta_dir()}
 
 def _same_origin(a: Optional[str], b: Optional[str]) -> bool:
     pa, pb = urlparse(a or ""), urlparse(b or "")
