@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "./dashboard";
 import { toast, ToastContainer } from "react-toastify";
-import styles from "./Home.module.css"; // Import the CSS module
+import styles from "../css/Home.module.css";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -13,6 +13,20 @@ const Home = () => {
   const [language, setLanguage] = useState("Python");
   const [userEmail, setUserEmail] = useState("");
   const [projects, setProjects] = useState([]);
+  const [expandedProjectKey, setExpandedProjectKey] = useState(null);
+  const [projectDetails, setProjectDetails] = useState({});
+  const [loadingProjectKey, setLoadingProjectKey] = useState(null);
+
+  const getProjectKey = (project) => {
+    if (!project) {
+      return "";
+    }
+    if (project.id !== undefined && project.id !== null) {
+      return `id-${project.id}`;
+    }
+    const slug = (project.project_name || "").trim().toLowerCase();
+    return `slug-${slug}`;
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -73,10 +87,16 @@ const Home = () => {
         const txt = await res.text().catch(() => null);
         throw new Error(txt || `Server returned ${res.status}`);
       }
-      await res.json();
+      const payload = await res.json().catch(() => null);
+      const savedProject = payload?.project || null;
       toast.success('Project saved');
       // Optimistically add to local list
-      setProjects([{ project_name: projectName.trim(), framework, language, created_at: new Date().toISOString() }, ...projects]);
+      setProjects((prev) => {
+        if (savedProject) {
+          return [savedProject, ...prev];
+        }
+        return [{ project_name: projectName.trim(), framework, language, created_at: new Date().toISOString() }, ...prev];
+      });
     } catch (e) {
       console.error('Failed to save project:', e);
       toast.error(`Failed to save: ${e.message || e}`);
@@ -85,6 +105,138 @@ const Home = () => {
 
     setShowDialog(false);
     navigate("/input", { state: { projectName: projectName } });
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (!project?.id) {
+      toast.error("Cannot delete project: missing identifier.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete project "${project.project_name}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    const projectKey = getProjectKey(project);
+
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const res = await fetch(`${apiBase}/projects/${project.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      toast.success(`Deleted project: ${project.project_name}`);
+      setProjects((prev) =>
+        prev.filter((p) => {
+          if (p.id !== undefined && project.id !== undefined) {
+            return p.id !== project.id;
+          }
+          return (p.project_name || "").trim().toLowerCase() !== (project.project_name || "").trim().toLowerCase();
+        })
+      );
+      setProjectDetails((prev) => {
+        const next = { ...prev };
+        delete next[projectKey];
+        return next;
+      });
+      if (expandedProjectKey === projectKey) {
+        setExpandedProjectKey(null);
+      }
+      if (loadingProjectKey === projectKey) {
+        setLoadingProjectKey(null);
+      }
+    } catch (e) {
+      console.error('Failed to delete project:', e);
+      toast.error(`Failed to delete project: ${e.message || e}`);
+    }
+  };
+
+  const handleToggleProject = async (project, explicitKey) => {
+    const projectKey = explicitKey || getProjectKey(project);
+    if (!projectKey) {
+      return;
+    }
+
+    if (expandedProjectKey === projectKey) {
+      setExpandedProjectKey(null);
+      return;
+    }
+
+    setExpandedProjectKey(projectKey);
+
+    if (projectDetails[projectKey]) {
+      return;
+    }
+
+    if (!project?.id) {
+      setProjectDetails((prev) => ({
+        ...prev,
+        [projectKey]: { project },
+      }));
+      return;
+    }
+
+    try {
+      setLoadingProjectKey(projectKey);
+      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const res = await fetch(`${apiBase}/projects/${project.id}`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      const data = await res.json();
+      setProjectDetails((prev) => ({
+        ...prev,
+        [projectKey]: data,
+      }));
+    } catch (e) {
+      console.error('Failed to load project details:', e);
+      toast.error(`Failed to load project details: ${e.message || e}`);
+      setProjectDetails((prev) => ({
+        ...prev,
+        [projectKey]: { project },
+      }));
+    } finally {
+      setLoadingProjectKey(null);
+    }
+  };
+
+  const handleDownloadProject = async (project) => {
+    if (!project?.id) {
+      toast.error("Cannot download project: missing identifier.");
+      return;
+    }
+
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const res = await fetch(`${apiBase}/projects/${project.id}/download`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const safeName = (project.project_name || `project_${project.id}`)
+        .trim()
+        .replace(/[^\w\-]+/g, "_");
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeName || "project"}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`Downloading project: ${project.project_name}`);
+    } catch (e) {
+      console.error('Failed to download project:', e);
+      toast.error(`Failed to download project: ${e.message || e}`);
+    }
   };
 
 
@@ -127,6 +279,11 @@ const Home = () => {
 
       <Dashboard
         projects={projects}
+        expandedProjectKey={expandedProjectKey}
+        projectDetails={projectDetails}
+        loadingProjectKey={loadingProjectKey}
+        getProjectKey={getProjectKey}
+        onToggle={handleToggleProject}
         onOpen={async (p) => {
           try {
             const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
@@ -146,6 +303,8 @@ const Home = () => {
             toast.error(`Failed to open project: ${e.message || e}`);
           }
         }}
+        onDownload={handleDownloadProject}
+        onDelete={handleDeleteProject}
       />
 
       {/* Projects are now displayed inside Dashboard's Recent Projects */}
@@ -212,6 +371,7 @@ const Home = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

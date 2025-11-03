@@ -3,7 +3,7 @@ import axios from "axios";
 import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
 import ImageDragDrop from "./imagehandles"; // adjust path if needed
-import styles from "./ImageUpload.module.css";
+import styles from "../css/ImageUpload.module.css";
 
 const ImageUpload = ({ handleNext, persistedFiles, setPersistedFiles, pageNames, setPageNames }) => {
   const [loadingIngestion, setLoadingIngestion] = useState(false);

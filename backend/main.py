@@ -22,8 +22,16 @@ import asyncio
 import subprocess
 import logging
 from dotenv import load_dotenv
+from db.session import Base, engine
 
 load_dotenv()
+
+# Ensure schema exists before handling traffic (Alembic should manage in production).
+if os.getenv("SQLALCHEMY_SKIP_AUTO_INIT", "0") not in {"1", "true", "True"}:
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as db_init_err:
+        print("Database initialization failed:", db_init_err)
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())

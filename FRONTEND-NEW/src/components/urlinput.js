@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
-import styles from "./URLInput.module.css";
+import styles from "../css/URLInput.module.css";
 
 const URLInput = ({ onBack, onNext }) => {
   const [url, setUrl] = useState("");

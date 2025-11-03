@@ -4,32 +4,32 @@
   align-items: center;
   min-height: 70vh;
   background-color: var(--color-background-light);
-  padding-top: 2rem;
-  padding-bottom: 30px;
+  padding-top: 1rem;
+  padding-bottom: 20px;
 }
 
 .contentBox {
-  padding: 1rem 3rem;
+  padding: 0.8rem 2rem;
   border: 1px solid var(--color-border);
-  min-height: 45vh;
-  width: 70vw;
+  min-height: 40vh;
+  width: 65vw;
   background-color: var(--color-white);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
 }
 
 .title {
-  font-size: 30px;
+  font-size: 22px;
   color: var(--color-text-primary);
 }
 
 .urlInput {
-  padding: 1rem;
-  font-size: 16px;
+  padding: 0.7rem;
+  font-size: 15px;
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
-  margin-top: 10px;
+  margin-top: 8px;
   transition: var(--transition-form-elements);
 }
 
@@ -41,24 +41,30 @@
 
 .errorText {
   color: var(--color-error);
-  margin-top: 10px;
+  margin-top: 8px;
+  font-size: 14px;
 }
 
 .enrichButtonContainer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 
 .enrichButton {
-  padding: 0.7rem 2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.6rem;
+  font-size: 15px;
   background: var(--gradient-button-secondary);
   color: var(--color-white);
   border: none;
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
+  min-width: 150px;
+  min-height: 38px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .enrichButton:hover {
@@ -67,51 +73,56 @@
 }
 
 .testCaseOutput {
-  margin-top: 30px;
+  margin-top: 20px;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
-  padding: 20px;
+  padding: 15px;
   background-color: var(--color-white);
   box-shadow: var(--shadow-light);
 }
 
 .testCaseOutputTitle {
   color: var(--color-text-primary);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--color-border);
-  padding-bottom: 6px;
+  padding-bottom: 5px;
 }
 
 .jsonPre {
   background-color: #1e1e1e;
   color: #00ff00;
-  padding: 15px;
+  padding: 10px;
   border-radius: var(--border-radius-medium);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .navigationButtons {
-  width: 70vw;
-  margin-top: 20px;
+  width: 65vw;
+  margin-top: 15px;
   display: flex;
   justify-content: space-between;
 }
 
 .navButton {
-  padding: 0.7rem 2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.5rem;
+  font-size: 15px;
   background: var(--color-gray);
   color: var(--color-white);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
+  min-width: 130px;
+  min-height: 38px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .navButton:hover {
@@ -120,14 +131,60 @@
 }
 
 .navButton i {
-  margin-right: 10px;
+  margin-right: 8px;
 }
 
 .navButton.next i {
-  margin-left: 10px;
+  margin-left: 8px;
   margin-right: 0;
 }
 
 .next {
   background: var(--gradient-button);
+}
+
+/* ---------- RESPONSIVE ADJUSTMENTS ---------- */
+@media (max-width: 768px) {
+  .contentBox {
+    width: 80vw;
+    padding: 1rem 1.5rem;
+  }
+
+  .title {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .navigationButtons {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .navButton {
+    width: 100%;
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .contentBox {
+    width: 90vw;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .urlInput {
+    font-size: 14px;
+    padding: 0.6rem;
+  }
+
+  .enrichButton,
+  .navButton {
+    font-size: 14px;
+    padding: 0.5rem 1.2rem;
+    min-height: 36px;
+  }
 }

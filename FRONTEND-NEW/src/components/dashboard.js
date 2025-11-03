@@ -1,8 +1,30 @@
 import React from "react";
-import styles from "./Dashboard.module.css";
+import styles from "../css/Dashboard.module.css";
 
-const Dashboard = ({ projects = [], onOpen }) => {
+const formatLabel = (label = "") =>
+  label
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const Dashboard = ({
+  projects = [],
+  onOpen,
+  onDelete,
+  onToggle,
+  onDownload,
+  expandedProjectKey,
+  projectDetails = {},
+  loadingProjectKey,
+  getProjectKey,
+}) => {
   const totalProjects = Array.isArray(projects) ? projects.length : 0;
+  const resolveProjectKey = (project, idx) => {
+    if (typeof getProjectKey === "function") {
+      return getProjectKey(project, idx);
+    }
+    return project?.id ?? `${project?.project_name || "project"}-${idx}`;
+  };
+
   return (
     <div>
       <div className={styles.dashboardContainer}>
@@ -50,35 +72,113 @@ const Dashboard = ({ projects = [], onOpen }) => {
         {totalProjects === 0 ? (
           <div style={{ color: '#666' }}>No projects yet. Create one to get started.</div>
         ) : (
-          projects.map((p, idx) => (
-            <div key={`${p.project_name}-${idx}`} className={styles.projectCard}>
-              <div className={styles.projectCardHeader}>
-                <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
-                <span className={styles.projectStatus}>saved</span>
-              </div>
-              <p className={styles.projectDescription}>
-                {(p.framework || '').trim()} {p.language ? ` / ${p.language}` : ''}
-              </p>
-              <div className={styles.projectDetails}>
-                <div className={styles.projectDetailRow}>
-                  <span className={styles.projectDetailLabel}>Created</span>
-                  <strong className={styles.projectDetailValue}>{p.created_at ? new Date(p.created_at).toLocaleString() : '-'}</strong>
+          projects.map((p, idx) => {
+            const projectKey = resolveProjectKey(p, idx);
+            const isExpanded = expandedProjectKey === projectKey;
+            const details = projectDetails?.[projectKey];
+            const detailProject = details?.project || p;
+            const detailPaths = details?.paths;
+            const isLoading = loadingProjectKey === projectKey;
+
+            return (
+              <div key={projectKey} className={styles.projectCard}>
+                <div className={styles.projectCardHeader}>
+                  <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
+                  <div className={styles.projectCardMeta}>
+                    <span className={styles.projectStatus}>saved</span>
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      onClick={() => onDelete && onDelete(p)}
+                      aria-label={`Delete ${p.project_name}`}
+                    >
+                      <i className="fa-solid fa-trash" aria-hidden="true"></i>
+                    </button>
+                  </div>
                 </div>
+
+                <p className={styles.projectDescription}>
+                  {(p.framework || "").trim()} {p.language ? ` / ${p.language}` : ""}
+                </p>
+
+                <div className={styles.projectDetails}>
+                  <div className={styles.projectDetailRow}>
+                    <span className={styles.projectDetailLabel}>Created</span>
+                    <strong className={styles.projectDetailValue}>
+                      {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
+                    </strong>
+                  </div>
+                </div>
+
+                <hr className={styles.projectCardDivider} />
+
+                <div className={styles.projectCardActions}>
+                  <button
+                    className={styles.actionButton}
+                    onClick={() => onToggle && onToggle(p, projectKey)}
+                  >
+                    <i className="fa-solid fa-gear"></i> Configure
+                  </button>
+                  <button
+                    className={styles.actionButton}
+                    onClick={() => onDownload && onDownload(p)}
+                  >
+                    <i className="fa-solid fa-download"></i> Download
+                  </button>
+                  <button
+                    className={styles.executeButton}
+                    onClick={() => onOpen && onOpen(p)}
+                  >
+                    <i className="fa-solid fa-play"></i> Open
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className={styles.projectConfiguration}>
+                    {isLoading ? (
+                      <p className={styles.projectConfigurationLoading}>Loading project information…</p>
+                    ) : (
+                      <>
+                        <h3>Project Details</h3>
+                        <ul className={styles.projectConfigurationList}>
+                          <li>
+                            <span>Framework</span>
+                            <strong>{detailProject.framework || "-"}</strong>
+                          </li>
+                          <li>
+                            <span>Language</span>
+                            <strong>{detailProject.language || "-"}</strong>
+                          </li>
+                          <li>
+                            <span>Created</span>
+                            <strong>
+                              {detailProject.created_at
+                                ? new Date(detailProject.created_at).toLocaleString()
+                                : "-"}
+                            </strong>
+                          </li>
+                        </ul>
+
+                        {detailPaths && (
+                          <>
+                            <h4 className={styles.projectConfigurationSubheading}>Project Paths</h4>
+                            <ul className={styles.projectConfigurationPaths}>
+                              {Object.entries(detailPaths).map(([label, value]) => (
+                                <li key={label}>
+                                  <span>{formatLabel(label)}</span>
+                                  <strong>{value || "-"}</strong>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-              <hr className={styles.projectCardDivider} />
-              <div className={styles.projectCardActions}>
-                <button className={styles.actionButton} disabled>
-                  <i className="fa-solid fa-gear"></i> Configure
-                </button>
-                <button
-                  className={styles.executeButton}
-                  onClick={() => onOpen && onOpen(p)}
-                >
-                  <i className="fa-solid fa-play"></i> Open
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

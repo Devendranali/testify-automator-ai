@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { toast, ToastContainer } from "react-toastify";
-import styles from "./StoryInput.module.css";
+import styles from "../css/StoryInput.module.css";
 import API_BASE_URL from "../config";
 
 const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {

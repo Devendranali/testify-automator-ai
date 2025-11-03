@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import styles from "./ImageHandles.module.css";
+import styles from "../css/ImageHandles.module.css";
 
 const ImageDragDrop = ({ files, setFiles }) => {
   const dragItem = useRef();

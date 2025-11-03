@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import styles from './Login.module.css';
+import styles from "../css/Login.module.css";
 import API_BASE_URL from '../config';
 
 const Login = () => {

@@ -4,29 +4,29 @@
   align-items: center;
   min-height: 70vh;
   background-color: var(--color-background-light);
-  padding-top: 2rem;
-  padding-bottom: 30px;
+  padding-top: 1rem;
+  padding-bottom: 20px;
 }
 
 .uploadBox {
-  padding: 1rem 3rem;
+  padding: 0.8rem 2rem;
   border: 1px solid var(--color-border);
-  min-height: 45vh;
-  width: 70vw;
+  min-height: 40vh;
+  width: 65vw;
   background-color: var(--color-white);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
 }
 
 .uploadTitle {
-  font-size: 22px;
+  font-size: 18px;
   color: var(--color-text-primary);
 }
 
 .uploadSubtitle {
-  font-size: 18px;
+  font-size: 15px;
   color: var(--color-text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .dropzone {
@@ -34,8 +34,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--color-border);
-  padding: 1rem;
+  border: 1.5px dashed var(--color-border);
+  padding: 0.75rem;
   border-radius: var(--border-radius-medium);
   transition: all 0.3s ease;
 }
@@ -46,34 +46,34 @@
 }
 
 .uploadIcon {
-  font-size: 40px;
-  margin-bottom: 10px;
+  font-size: 30px;
+  margin-bottom: 6px;
   color: var(--color-gray);
 }
 
 .uploadText {
-  font-size: 18px;
+  font-size: 16px;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .uploadInstructions {
   color: var(--color-text-secondary);
-  font-size: 18px;
-  margin-top: 8px;
-  margin-bottom: 16px;
+  font-size: 15px;
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 
 .selectFilesButton {
-  padding: 14px 30px;
+  padding: 10px 20px;
   border: 1px solid var(--color-gray);
   border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background-color: var(--color-white);
   transition: var(--transition-button);
 }
@@ -84,35 +84,36 @@
 }
 
 .selectFilesButtonIcon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .selectFilesButtonText {
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .errorText {
   color: var(--color-error);
-  margin-top: 10px;
+  margin-top: 8px;
+  font-size: 14px;
 }
 
 .successMessage {
-  margin-top: 20px;
-  padding: 12px 16px;
-  background-color: #e6ffed; /* Specific success background */
+  margin-top: 15px;
+  padding: 8px 12px;
+  background-color: #e6ffed;
   color: var(--color-success);
-  border: 1.5px solid #b7eb8f; /* Specific success border */
+  border: 1px solid #b7eb8f;
   border-radius: var(--border-radius-medium);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .availablePagesContainer {
-  margin-top: 20px;
-  padding: 1rem;
+  margin-top: 15px;
+  padding: 0.8rem;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
@@ -121,45 +122,48 @@
 
 .availablePagesTitle {
   color: var(--color-text-primary);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 15px;
 }
 
 .pageList {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
 .pageListItem {
   background-color: var(--color-white);
   border-radius: var(--border-radius-small);
-  margin-bottom: 6px;
-  padding: 8px 12px;
+  margin-bottom: 4px;
+  padding: 6px 10px;
   font-weight: 500;
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 14px;
 }
 
 .actionButtons {
   display: flex;
   justify-content: flex-end;
-  margin-top: 30px;
-  gap: 10px;
+  margin-top: 20px;
+  gap: 8px;
 }
 
 .uploadImagesButton {
-  padding: 0.8rem 2.2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.5rem;
+  font-size: 15px;
   color: var(--color-white);
-  border: 0px;
+  border: 0;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
-  min-width: 200px;
-  min-height: 50px;
+  min-width: 160px;
+  min-height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -171,16 +175,16 @@
 }
 
 .generateMethodsButton {
-  padding: 0.8rem 2.2rem;
-  font-size: 18px;
+  padding: 0.6rem 1.8rem;
+  font-size: 15px;
   color: var(--color-white);
-  border: 0px;
+  border: 0;
   background: var(--gradient-button);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-button);
-  min-width: 250px;
-  min-height: 50px;
+  min-width: 180px;
+  min-height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -192,22 +196,22 @@
 }
 
 .nextButtonContainer {
-  width: 70vw;
-  margin-top: 20px;
+  width: 65vw;
+  margin-top: 15px;
   display: flex;
   justify-content: flex-end;
 }
 
 .nextButton {
-  padding: 0.7rem 3rem;
-  font-size: 20px;
+  padding: 0.6rem 2rem;
+  font-size: 16px;
   color: var(--color-white);
-  border: 0px;
+  border: 0;
   background: var(--color-gray);
   border-radius: var(--border-radius-small);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   transition: var(--transition-button);
 }
@@ -218,9 +222,9 @@
 }
 
 .spinner {
-  border: 4px dotted #fff;
-  width: 24px;
-  height: 24px;
+  border: 3px dotted #fff;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   animation: spin 1s ease infinite;
 }
@@ -229,7 +233,6 @@
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }

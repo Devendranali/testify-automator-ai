@@ -4,7 +4,7 @@ import ImageUpload from "./imageuploads";
 import StoryInput from "./storyinput";
 import URLInput from "./urlinput";
 import Execute from "./execute"; // 👈 Add your final step component here
-import styles from "./Inputs.module.css";
+import styles from "../css/Inputs.module.css";
 
 const Input = () => {
   const navigate = useNavigate();
