@@ -2,6 +2,14 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import traceback
+import asyncio
+import subprocess
+import logging
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -18,13 +26,7 @@ from apis.generate_testcases_from_methods import router as generate_test_code_fr
 from apis.manual_add_metadata import router as manual_add_metadata
 from apis.projects_api import router as projects_router
 import auth
-import asyncio
-import subprocess
-import logging
-from dotenv import load_dotenv
 from db.session import Base, engine
-
-load_dotenv()
 
 # Ensure schema exists before handling traffic (Alembic should manage in production).
 if os.getenv("SQLALCHEMY_SKIP_AUTO_INIT", "0") not in {"1", "true", "True"}:
