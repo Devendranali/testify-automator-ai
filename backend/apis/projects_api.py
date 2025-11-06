@@ -1,18 +1,105 @@
 import io
 import os
+import re
 import zipfile
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from pydantic import BaseModel, EmailStr, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from db.models import Project
+import auth
+from db.models import Project, User
 from db.session import get_db
 
 router = APIRouter()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
+class TokenPayload(BaseModel):
+    sub: EmailStr
+    uid: int
+    org: str
+    exp: Optional[int] = None
+
+
+def _org_slug(name: str) -> str:
+    normalized = (name or "").strip().lower()
+    return re.sub(r"[^a-z0-9_-]+", "-", normalized) or "default"
+
+
+def _project_dir_segment(project: Project) -> str:
+    """Return a filesystem-safe folder segment for the given project."""
+    # Prefer the canonical slug if available; fall back to normalized key.
+    base_slug = (project.slug or Project.normalized_key(project.project_name)).strip()
+    base_slug = re.sub(r"[^a-z0-9_-]+", "-", base_slug.lower()) or "project"
+
+    if project.id:
+        return f"{project.id}-{base_slug}"
+    return base_slug
+
+
+def _project_root(project: Project) -> Path:
+    backend_root = Path(__file__).resolve().parents[1]
+    org_segment = _org_slug(project.organization)
+
+    org_root = backend_root / "organizations" / org_segment
+    desired = org_root / _project_dir_segment(project)
+
+    # Backwards compatibility: projects created before this change stored data
+    # under a plain folder named after the project. If that legacy folder still
+    # exists and the new structure has not yet been created, migrate it so we
+    # do not blend multiple projects together.
+    legacy = org_root / project.project_name.strip()
+    if legacy.exists() and not desired.exists():
+        desired.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            legacy.rename(desired)
+        except Exception:
+            # If the rename fails (e.g. permissions), keep using the legacy path.
+            return legacy
+
+    return desired
+
+
+def _project_source_root(project: Project) -> Path:
+    """Return the base directory that holds generated source artifacts."""
+    return _project_root(project) / "generated_runs" / "src"
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        token_data = TokenPayload(**payload)
+    except (JWTError, ValidationError) as exc:
+        raise credentials_exception from exc
+
+    user = (
+        db.query(User)
+        .filter(User.id == token_data.uid, User.email == str(token_data.sub).lower())
+        .first()
+    )
+    if not user:
+        raise credentials_exception
+
+    if (user.organization or "").strip().lower() != (token_data.org or "").strip().lower():
+        raise credentials_exception
+
+    return user
 
 
 class ProjectDetails(BaseModel):
@@ -25,13 +112,8 @@ class ProjectActivateRequest(BaseModel):
     project_name: str
 
 
-def _project_root(project_name: str) -> Path:
-    backend_root = Path(__file__).resolve().parents[1]
-    return backend_root / project_name.strip()
-
-
-def _ensure_project_structure(project_name: str) -> dict:
-    project_root = _project_root(project_name)
+def _ensure_project_structure(project: Project) -> dict:
+    project_root = _project_root(project)
     data_dir = project_root / "data"
     runs_dir = project_root / "generated_runs"
     runs_src = runs_dir / "src"
@@ -66,10 +148,32 @@ def _clear_env_if_active(project_root: Path) -> None:
             os.environ.pop(key, None)
 
 
+def _resolve_project_path(base: Path, relative: str) -> Path:
+    """Resolve a user-provided path safely within the project boundary."""
+    relative_path = (Path(relative or ".")).as_posix().lstrip("/")
+    target = (base / relative_path).resolve(strict=False)
+
+    if target == base:
+        return target
+
+    try:
+        target.relative_to(base)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid path") from exc
+
+    return target
+
+
 @router.post("/projects/save-details")
-def save_project_details(details: ProjectDetails, db: Session = Depends(get_db)):
+def save_project_details(
+    details: ProjectDetails,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
     try:
         project = Project(
+            organization=user_org,
             project_name=details.project_name.strip(),
             framework=details.framework.strip(),
             language=details.language.strip(),
@@ -93,7 +197,7 @@ def save_project_details(details: ProjectDetails, db: Session = Depends(get_db))
 
     project_paths = {}
     try:
-        project_paths = _ensure_project_structure(project.project_name)
+        project_paths = _ensure_project_structure(project)
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
@@ -114,9 +218,14 @@ def save_project_details(details: ProjectDetails, db: Session = Depends(get_db))
 
 
 @router.get("/projects")
-def list_projects(db: Session = Depends(get_db)):
+def list_projects(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
     projects = (
         db.query(Project)
+        .filter(Project.organization == user_org)
         .order_by(Project.created_at.desc())
         .all()
     )
@@ -124,7 +233,12 @@ def list_projects(db: Session = Depends(get_db)):
 
 
 @router.post("/projects/activate")
-def activate_project(req: ProjectActivateRequest, db: Session = Depends(get_db)):
+def activate_project(
+    req: ProjectActivateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
     name = (req.project_name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="project_name is required")
@@ -132,13 +246,22 @@ def activate_project(req: ProjectActivateRequest, db: Session = Depends(get_db))
     project_key = Project.normalized_key(name)
     project = (
         db.query(Project)
-        .filter(Project.project_key == project_key)
+        .filter(
+            Project.project_key == project_key,
+            Project.organization == user_org,
+        )
         .first()
     )
     if not project:
         raise HTTPException(status_code=404, detail=f"Project '{name}' not found")
 
-    project_paths = _ensure_project_structure(project.project_name)
+    try:
+        project_paths = _ensure_project_structure(project)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to prepare project directories: {exc}",
+        ) from exc
     try:
         _activate_env(project_paths)
     except Exception as exc:
@@ -152,17 +275,22 @@ def activate_project(req: ProjectActivateRequest, db: Session = Depends(get_db))
 
 
 @router.get("/projects/{project_id}")
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
     project = (
         db.query(Project)
-        .filter(Project.id == project_id)
+        .filter(Project.id == project_id, Project.organization == user_org)
         .first()
     )
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with id '{project_id}' not found")
 
     try:
-        project_paths = _ensure_project_structure(project.project_name)
+        project_paths = _ensure_project_structure(project)
     except Exception:
         project_paths = {}
 
@@ -172,17 +300,118 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.delete("/projects/{project_id}")
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def _get_project_for_user(project_id: int, db: Session, user_org: str) -> Project:
     project = (
         db.query(Project)
-        .filter(Project.id == project_id)
+        .filter(Project.id == project_id, Project.organization == user_org)
+        .first()
+    )
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project with id '{project_id}' not found")
+    return project
+
+
+@router.get("/projects/{project_id}/files")
+def list_project_files(
+    project_id: int,
+    path: str = Query("", description="Relative path within the project's generated source tree."),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
+    project = _get_project_for_user(project_id, db, user_org)
+
+    try:
+        project_paths = _ensure_project_structure(project)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
+
+    base_dir = Path(project_paths["src_dir"])
+    target = _resolve_project_path(base_dir, path)
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="Path not found")
+    if not target.is_dir():
+        raise HTTPException(status_code=400, detail="Path is not a directory")
+
+    entries = []
+    try:
+        for child in sorted(target.iterdir(), key=lambda x: (x.is_file(), x.name.lower())):
+            rel_path = child.relative_to(base_dir).as_posix()
+            entry_type = "file" if child.is_file() else "directory"
+            entries.append(
+                {
+                    "name": child.name,
+                    "path": rel_path,
+                    "type": entry_type,
+                }
+            )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Access denied for requested path") from exc
+
+    return {
+        "project_id": project_id,
+        "base_path": base_dir.as_posix(),
+        "path": target.relative_to(base_dir).as_posix() if target != base_dir else "",
+        "entries": entries,
+    }
+
+
+@router.get("/projects/{project_id}/files/content")
+def get_project_file_content(
+    project_id: int,
+    path: str = Query(..., min_length=1, description="Relative file path within the project."),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
+    project = _get_project_for_user(project_id, db, user_org)
+
+    try:
+        project_paths = _ensure_project_structure(project)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
+
+    base_dir = Path(project_paths["src_dir"])
+    target = _resolve_project_path(base_dir, path)
+
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        content = target.read_text(encoding="utf-8")
+        encoding = "utf-8"
+    except UnicodeDecodeError:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        encoding = "utf-8 (errors replaced)"
+
+    extension = target.suffix.lower().lstrip(".")
+
+    return {
+        "project_id": project_id,
+        "path": target.relative_to(base_dir).as_posix(),
+        "encoding": encoding,
+        "language": extension or "text",
+        "content": content,
+    }
+
+
+@router.delete("/projects/{project_id}")
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
+    project = (
+        db.query(Project)
+        .filter(Project.id == project_id, Project.organization == user_org)
         .first()
     )
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with id '{project_id}' not found")
 
-    project_root = _project_root(project.project_name)
+    project_root = _project_root(project)
 
     try:
         db.delete(project)
@@ -202,16 +431,21 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/download")
-def download_project(project_id: int, db: Session = Depends(get_db)):
+def download_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
     project = (
         db.query(Project)
-        .filter(Project.id == project_id)
+        .filter(Project.id == project_id, Project.organization == user_org)
         .first()
     )
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with id '{project_id}' not found")
 
-    project_root = _project_root(project.project_name).resolve()
+    project_root = _project_root(project).resolve()
     if not project_root.exists() or not project_root.is_dir():
         raise HTTPException(status_code=404, detail=f"Project directory for '{project.project_name}' not found")
 

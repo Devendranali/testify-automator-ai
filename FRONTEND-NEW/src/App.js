@@ -3,10 +3,12 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 
 import Home from './components/home';
 import Input from './components/inputs';
 import Login from './components/login';
+import Signup from './components/signup';
 
 
 const ProtectedRoute = ({ children }) => {
@@ -19,6 +21,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path='/login' element={<Login />} />
+        <Route path='/signup' element={<Signup />} />
         
         <Route
           path='/'
@@ -37,6 +40,7 @@ function App() {
           }
         />
       </Routes>
+      <ToastContainer position="top-right" autoClose={4000} newestOnTop closeOnClick pauseOnHover draggable theme="colored" />
     </BrowserRouter>
   );
 }

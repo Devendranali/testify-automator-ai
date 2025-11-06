@@ -9,6 +9,7 @@ node_modules
 
 #for cookies
 backend/storage/
+backend/organizations/
 
 # Logs
 logs

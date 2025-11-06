@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "./dashboard";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
+import Editor from "@monaco-editor/react";
 import styles from "../css/Home.module.css";
+
+const formatLabel = (label = "") =>
+  label
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const Home = () => {
   const navigate = useNavigate();
@@ -12,10 +18,37 @@ const Home = () => {
   const [framework, setFramework] = useState("Playwright");
   const [language, setLanguage] = useState("Python");
   const [userEmail, setUserEmail] = useState("");
+  const [userOrganization, setUserOrganization] = useState("");
   const [projects, setProjects] = useState([]);
   const [expandedProjectKey, setExpandedProjectKey] = useState(null);
   const [projectDetails, setProjectDetails] = useState({});
   const [loadingProjectKey, setLoadingProjectKey] = useState(null);
+  const [projectFiles, setProjectFiles] = useState({});
+  const [openDirectories, setOpenDirectories] = useState({});
+  const [selectedFilePaths, setSelectedFilePaths] = useState({});
+  const [loadingFileKey, setLoadingFileKey] = useState(null);
+  const [activeFile, setActiveFile] = useState(null);
+
+  const apiBase = process.env.REACT_APP_API_URL || "http://127.0.0.1:8001";
+
+  const resolveLanguage = (ext = "") => {
+    const map = {
+      js: "javascript",
+      jsx: "javascript",
+      ts: "typescript",
+      tsx: "typescript",
+      py: "python",
+      json: "json",
+      html: "html",
+      css: "css",
+      md: "markdown",
+      yml: "yaml",
+      yaml: "yaml",
+      sh: "shell",
+    };
+    const normalized = (ext || "").toLowerCase();
+    return map[normalized] || normalized || "plaintext";
+  };
 
   const getProjectKey = (project) => {
     if (!project) {
@@ -30,30 +63,278 @@ const Home = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        // This is a simple way to decode the JWT payload.
-        // In a real-world application, you should use a library like 'jwt-decode'
-        // and also verify the token's signature on the server-side.
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUserEmail(payload.sub);
-      } catch (e) {
-        console.error("Invalid token:", e);
-        handleLogout();
-      }
+    if (!token) {
+      handleLogout();
+      return;
     }
 
-    // Load projects from backend
-    const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
-    fetch(`${apiBase}/projects`)
-      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
-      .then(data => Array.isArray(data?.projects) ? setProjects(data.projects) : setProjects([]))
-      .catch(() => setProjects([]));
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setUserEmail(payload.sub);
+      if (payload.org) {
+        setUserOrganization(payload.org);
+      } else {
+        setUserOrganization("");
+      }
+    } catch (e) {
+      console.error("Invalid token:", e);
+      handleLogout();
+      return;
+    }
+
+    const loadProjects = async () => {
+      try {
+        const res = await fetch(`${apiBase}/projects`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.status === 401) {
+          handleLogout();
+          return;
+        }
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        setProjects(Array.isArray(data?.projects) ? data.projects : []);
+      } catch (err) {
+        console.error("Failed to load projects:", err);
+        setProjects([]);
+      }
+    };
+
+    loadProjects();
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    setUserEmail("");
+    setUserOrganization("");
     navigate("/login");
+  };
+
+  const fetchProjectDirectory = async (project, projectKey, path = "") => {
+    if (!project?.id) {
+      return;
+    }
+    const normalizedPath = path || "";
+    const existing = projectFiles?.[projectKey]?.[normalizedPath];
+    if (existing) {
+      return existing;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    try {
+      setLoadingFileKey(`dir:${projectKey}:${normalizedPath}`);
+      const url = new URL(`${apiBase}/projects/${project.id}/files`);
+      if (normalizedPath) {
+        url.searchParams.set("path", normalizedPath);
+      }
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      const data = await res.json();
+      const pathKey = data?.path || "";
+      setProjectFiles((prev) => ({
+        ...prev,
+        [projectKey]: {
+          ...(prev[projectKey] || {}),
+          [pathKey]: Array.isArray(data?.entries) ? data.entries : [],
+        },
+      }));
+      return data;
+    } catch (e) {
+      console.error("Failed to load project files:", e);
+      toast.error(`Failed to load files: ${e.message || e}`);
+  } finally {
+    setLoadingFileKey(null);
+  }
+  return null;
+  };
+
+  const activeProjectKey = expandedProjectKey;
+  const activeProjectDetails = activeProjectKey ? projectDetails[activeProjectKey] : null;
+  const activeProject =
+    activeProjectDetails?.project ||
+    projects.find((proj) => getProjectKey(proj) === activeProjectKey) ||
+    null;
+  const activePaths = activeProjectDetails?.paths || null;
+  const activeFileMap = activeProjectKey ? projectFiles[activeProjectKey] || {} : {};
+  const selectedProjectFile = activeProjectKey ? selectedFilePaths[activeProjectKey] || "" : "";
+
+  const renderDirectoryTree = (currentPath = "", depth = 0) => {
+    if (!activeProjectKey) {
+      return null;
+    }
+
+    const pathKey = currentPath || "";
+    const entries = activeFileMap[pathKey];
+
+    if (!entries || entries.length === 0) {
+      if (pathKey === "" && activeProject?.id) {
+        const isRootLoading = loadingFileKey === `dir:${activeProjectKey}:${pathKey}`;
+        return (
+          <button
+            type="button"
+            className={styles.projectFileLoadButton}
+            onClick={() => fetchProjectDirectory(activeProject, activeProjectKey, "")}
+          >
+            {isRootLoading ? "Loading files..." : "Load Project Files"}
+          </button>
+        );
+      }
+
+      if (pathKey === "") {
+        return (
+          <p className={styles.projectFileHint}>
+            {activeProject
+              ? "No generated files yet. Run an extraction or generation workflow to populate this project."
+              : "Select a project to explore its generated files."}
+          </p>
+        );
+      }
+      return null;
+    }
+
+    return (
+      <ul className={styles.projectFilesList}>
+        {entries.map((entry) => {
+          const entryPath = entry.path;
+          const isDirectory = entry.type === "directory";
+          const entryKey = `${activeProjectKey}::${entryPath || ""}`;
+
+          if (isDirectory) {
+            const isOpen = !!openDirectories[entryKey];
+            const isDirLoading = loadingFileKey === `dir:${activeProjectKey}:${entryPath}`;
+            const handleToggle = () => {
+              setOpenDirectories((prev) => ({
+                ...prev,
+                [entryKey]: !isOpen,
+              }));
+              if (!isOpen && activeProject?.id) {
+                fetchProjectDirectory(activeProject, activeProjectKey, entryPath);
+              }
+            };
+
+            return (
+              <li
+                key={entryKey || entry.name}
+                className={styles.projectFileItem}
+                style={{ marginLeft: depth * 12 }}
+              >
+                <button
+                  type="button"
+                  className={styles.projectFileButton}
+                  onClick={handleToggle}
+                >
+                  <span className={styles.projectFileIcon}>{isOpen ? "▾" : "▸"}</span>
+                  {entry.name}
+                  {isDirLoading && (
+                    <span className={styles.projectFileLoading}>Loading...</span>
+                  )}
+                </button>
+                {isOpen && renderDirectoryTree(entryPath, depth + 1)}
+              </li>
+            );
+          }
+
+          const isFileLoading = loadingFileKey === `file:${activeProjectKey}:${entryPath}`;
+          const isSelected = selectedProjectFile === entryPath;
+
+          return (
+            <li
+              key={entryPath}
+              className={styles.projectFileItem}
+              style={{ marginLeft: depth * 12 }}
+            >
+              <button
+                type="button"
+                className={`${styles.projectFileButton} ${
+                  isSelected ? styles.projectFileButtonActive : ""
+                }`}
+                onClick={() =>
+                  activeProject?.id &&
+                  fetchProjectFileContent(activeProject, activeProjectKey, entryPath)
+                }
+              >
+                <span className={styles.projectFileIcon}>•</span>
+                {entry.name}
+                {isFileLoading && (
+                  <span className={styles.projectFileLoading}>Loading...</span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
+  const fetchProjectFileContent = async (project, projectKey, path) => {
+    if (!project?.id || !path) {
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    try {
+      setLoadingFileKey(`file:${projectKey}:${path}`);
+      const url = new URL(`${apiBase}/projects/${project.id}/files/content`);
+      url.searchParams.set("path", path);
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      const fetched = await res.json();
+      const language = resolveLanguage(fetched?.language);
+      const data = { ...fetched, language };
+      setSelectedFilePaths((prev) => ({
+        ...prev,
+        [projectKey]: data?.path || path,
+      }));
+      setActiveFile({
+        projectKey,
+        projectId: project.id,
+        projectName: project.project_name,
+        ...data,
+      });
+      return data;
+    } catch (e) {
+      console.error("Failed to load project file content:", e);
+      toast.error(`Failed to load file: ${e.message || e}`);
+    } finally {
+      setLoadingFileKey(null);
+    }
+    return null;
   };
 
   const handleStartProject = async () => {
@@ -77,12 +358,23 @@ const Home = () => {
 
     // Send details to backend
     try {
-      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const token = localStorage.getItem("token");
+      if (!token) {
+        handleLogout();
+        return;
+      }
       const res = await fetch(`${apiBase}/projects/save-details`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ project_name: projectName.trim(), framework, language }),
       });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => null);
         throw new Error(txt || `Server returned ${res.status}`);
@@ -95,7 +387,13 @@ const Home = () => {
         if (savedProject) {
           return [savedProject, ...prev];
         }
-        return [{ project_name: projectName.trim(), framework, language, created_at: new Date().toISOString() }, ...prev];
+        return [{
+          organization: userOrganization,
+          project_name: projectName.trim(),
+          framework,
+          language,
+          created_at: new Date().toISOString()
+        }, ...prev];
       });
     } catch (e) {
       console.error('Failed to save project:', e);
@@ -121,10 +419,21 @@ const Home = () => {
     const projectKey = getProjectKey(project);
 
     try {
-      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+      const token = localStorage.getItem("token");
+      if (!token) {
+        handleLogout();
+        return;
+      }
       const res = await fetch(`${apiBase}/projects/${project.id}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => null);
         throw new Error(txt || `Server returned ${res.status}`);
@@ -163,12 +472,31 @@ const Home = () => {
 
     if (expandedProjectKey === projectKey) {
       setExpandedProjectKey(null);
+      setLoadingFileKey(null);
+      setOpenDirectories({});
+      setSelectedFilePaths((prev) => {
+        const next = { ...prev };
+        delete next[projectKey];
+        return next;
+      });
+      setActiveFile(null);
       return;
     }
 
     setExpandedProjectKey(projectKey);
+    setOpenDirectories({});
+    setLoadingFileKey(null);
+    setActiveFile(null);
+    setSelectedFilePaths((prev) => {
+      const next = { ...prev };
+      delete next[projectKey];
+      return next;
+    });
 
     if (projectDetails[projectKey]) {
+      if (!projectFiles?.[projectKey]?.[""] && project?.id) {
+        fetchProjectDirectory(project, projectKey, "");
+      }
       return;
     }
 
@@ -182,8 +510,20 @@ const Home = () => {
 
     try {
       setLoadingProjectKey(projectKey);
-      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
-      const res = await fetch(`${apiBase}/projects/${project.id}`);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        handleLogout();
+        return;
+      }
+      const res = await fetch(`${apiBase}/projects/${project.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => null);
         throw new Error(txt || `Server returned ${res.status}`);
@@ -193,6 +533,7 @@ const Home = () => {
         ...prev,
         [projectKey]: data,
       }));
+      fetchProjectDirectory(project, projectKey, "");
     } catch (e) {
       console.error('Failed to load project details:', e);
       toast.error(`Failed to load project details: ${e.message || e}`);
@@ -212,8 +553,20 @@ const Home = () => {
     }
 
     try {
-      const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
-      const res = await fetch(`${apiBase}/projects/${project.id}/download`);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        handleLogout();
+        return;
+      }
+      const res = await fetch(`${apiBase}/projects/${project.id}/download`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => null);
         throw new Error(txt || `Server returned ${res.status}`);
@@ -242,7 +595,6 @@ const Home = () => {
 
   return (
     <div className={styles.homeContainer}>
-      <ToastContainer/>
       <nav className={styles.navbar}>
         <div className={styles.navbarBrand}>
           <i
@@ -259,6 +611,7 @@ const Home = () => {
         </div>
 
         <div className={styles.navbarUser}>
+          <span>{userOrganization || "Organization?"}</span>
           <span>{userEmail}</span>
           <button
             onClick={handleLogout}
@@ -280,18 +633,28 @@ const Home = () => {
       <Dashboard
         projects={projects}
         expandedProjectKey={expandedProjectKey}
-        projectDetails={projectDetails}
         loadingProjectKey={loadingProjectKey}
         getProjectKey={getProjectKey}
         onToggle={handleToggleProject}
         onOpen={async (p) => {
           try {
-            const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+            const token = localStorage.getItem("token");
+            if (!token) {
+              handleLogout();
+              return;
+            }
             const res = await fetch(`${apiBase}/projects/activate`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
               body: JSON.stringify({ project_name: p.project_name })
             });
+            if (res.status === 401) {
+              handleLogout();
+              return;
+            }
             if (!res.ok) {
               const txt = await res.text().catch(() => null);
               throw new Error(txt || `Server returned ${res.status}`);
@@ -306,6 +669,35 @@ const Home = () => {
         onDownload={handleDownloadProject}
         onDelete={handleDeleteProject}
       />
+
+      {expandedProjectKey && (
+        <div className={styles.ideLayout}>
+          <div className={styles.leftPanel}>
+            <h4>Project Files</h4>
+            {renderDirectoryTree()}
+          </div>
+          <div className={styles.rightPanel}>
+            {activeFile ? (
+              <Editor
+                height="100%"
+                language={resolveLanguage(activeFile.language)}
+                value={activeFile.content || ""}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: true },
+                  scrollBeyondLastLine: false,
+                  fontSize: 14,
+                  wordWrap: "on",
+                }}
+              />
+            ) : (
+              <div className={styles.noFileSelected}>
+                <p>Select a file to view its content</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Projects are now displayed inside Dashboard's Recent Projects */}
 

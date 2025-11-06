@@ -77,6 +77,8 @@ pathlib==1.0.1
 pillow==11.2.1
 playwright==1.52.0
 psycopg[binary]==3.2.3
+passlib[bcrypt]==1.7.4
+email-validator==2.2.0
 pluggy==1.6.0
 posthog==4.7.0
 protobuf==5.29.5

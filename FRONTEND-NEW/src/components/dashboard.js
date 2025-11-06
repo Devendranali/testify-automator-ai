@@ -1,11 +1,6 @@
 import React from "react";
 import styles from "../css/Dashboard.module.css";
 
-const formatLabel = (label = "") =>
-  label
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-
 const Dashboard = ({
   projects = [],
   onOpen,
@@ -13,11 +8,11 @@ const Dashboard = ({
   onToggle,
   onDownload,
   expandedProjectKey,
-  projectDetails = {},
   loadingProjectKey,
   getProjectKey,
 }) => {
   const totalProjects = Array.isArray(projects) ? projects.length : 0;
+
   const resolveProjectKey = (project, idx) => {
     if (typeof getProjectKey === "function") {
       return getProjectKey(project, idx);
@@ -39,7 +34,7 @@ const Dashboard = ({
         <div className={styles.card}>
           <div>
             <h2 className={styles.cardTitle}> Test Cases </h2>
-            <p className={styles.cardValue}> 68 </p>
+            <p className={styles.cardValue}> 1 </p>
           </div>
           <i className={`fa-regular fa-file ${styles.cardIcon}`}></i>
         </div>
@@ -47,7 +42,7 @@ const Dashboard = ({
         <div className={styles.card}>
           <div>
             <h2 className={styles.cardTitle}> Active Projects</h2>
-            <p className={styles.cardValue}> 1 </p>
+            <p className={styles.cardValue}> 2 </p>
           </div>
           <i className={`fa-solid fa-play ${styles.cardIcon}`}></i>
         </div>
@@ -70,18 +65,18 @@ const Dashboard = ({
 
       <div className={styles.projectList}>
         {totalProjects === 0 ? (
-          <div style={{ color: '#666' }}>No projects yet. Create one to get started.</div>
+          <div style={{ color: "#666" }}>No projects yet. Create one to get started.</div>
         ) : (
           projects.map((p, idx) => {
             const projectKey = resolveProjectKey(p, idx);
-            const isExpanded = expandedProjectKey === projectKey;
-            const details = projectDetails?.[projectKey];
-            const detailProject = details?.project || p;
-            const detailPaths = details?.paths;
+            const isActive = expandedProjectKey === projectKey;
             const isLoading = loadingProjectKey === projectKey;
 
             return (
-              <div key={projectKey} className={styles.projectCard}>
+              <div
+                key={projectKey}
+                className={`${styles.projectCard} ${isActive ? styles.projectCardActive : ""}`}
+              >
                 <div className={styles.projectCardHeader}>
                   <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
                   <div className={styles.projectCardMeta}>
@@ -133,48 +128,8 @@ const Dashboard = ({
                   </button>
                 </div>
 
-                {isExpanded && (
-                  <div className={styles.projectConfiguration}>
-                    {isLoading ? (
-                      <p className={styles.projectConfigurationLoading}>Loading project information…</p>
-                    ) : (
-                      <>
-                        <h3>Project Details</h3>
-                        <ul className={styles.projectConfigurationList}>
-                          <li>
-                            <span>Framework</span>
-                            <strong>{detailProject.framework || "-"}</strong>
-                          </li>
-                          <li>
-                            <span>Language</span>
-                            <strong>{detailProject.language || "-"}</strong>
-                          </li>
-                          <li>
-                            <span>Created</span>
-                            <strong>
-                              {detailProject.created_at
-                                ? new Date(detailProject.created_at).toLocaleString()
-                                : "-"}
-                            </strong>
-                          </li>
-                        </ul>
-
-                        {detailPaths && (
-                          <>
-                            <h4 className={styles.projectConfigurationSubheading}>Project Paths</h4>
-                            <ul className={styles.projectConfigurationPaths}>
-                              {Object.entries(detailPaths).map(([label, value]) => (
-                                <li key={label}>
-                                  <span>{formatLabel(label)}</span>
-                                  <strong>{value || "-"}</strong>
-                                </li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
+                {isActive && isLoading && (
+                  <p className={styles.projectInlineLoading}>Loading...</p>
                 )}
               </div>
             );

@@ -115,6 +115,11 @@
   box-shadow: var(--shadow-deep);
 }
 
+.projectCardActive {
+  border: 2px solid var(--color-primary);
+  box-shadow: var(--shadow-deep);
+}
+
 .projectCardHeader {
   display: flex;
   justify-content: space-between;
@@ -245,6 +250,13 @@
 .executeButton:hover {
   opacity: 0.95;
   transform: translateY(-2px);
+}
+
+.projectInlineLoading {
+  margin-top: 0.6rem;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 .projectConfiguration {

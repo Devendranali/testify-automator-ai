@@ -13,8 +13,11 @@ load_dotenv()
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr, field_validator
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
 from apis.image_text_api import router as image_router
 from apis.chroma_debug_api import router as debug_chroma_export_router
 from apis.enrichment_api import router as enrichment_router
@@ -26,7 +29,9 @@ from apis.generate_testcases_from_methods import router as generate_test_code_fr
 from apis.manual_add_metadata import router as manual_add_metadata
 from apis.projects_api import router as projects_router
 import auth
-from db.session import Base, engine
+from db.models import User
+from db.session import Base, engine, get_db
+from utils.security import hash_password, verify_password
 
 # Ensure schema exists before handling traffic (Alembic should manage in production).
 if os.getenv("SQLALCHEMY_SKIP_AUTO_INIT", "0") not in {"1", "true", "True"}:
@@ -64,20 +69,103 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Hardcoded user credentials
-HARDCODED_USERNAME = "Admin@123"
-HARDCODED_PASSWORD = "admin123"
+class _AuthBase(BaseModel):
+    organization: str
+    email: EmailStr
+    password: str
+
+    @field_validator("organization")
+    @classmethod
+    def _organization_not_empty(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError("Organization is required.")
+        return cleaned
+
+    @field_validator("password")
+    @classmethod
+    def _password_min_length(cls, value: str) -> str:
+        if not value or len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        return value
+
+    def normalized_email(self) -> str:
+        return str(self.email).lower()
+
+    def normalized_org(self) -> str:
+        return self.organization.strip().lower()
+
+
+class SignupRequest(_AuthBase):
+    pass
+
+
+class LoginRequest(_AuthBase):
+    pass
+
+
+@app.post("/signup", status_code=status.HTTP_201_CREATED)
+def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
+    try:
+        password_hash = hash_password(payload.password)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:  # Defensive: ensure callers see a clean error.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to process password securely.",
+        ) from exc
+
+    user = User(
+        organization=payload.organization.strip(),
+        email=payload.normalized_email(),
+        password_hash=password_hash,
+    )
+    try:
+        db.add(user)
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists.",
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    db.refresh(user)
+    return {"status": "created", "user": user.to_dict()}
+
 
 @app.post("/login")
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    if not (form_data.username == HARDCODED_USERNAME and form_data.password == HARDCODED_PASSWORD):
+def login_for_access_token(payload: LoginRequest, db: Session = Depends(get_db)):
+    email = payload.normalized_email()
+    organization = payload.normalized_org()
+
+    user = (
+        db.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Incorrect credentials.",
         )
+
+    stored_org = (user.organization or "").strip().lower()
+    if stored_org != organization or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect credentials.",
+        )
+
     access_token = auth.create_access_token(
-        data={"sub": form_data.username}
+        data={"sub": user.email, "uid": user.id, "org": user.organization}
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
