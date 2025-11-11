@@ -1,0 +1,30 @@
+[
+  {
+    "from": "contact3.png",
+    "to": "contact2.png"
+  },
+  {
+    "from": "contact2.png",
+    "to": "contact1.png"
+  },
+  {
+    "from": "contact1.png",
+    "to": "contact.png"
+  },
+  {
+    "from": "contact.png",
+    "to": "dashbord.PNG"
+  },
+  {
+    "from": "dashbord.PNG",
+    "to": "sandes.PNG"
+  },
+  {
+    "from": "sandes.PNG",
+    "to": "detail.PNG"
+  },
+  {
+    "from": "detail.PNG",
+    "to": "detail2.PNG"
+  }
+]

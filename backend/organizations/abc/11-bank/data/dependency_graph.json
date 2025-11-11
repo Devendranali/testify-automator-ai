@@ -1,0 +1,10 @@
+[
+  {
+    "from": "bank_add_customer.png",
+    "to": "bank_customer.png"
+  },
+  {
+    "from": "bank_customer.png",
+    "to": "bank_dashboard.png"
+  }
+]

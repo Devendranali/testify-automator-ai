@@ -1,0 +1,19 @@
+[
+    {
+        "id": "11acf948-8c5e-46c8-b9a7-e2595eb55ef8",
+        "document": "I'm unable to extract text from images directly. However, I can help guide you on how to identify and classify UI elements based on the rules provided. If you can describe the elements or provide the text, I can assist in formatting them according to your specifications.",
+        "metadata": {
+            "get_by_text": "I'm unable to extract text from images directly. However, I can help guide you on how to identify and classify UI elements based on the rules provided. If you can describe the elements or provide the text, I can assist in formatting them according to your specifications.",
+            "dom_matched": false,
+            "unique_name": "contact3_im_unable_to_extract_text_from_images_directly._however,_i_can_help_guide_you_on_how_to_identify_and_classify_ui_elements_based_on_the_rules_provided._if_you_can_describe_the_elements_or_provide_the_text,_i_can_assist_in_formatting_them_according_to_your_specifications._label_im_unable_to_extract_text_from_images_directly_however_i_can_help_guide_you_on_how_to_identify_and_classify_ui_elements_based_on_the_rules_provided_if_you_can_describe_the_elements_or_provide_the_text_i_can_assist_in_formatting_them_according_to_your_specifications_info_62fec5e1",
+            "external": false,
+            "element_id": "11acf948-8c5e-46c8-b9a7-e2595eb55ef8",
+            "type": "ocr",
+            "page_name": "contact3",
+            "label_text": "I'm unable to extract text from images directly. However, I can help guide you on how to identify and classify UI elements based on the rules provided. If you can describe the elements or provide the text, I can assist in formatting them according to your specifications.",
+            "intent": "im_unable_to_extract_text_from_images_directly_however_i_can_help_guide_you_on_how_to_identify_and_classify_ui_elements_based_on_the_rules_provided_if_you_can_describe_the_elements_or_provide_the_text_i_can_assist_in_formatting_them_according_to_your_specifications_info",
+            "ocr_type": "label",
+            "placeholder": "I'm unable to extract text from images directly. However, I can help guide you on how to identify and classify UI elements based on the rules provided. If you can describe the elements or provide the text, I can assist in formatting them according to your specifications."
+        }
+    }
+]

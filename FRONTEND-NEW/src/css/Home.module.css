@@ -526,6 +526,7 @@
 
 .ideLayout {
   display: flex;
+  flex-direction: column;
   margin: 1.5rem auto;
   width: min(1280px, 94%);
   height: 100vh;
@@ -534,6 +535,94 @@
   border-radius: var(--border-radius-large);
   box-shadow: var(--shadow-medium);
   overflow: hidden;
+}
+
+.ideToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-background-light);
+}
+
+.ideToolbarLabel {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+}
+
+.ideToolbarTitle {
+  margin: 0.2rem 0 0 0;
+  font-size: 1.25rem;
+  color: var(--color-text-primary);
+}
+
+.ideToolbarPath {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  word-break: break-word;
+}
+
+.ideToolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ideActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition-button);
+}
+
+.ideActionButton:hover:not(:disabled) {
+  background-color: var(--color-background-light);
+}
+
+.ideActionButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ideActionButtonPrimary {
+  background: var(--gradient-button);
+  border-color: transparent;
+  color: var(--color-white);
+  box-shadow: var(--shadow-light);
+}
+
+.ideActionButtonPrimary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.ideCloseButton {
+  background-color: rgba(214, 69, 69, 0.08);
+  border-color: transparent;
+  color: #d64545;
+}
+
+.ideCloseButton:hover:not(:disabled) {
+  background-color: rgba(214, 69, 69, 0.16);
+  color: #b03131;
+}
+
+.ideWorkspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .leftPanel {
@@ -551,6 +640,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .noFileSelected {

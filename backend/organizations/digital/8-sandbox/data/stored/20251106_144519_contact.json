@@ -1,0 +1,512 @@
+[
+    {
+        "id": "4b42b47d-34dc-4aa8-a035-17c67ba179d9",
+        "document": "Sure, here are the extracted UI elements -",
+        "metadata": {
+            "page_name": "contact",
+            "element_id": "4b42b47d-34dc-4aa8-a035-17c67ba179d9",
+            "placeholder": "Sure, here are the extracted UI elements -",
+            "label_text": "Sure, here are the extracted UI elements -",
+            "external": false,
+            "ocr_type": "label",
+            "type": "ocr",
+            "intent": "sure_here_are_the_extracted_ui_elements_info",
+            "unique_name": "contact_sure,_here_are_the_extracted_ui_elements_-_label_sure_here_are_the_extracted_ui_elements_info_c6761d34",
+            "dom_matched": false,
+            "get_by_text": "Sure, here are the extracted UI elements -"
+        }
+    },
+    {
+        "id": "1cd1e74e-cad0-469f-ac36-07a57ea0e150",
+        "document": "Dynamics 365",
+        "metadata": {
+            "label_text": "Dynamics 365",
+            "dom_matched": false,
+            "external": false,
+            "page_name": "contact",
+            "ocr_type": "label",
+            "placeholder": "Dynamics 365",
+            "get_by_text": "Dynamics 365",
+            "type": "ocr",
+            "unique_name": "contact_dynamics_365_label_dynamics_365_info_fcc62dae",
+            "element_id": "1cd1e74e-cad0-469f-ac36-07a57ea0e150",
+            "intent": "dynamics_365_info"
+        }
+    },
+    {
+        "id": "3abc77ac-90c5-4377-8f07-2fcf47d341b1",
+        "document": "Customer Service",
+        "metadata": {
+            "page_name": "contact",
+            "placeholder": "Customer Service",
+            "ocr_type": "label",
+            "dom_matched": false,
+            "type": "ocr",
+            "external": false,
+            "unique_name": "contact_customer_service_label_customer_service_info_8c6d35ee",
+            "get_by_text": "Customer Service",
+            "intent": "customer_service_info",
+            "label_text": "Customer Service",
+            "element_id": "3abc77ac-90c5-4377-8f07-2fcf47d341b1"
+        }
+    },
+    {
+        "id": "f15b44cb-ea3e-4a28-b1e3-479efee64c21",
+        "document": "Home",
+        "metadata": {
+            "placeholder": "Home",
+            "label_text": "Home",
+            "type": "ocr",
+            "external": false,
+            "ocr_type": "link",
+            "unique_name": "contact_home_link_home_action_9bbc6ff3",
+            "page_name": "contact",
+            "dom_matched": false,
+            "element_id": "f15b44cb-ea3e-4a28-b1e3-479efee64c21",
+            "get_by_text": "Home",
+            "intent": "home_action"
+        }
+    },
+    {
+        "id": "e954f022-3b6f-43b3-8673-9a830e35db1b",
+        "document": "Recent",
+        "metadata": {
+            "page_name": "contact",
+            "element_id": "e954f022-3b6f-43b3-8673-9a830e35db1b",
+            "external": false,
+            "get_by_text": "Recent",
+            "ocr_type": "link",
+            "label_text": "Recent",
+            "dom_matched": false,
+            "placeholder": "Recent",
+            "intent": "recent_action",
+            "type": "ocr",
+            "unique_name": "contact_recent_link_recent_action_2378b78d"
+        }
+    },
+    {
+        "id": "7c8d28b5-bfe3-4ac1-ad5e-eb8b379b3365",
+        "document": "Pinned",
+        "metadata": {
+            "element_id": "7c8d28b5-bfe3-4ac1-ad5e-eb8b379b3365",
+            "label_text": "Pinned",
+            "type": "ocr",
+            "external": false,
+            "placeholder": "Pinned",
+            "dom_matched": false,
+            "page_name": "contact",
+            "unique_name": "contact_pinned_link_pinned_action_ba9df697",
+            "intent": "pinned_action",
+            "get_by_text": "Pinned",
+            "ocr_type": "link"
+        }
+    },
+    {
+        "id": "de8a99ec-ac9a-4673-98d8-9d52293ddad9",
+        "document": "Dashboards",
+        "metadata": {
+            "element_id": "de8a99ec-ac9a-4673-98d8-9d52293ddad9",
+            "external": false,
+            "intent": "dashboards_action",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Dashboards",
+            "get_by_text": "Dashboards",
+            "ocr_type": "link",
+            "placeholder": "Dashboards",
+            "unique_name": "contact_dashboards_link_dashboards_action_27ce443f",
+            "page_name": "contact"
+        }
+    },
+    {
+        "id": "bf09dc0c-9b7e-4227-b0f6-1fe876681788",
+        "document": "Activities",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "link",
+            "intent": "activities_action",
+            "page_name": "contact",
+            "element_id": "bf09dc0c-9b7e-4227-b0f6-1fe876681788",
+            "unique_name": "contact_activities_link_activities_action_75b77975",
+            "dom_matched": false,
+            "get_by_text": "Activities",
+            "label_text": "Activities",
+            "placeholder": "Activities",
+            "external": false
+        }
+    },
+    {
+        "id": "fcf4e2ac-0fcc-40b0-9bdf-3819649feb7c",
+        "document": "Accounts",
+        "metadata": {
+            "external": false,
+            "page_name": "contact",
+            "unique_name": "contact_accounts_link_accounts_action_d2228769",
+            "label_text": "Accounts",
+            "element_id": "fcf4e2ac-0fcc-40b0-9bdf-3819649feb7c",
+            "type": "ocr",
+            "get_by_text": "Accounts",
+            "ocr_type": "link",
+            "intent": "accounts_action",
+            "placeholder": "Accounts",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "cb416703-1f5a-42bf-83ed-2b4342b5420a",
+        "document": "Contacts",
+        "metadata": {
+            "page_name": "contact",
+            "ocr_type": "link",
+            "type": "ocr",
+            "dom_matched": false,
+            "get_by_text": "Contacts",
+            "element_id": "cb416703-1f5a-42bf-83ed-2b4342b5420a",
+            "external": false,
+            "label_text": "Contacts",
+            "unique_name": "contact_contacts_link_contacts_action_b59021d7",
+            "intent": "contacts_action",
+            "placeholder": "Contacts"
+        }
+    },
+    {
+        "id": "cbca0e22-967b-4b60-9941-bd0e199ea16b",
+        "document": "Social Profiles",
+        "metadata": {
+            "page_name": "contact",
+            "element_id": "cbca0e22-967b-4b60-9941-bd0e199ea16b",
+            "type": "ocr",
+            "dom_matched": false,
+            "intent": "social_profiles_action",
+            "external": false,
+            "placeholder": "Social Profiles",
+            "ocr_type": "link",
+            "unique_name": "contact_social_profiles_link_social_profiles_action_392d5b06",
+            "label_text": "Social Profiles",
+            "get_by_text": "Social Profiles"
+        }
+    },
+    {
+        "id": "1baaf2bf-536f-4156-af45-1fb4a129e75f",
+        "document": "Cases",
+        "metadata": {
+            "page_name": "contact",
+            "unique_name": "contact_cases_link_cases_action_11dd34e7",
+            "external": false,
+            "type": "ocr",
+            "label_text": "Cases",
+            "element_id": "1baaf2bf-536f-4156-af45-1fb4a129e75f",
+            "placeholder": "Cases",
+            "ocr_type": "link",
+            "intent": "cases_action",
+            "dom_matched": false,
+            "get_by_text": "Cases"
+        }
+    },
+    {
+        "id": "46d288d3-a24f-446a-a3a3-29fa48aa135e",
+        "document": "Queues",
+        "metadata": {
+            "element_id": "46d288d3-a24f-446a-a3a3-29fa48aa135e",
+            "dom_matched": false,
+            "label_text": "Queues",
+            "page_name": "contact",
+            "intent": "queues_action",
+            "ocr_type": "link",
+            "unique_name": "contact_queues_link_queues_action_be7feae2",
+            "external": false,
+            "placeholder": "Queues",
+            "type": "ocr",
+            "get_by_text": "Queues"
+        }
+    },
+    {
+        "id": "c0ad4659-a3f1-4342-8f86-7e289f21525a",
+        "document": "Products",
+        "metadata": {
+            "type": "ocr",
+            "unique_name": "contact_products_link_products_action_2cd92053",
+            "get_by_text": "Products",
+            "dom_matched": false,
+            "external": false,
+            "page_name": "contact",
+            "placeholder": "Products",
+            "label_text": "Products",
+            "element_id": "c0ad4659-a3f1-4342-8f86-7e289f21525a",
+            "ocr_type": "link",
+            "intent": "products_action"
+        }
+    },
+    {
+        "id": "ae6a5649-683a-499f-bfc6-c74be6800d4d",
+        "document": "Service",
+        "metadata": {
+            "type": "ocr",
+            "element_id": "ae6a5649-683a-499f-bfc6-c74be6800d4d",
+            "dom_matched": false,
+            "label_text": "Service",
+            "unique_name": "contact_service_link_service_action_6afa52a9",
+            "ocr_type": "link",
+            "external": false,
+            "get_by_text": "Service",
+            "intent": "service_action",
+            "placeholder": "Service",
+            "page_name": "contact"
+        }
+    },
+    {
+        "id": "5fcb3564-2652-4a4f-8c08-5ced3ab0958c",
+        "document": "Focused view",
+        "metadata": {
+            "intent": "focused_view_action",
+            "get_by_text": "Focused view",
+            "element_id": "5fcb3564-2652-4a4f-8c08-5ced3ab0958c",
+            "type": "ocr",
+            "page_name": "contact",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "label_text": "Focused view",
+            "placeholder": "Focused view",
+            "unique_name": "contact_focused_view_button_focused_view_action_b72250e1",
+            "external": false
+        }
+    },
+    {
+        "id": "85175570-fbb0-43b2-a151-3191743ad5f7",
+        "document": "Show Chart",
+        "metadata": {
+            "get_by_text": "Show Chart",
+            "label_text": "Show Chart",
+            "element_id": "85175570-fbb0-43b2-a151-3191743ad5f7",
+            "placeholder": "Show Chart",
+            "external": false,
+            "dom_matched": false,
+            "intent": "show_chart_action",
+            "ocr_type": "button",
+            "type": "ocr",
+            "page_name": "contact",
+            "unique_name": "contact_show_chart_button_show_chart_action_fd871030"
+        }
+    },
+    {
+        "id": "6a189db5-895f-44a1-8a85-55860d7e81bf",
+        "document": "New",
+        "metadata": {
+            "element_id": "6a189db5-895f-44a1-8a85-55860d7e81bf",
+            "label_text": "New",
+            "get_by_text": "New",
+            "intent": "new_action",
+            "placeholder": "New",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "type": "ocr",
+            "external": false,
+            "unique_name": "contact_new_button_new_action_2d7462e9",
+            "page_name": "contact"
+        }
+    },
+    {
+        "id": "a9eaa0de-924d-40f5-8d81-eb29a7d3b7ec",
+        "document": "Delete",
+        "metadata": {
+            "label_text": "Delete",
+            "intent": "delete_action",
+            "element_id": "a9eaa0de-924d-40f5-8d81-eb29a7d3b7ec",
+            "unique_name": "contact_delete_button_delete_action_3dc7ba3b",
+            "type": "ocr",
+            "external": false,
+            "dom_matched": false,
+            "page_name": "contact",
+            "placeholder": "Delete",
+            "ocr_type": "button",
+            "get_by_text": "Delete"
+        }
+    },
+    {
+        "id": "d22165ea-c169-47ea-b243-acb012f8eccd",
+        "document": "Refresh",
+        "metadata": {
+            "external": false,
+            "unique_name": "contact_refresh_button_refresh_action_d3d87a45",
+            "type": "ocr",
+            "get_by_text": "Refresh",
+            "page_name": "contact",
+            "element_id": "d22165ea-c169-47ea-b243-acb012f8eccd",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "placeholder": "Refresh",
+            "label_text": "Refresh",
+            "intent": "refresh_action"
+        }
+    },
+    {
+        "id": "759766b0-7b31-4edc-89bf-d123c3a73909",
+        "document": "Visualize this view",
+        "metadata": {
+            "page_name": "contact",
+            "label_text": "Visualize this view",
+            "get_by_text": "Visualize this view",
+            "ocr_type": "button",
+            "type": "ocr",
+            "intent": "visualize_this_view_action",
+            "placeholder": "Visualize this view",
+            "dom_matched": false,
+            "unique_name": "contact_visualize_this_view_button_visualize_this_view_action_bf348324",
+            "external": false,
+            "element_id": "759766b0-7b31-4edc-89bf-d123c3a73909"
+        }
+    },
+    {
+        "id": "6c3a8620-983d-44c2-ae23-3a848ec04806",
+        "document": "My Active Contacts",
+        "metadata": {
+            "ocr_type": "select",
+            "page_name": "contact",
+            "unique_name": "contact_my_active_contacts_select_my_active_contacts_select_d545e2a9",
+            "intent": "my_active_contacts_select",
+            "element_id": "6c3a8620-983d-44c2-ae23-3a848ec04806",
+            "dom_matched": false,
+            "external": false,
+            "placeholder": "My Active Contacts",
+            "type": "ocr",
+            "label_text": "My Active Contacts",
+            "get_by_text": "My Active Contacts"
+        }
+    },
+    {
+        "id": "d7eb6f7f-59e8-4b82-b374-0461d4501114",
+        "document": "Full Name",
+        "metadata": {
+            "get_by_text": "Full Name",
+            "unique_name": "contact_full_name_select_full_name_select_69c1f780",
+            "intent": "full_name_select",
+            "dom_matched": false,
+            "element_id": "d7eb6f7f-59e8-4b82-b374-0461d4501114",
+            "placeholder": "Full Name",
+            "ocr_type": "select",
+            "external": false,
+            "page_name": "contact",
+            "type": "ocr",
+            "label_text": "Full Name"
+        }
+    },
+    {
+        "id": "a26844ca-9ec5-4668-998b-916b202383fb",
+        "document": "Email",
+        "metadata": {
+            "element_id": "a26844ca-9ec5-4668-998b-916b202383fb",
+            "get_by_text": "Email",
+            "ocr_type": "select",
+            "external": false,
+            "intent": "email_select",
+            "placeholder": "Email",
+            "label_text": "Email",
+            "dom_matched": false,
+            "unique_name": "contact_email_select_email_select_05ab97c5",
+            "page_name": "contact",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "66642151-71b5-43ee-9e6c-75016318e5e0",
+        "document": "Company Name",
+        "metadata": {
+            "type": "ocr",
+            "element_id": "66642151-71b5-43ee-9e6c-75016318e5e0",
+            "intent": "company_name_select",
+            "get_by_text": "Company Name",
+            "placeholder": "Company Name",
+            "unique_name": "contact_company_name_select_company_name_select_b51fe168",
+            "ocr_type": "select",
+            "dom_matched": false,
+            "page_name": "contact",
+            "external": false,
+            "label_text": "Company Name"
+        }
+    },
+    {
+        "id": "dc27bf17-b243-4873-bca7-e79e074a5dbc",
+        "document": "Business Phone",
+        "metadata": {
+            "element_id": "dc27bf17-b243-4873-bca7-e79e074a5dbc",
+            "type": "ocr",
+            "intent": "business_phone_select",
+            "external": false,
+            "label_text": "Business Phone",
+            "placeholder": "Business Phone",
+            "get_by_text": "Business Phone",
+            "page_name": "contact",
+            "unique_name": "contact_business_phone_select_business_phone_select_33e5ea02",
+            "dom_matched": false,
+            "ocr_type": "select"
+        }
+    },
+    {
+        "id": "e115f782-734a-4255-9120-274d0d7cc792",
+        "document": "Edit columns",
+        "metadata": {
+            "dom_matched": false,
+            "placeholder": "Edit columns",
+            "external": false,
+            "element_id": "e115f782-734a-4255-9120-274d0d7cc792",
+            "label_text": "Edit columns",
+            "ocr_type": "button",
+            "type": "ocr",
+            "unique_name": "contact_edit_columns_button_edit_columns_action_81e353c8",
+            "intent": "edit_columns_action",
+            "page_name": "contact",
+            "get_by_text": "Edit columns"
+        }
+    },
+    {
+        "id": "a14ae7f9-38be-4ee9-841a-ab777eba30b7",
+        "document": "Edit filters",
+        "metadata": {
+            "placeholder": "Edit filters",
+            "label_text": "Edit filters",
+            "type": "ocr",
+            "get_by_text": "Edit filters",
+            "intent": "edit_filters_action",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "unique_name": "contact_edit_filters_button_edit_filters_action_703f2fb9",
+            "element_id": "a14ae7f9-38be-4ee9-841a-ab777eba30b7",
+            "external": false,
+            "page_name": "contact"
+        }
+    },
+    {
+        "id": "e4929b4d-0e28-44cc-8e9e-3e46b02dd8fa",
+        "document": "Filter by keyword",
+        "metadata": {
+            "label_text": "Filter by keyword",
+            "element_id": "e4929b4d-0e28-44cc-8e9e-3e46b02dd8fa",
+            "unique_name": "contact_filter_by_keyword_textbox_filter_by_keyword_field_92958cf2",
+            "dom_matched": false,
+            "intent": "filter_by_keyword_field",
+            "page_name": "contact",
+            "get_by_text": "Filter by keyword",
+            "placeholder": "Filter by keyword",
+            "ocr_type": "textbox",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "ff2e5097-f46b-4112-9115-cdcd097d9621",
+        "document": "Share",
+        "metadata": {
+            "unique_name": "contact_share_button_share_action_35cbb267",
+            "placeholder": "Share",
+            "element_id": "ff2e5097-f46b-4112-9115-cdcd097d9621",
+            "page_name": "contact",
+            "intent": "share_action",
+            "get_by_text": "Share",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "external": false,
+            "type": "ocr",
+            "label_text": "Share"
+        }
+    }
+]

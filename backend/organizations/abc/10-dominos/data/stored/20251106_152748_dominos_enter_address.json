@@ -1,0 +1,223 @@
+[
+    {
+        "id": "369e6afe-75a5-4d6b-84b6-e4be40b94a86",
+        "document": "Order will be delivered here",
+        "metadata": {
+            "unique_name": "dominos_enter_address_order_will_be_delivered_here_label_order_will_be_delivered_here_info_ef9889b6",
+            "page_name": "dominos_enter_address",
+            "placeholder": "Order will be delivered here",
+            "element_id": "369e6afe-75a5-4d6b-84b6-e4be40b94a86",
+            "label_text": "Order will be delivered here",
+            "ocr_type": "label",
+            "get_by_text": "Order will be delivered here",
+            "type": "ocr",
+            "dom_matched": false,
+            "external": false,
+            "intent": "order_will_be_delivered_here_info"
+        }
+    },
+    {
+        "id": "5a4b5796-36d2-4808-bfa9-d833386ab462",
+        "document": "Login to fetch saved addresses",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "button",
+            "element_id": "5a4b5796-36d2-4808-bfa9-d833386ab462",
+            "unique_name": "dominos_enter_address_login_to_fetch_saved_addresses_button_login_to_fetch_saved_addresses_action_effce3fa",
+            "label_text": "Login to fetch saved addresses",
+            "placeholder": "Login to fetch saved addresses",
+            "external": false,
+            "intent": "login_to_fetch_saved_addresses_action",
+            "page_name": "dominos_enter_address",
+            "get_by_text": "Login to fetch saved addresses",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "87f8081f-0750-448c-b807-16e6faccc407",
+        "document": "Your Location",
+        "metadata": {
+            "get_by_text": "Your Location",
+            "page_name": "dominos_enter_address",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "unique_name": "dominos_enter_address_your_location_label_your_location_info_19afac8f",
+            "label_text": "Your Location",
+            "type": "ocr",
+            "external": false,
+            "intent": "your_location_info",
+            "placeholder": "Your Location",
+            "element_id": "87f8081f-0750-448c-b807-16e6faccc407"
+        }
+    },
+    {
+        "id": "5797b983-04b7-459a-8e39-52214970d44a",
+        "document": "Change",
+        "metadata": {
+            "label_text": "Change",
+            "unique_name": "dominos_enter_address_change_link_change_action_a22bf4dd",
+            "dom_matched": false,
+            "intent": "change_action",
+            "get_by_text": "Change",
+            "type": "ocr",
+            "ocr_type": "link",
+            "placeholder": "Change",
+            "element_id": "5797b983-04b7-459a-8e39-52214970d44a",
+            "page_name": "dominos_enter_address",
+            "external": false
+        }
+    },
+    {
+        "id": "7f0292f9-ec14-43a0-98bb-a0704baf61f4",
+        "document": "Building / House / Flat / Floor No",
+        "metadata": {
+            "ocr_type": "textbox",
+            "get_by_text": "Building / House / Flat / Floor No",
+            "element_id": "7f0292f9-ec14-43a0-98bb-a0704baf61f4",
+            "placeholder": "Building / House / Flat / Floor No",
+            "page_name": "dominos_enter_address",
+            "intent": "building_house_flat_floor_no_field",
+            "external": false,
+            "label_text": "Building / House / Flat / Floor No",
+            "dom_matched": false,
+            "type": "ocr",
+            "unique_name": "dominos_enter_address_building_/_house_/_flat_/_floor_no_textbox_building_house_flat_floor_no_field_f9689ea5"
+        }
+    },
+    {
+        "id": "f91d9e1e-5252-4306-8423-c7e822900a63",
+        "document": "Address",
+        "metadata": {
+            "page_name": "dominos_enter_address",
+            "type": "ocr",
+            "placeholder": "Address",
+            "ocr_type": "textbox",
+            "external": false,
+            "unique_name": "dominos_enter_address_address_textbox_address_field_3fd384b6",
+            "element_id": "f91d9e1e-5252-4306-8423-c7e822900a63",
+            "intent": "address_field",
+            "get_by_text": "Address",
+            "dom_matched": false,
+            "label_text": "Address"
+        }
+    },
+    {
+        "id": "86fc2eb8-37e3-48b5-b21f-f9b70852514f",
+        "document": "Home",
+        "metadata": {
+            "dom_matched": false,
+            "type": "ocr",
+            "intent": "home_action",
+            "unique_name": "dominos_enter_address_home_button_home_action_e99de200",
+            "page_name": "dominos_enter_address",
+            "label_text": "Home",
+            "get_by_text": "Home",
+            "element_id": "86fc2eb8-37e3-48b5-b21f-f9b70852514f",
+            "ocr_type": "button",
+            "placeholder": "Home",
+            "external": false
+        }
+    },
+    {
+        "id": "86612789-9662-4b15-b3d5-1421e92e28f8",
+        "document": "Office",
+        "metadata": {
+            "label_text": "Office",
+            "ocr_type": "button",
+            "external": false,
+            "get_by_text": "Office",
+            "intent": "office_action",
+            "page_name": "dominos_enter_address",
+            "placeholder": "Office",
+            "dom_matched": false,
+            "element_id": "86612789-9662-4b15-b3d5-1421e92e28f8",
+            "type": "ocr",
+            "unique_name": "dominos_enter_address_office_button_office_action_e7f45cc4"
+        }
+    },
+    {
+        "id": "207e29f9-3fd0-48c3-8636-57d6497b6219",
+        "document": "Shankarapura",
+        "metadata": {
+            "page_name": "dominos_enter_address",
+            "unique_name": "dominos_enter_address_shankarapura_button_shankarapura_action_0bdb7c1a",
+            "get_by_text": "Shankarapura",
+            "element_id": "207e29f9-3fd0-48c3-8636-57d6497b6219",
+            "label_text": "Shankarapura",
+            "placeholder": "Shankarapura",
+            "external": false,
+            "dom_matched": false,
+            "intent": "shankarapura_action",
+            "ocr_type": "button",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "d2c6d520-403f-4be5-8240-482c18010752",
+        "document": "Your Name",
+        "metadata": {
+            "get_by_text": "Your Name",
+            "element_id": "d2c6d520-403f-4be5-8240-482c18010752",
+            "external": false,
+            "ocr_type": "textbox",
+            "dom_matched": false,
+            "label_text": "Your Name",
+            "placeholder": "Your Name",
+            "intent": "your_name_field",
+            "page_name": "dominos_enter_address",
+            "type": "ocr",
+            "unique_name": "dominos_enter_address_your_name_textbox_your_name_field_a36b9f2a"
+        }
+    },
+    {
+        "id": "60c14612-95e2-45b3-b7fd-3c95e563a5ce",
+        "document": "Your Contact Number",
+        "metadata": {
+            "external": false,
+            "dom_matched": false,
+            "type": "ocr",
+            "unique_name": "dominos_enter_address_your_contact_number_textbox_your_contact_number_field_1da3d8e3",
+            "page_name": "dominos_enter_address",
+            "label_text": "Your Contact Number",
+            "intent": "your_contact_number_field",
+            "get_by_text": "Your Contact Number",
+            "element_id": "60c14612-95e2-45b3-b7fd-3c95e563a5ce",
+            "ocr_type": "textbox",
+            "placeholder": "Your Contact Number"
+        }
+    },
+    {
+        "id": "b63d1008-f96f-4454-8c3c-9bb8968cc954",
+        "document": "Order for Someone else",
+        "metadata": {
+            "intent": "order_for_someone_else_checkbox",
+            "ocr_type": "checkbox",
+            "type": "ocr",
+            "unique_name": "dominos_enter_address_order_for_someone_else_checkbox_order_for_someone_else_checkbox_bedc8bf5",
+            "external": false,
+            "dom_matched": false,
+            "get_by_text": "Order for Someone else",
+            "element_id": "b63d1008-f96f-4454-8c3c-9bb8968cc954",
+            "label_text": "Order for Someone else",
+            "placeholder": "Order for Someone else",
+            "page_name": "dominos_enter_address"
+        }
+    },
+    {
+        "id": "78481975-1373-441f-8b15-b367c40aa63c",
+        "document": "Save Address",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "button",
+            "element_id": "78481975-1373-441f-8b15-b367c40aa63c",
+            "placeholder": "Save Address",
+            "dom_matched": false,
+            "label_text": "Save Address",
+            "unique_name": "dominos_enter_address_save_address_button_save_address_action_1a2fcf4b",
+            "intent": "save_address_action",
+            "get_by_text": "Save Address",
+            "page_name": "dominos_enter_address",
+            "external": false
+        }
+    }
+]

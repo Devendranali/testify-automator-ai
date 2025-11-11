@@ -1,0 +1,138 @@
+[
+    {
+        "id": "913e7ddd-b981-4e57-aa39-5131c030684d",
+        "document": "Domino's",
+        "metadata": {
+            "get_by_text": "Domino's",
+            "label_text": "Domino's",
+            "external": false,
+            "page_name": "dominos_login",
+            "element_id": "913e7ddd-b981-4e57-aa39-5131c030684d",
+            "type": "ocr",
+            "unique_name": "dominos_login_dominos_label_dominos_info_6c5099f0",
+            "intent": "dominos_info",
+            "placeholder": "Domino's",
+            "dom_matched": false,
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "35eff07f-49d7-4d59-8750-6b143092c1ab",
+        "document": "Skip",
+        "metadata": {
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "link",
+            "dom_matched": false,
+            "element_id": "35eff07f-49d7-4d59-8750-6b143092c1ab",
+            "placeholder": "Skip",
+            "page_name": "dominos_login",
+            "get_by_text": "Skip",
+            "label_text": "Skip",
+            "unique_name": "dominos_login_skip_link_skip_action_eedcad71",
+            "intent": "skip_action"
+        }
+    },
+    {
+        "id": "5b41b924-eef8-4821-b430-6312f0105ae2",
+        "document": "Personalized Offers",
+        "metadata": {
+            "external": false,
+            "get_by_text": "Personalized Offers",
+            "placeholder": "Personalized Offers",
+            "intent": "personalized_offers_info",
+            "label_text": "Personalized Offers",
+            "element_id": "5b41b924-eef8-4821-b430-6312f0105ae2",
+            "unique_name": "dominos_login_personalized_offers_label_personalized_offers_info_3484a796",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "page_name": "dominos_login",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "e8e0438c-dd1b-48d2-870a-a5a9860cf3c8",
+        "document": "Loyalty Rewards",
+        "metadata": {
+            "get_by_text": "Loyalty Rewards",
+            "unique_name": "dominos_login_loyalty_rewards_label_loyalty_rewards_info_3ebf06e1",
+            "intent": "loyalty_rewards_info",
+            "external": false,
+            "ocr_type": "label",
+            "element_id": "e8e0438c-dd1b-48d2-870a-a5a9860cf3c8",
+            "placeholder": "Loyalty Rewards",
+            "label_text": "Loyalty Rewards",
+            "page_name": "dominos_login",
+            "type": "ocr",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "b8225780-52d5-43cf-a551-f1b181a99601",
+        "document": "Easy Payments",
+        "metadata": {
+            "label_text": "Easy Payments",
+            "placeholder": "Easy Payments",
+            "unique_name": "dominos_login_easy_payments_label_easy_payments_info_a42eca10",
+            "ocr_type": "label",
+            "element_id": "b8225780-52d5-43cf-a551-f1b181a99601",
+            "page_name": "dominos_login",
+            "intent": "easy_payments_info",
+            "external": false,
+            "type": "ocr",
+            "get_by_text": "Easy Payments",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "1381b919-a9b9-4f37-88ca-d99541184dd3",
+        "document": "Mobile Number",
+        "metadata": {
+            "get_by_text": "Mobile Number",
+            "label_text": "Mobile Number",
+            "intent": "mobile_number_field",
+            "ocr_type": "textbox",
+            "external": false,
+            "type": "ocr",
+            "element_id": "1381b919-a9b9-4f37-88ca-d99541184dd3",
+            "page_name": "dominos_login",
+            "unique_name": "dominos_login_mobile_number_textbox_mobile_number_field_5df778df",
+            "placeholder": "Mobile Number",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "8ed06066-915b-45de-8c49-507adf72d85c",
+        "document": "Send OTP",
+        "metadata": {
+            "unique_name": "dominos_login_send_otp_button_send_otp_action_9284957a",
+            "intent": "send_otp_action",
+            "get_by_text": "Send OTP",
+            "page_name": "dominos_login",
+            "label_text": "Send OTP",
+            "element_id": "8ed06066-915b-45de-8c49-507adf72d85c",
+            "type": "ocr",
+            "placeholder": "Send OTP",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "external": false
+        }
+    },
+    {
+        "id": "9ac827c6-35e9-43be-8e43-1d969b56d971",
+        "document": "Terms & Conditions",
+        "metadata": {
+            "unique_name": "dominos_login_terms_&_conditions_link_terms_conditions_action_9f19d920",
+            "external": false,
+            "label_text": "Terms & Conditions",
+            "intent": "terms_conditions_action",
+            "type": "ocr",
+            "placeholder": "Terms & Conditions",
+            "ocr_type": "link",
+            "get_by_text": "Terms & Conditions",
+            "page_name": "dominos_login",
+            "element_id": "9ac827c6-35e9-43be-8e43-1d969b56d971",
+            "dom_matched": false
+        }
+    }
+]

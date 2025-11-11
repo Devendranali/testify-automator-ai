@@ -1,0 +1,189 @@
+[
+    {
+        "id": "dc92b1cf-a8dd-4a8f-a97d-ba376b21a3b2",
+        "document": "plaintext",
+        "metadata": {
+            "ocr_type": "label",
+            "placeholder": "plaintext",
+            "dom_matched": false,
+            "unique_name": "detail2_plaintext_label_plaintext_info_5991746c",
+            "element_id": "dc92b1cf-a8dd-4a8f-a97d-ba376b21a3b2",
+            "intent": "plaintext_info",
+            "get_by_text": "plaintext",
+            "page_name": "detail2",
+            "external": false,
+            "label_text": "plaintext",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "24453a2e-ffa7-4d32-ab4b-4e6573981809",
+        "document": "Credit Hold",
+        "metadata": {
+            "intent": "credit_hold_select",
+            "label_text": "Credit Hold",
+            "get_by_text": "Credit Hold",
+            "page_name": "detail2",
+            "dom_matched": false,
+            "unique_name": "detail2_credit_hold_select_credit_hold_select_bd0f2778",
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "select",
+            "element_id": "24453a2e-ffa7-4d32-ab4b-4e6573981809",
+            "placeholder": "Credit Hold"
+        }
+    },
+    {
+        "id": "f06cad15-9897-4a29-a7b4-6e86a4fd9c8a",
+        "document": "Payment Terms",
+        "metadata": {
+            "page_name": "detail2",
+            "unique_name": "detail2_payment_terms_select_payment_terms_select_d9eb31f9",
+            "get_by_text": "Payment Terms",
+            "placeholder": "Payment Terms",
+            "intent": "payment_terms_select",
+            "ocr_type": "select",
+            "element_id": "f06cad15-9897-4a29-a7b4-6e86a4fd9c8a",
+            "label_text": "Payment Terms",
+            "external": false,
+            "dom_matched": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "e0db0068-593c-4f00-9fd2-15dd453d4c00",
+        "document": "Marketing Materials",
+        "metadata": {
+            "ocr_type": "select",
+            "page_name": "detail2",
+            "element_id": "e0db0068-593c-4f00-9fd2-15dd453d4c00",
+            "external": false,
+            "intent": "marketing_materials_select",
+            "placeholder": "Marketing Materials",
+            "unique_name": "detail2_marketing_materials_select_marketing_materials_select_47d53621",
+            "get_by_text": "Marketing Materials",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Marketing Materials"
+        }
+    },
+    {
+        "id": "d1e3200f-f537-41c9-aab8-149405fc8283",
+        "document": "Source journey",
+        "metadata": {
+            "unique_name": "detail2_source_journey_textbox_source_journey_field_7683fc1b",
+            "intent": "source_journey_field",
+            "ocr_type": "textbox",
+            "get_by_text": "Source journey",
+            "label_text": "Source journey",
+            "external": false,
+            "element_id": "d1e3200f-f537-41c9-aab8-149405fc8283",
+            "page_name": "detail2",
+            "placeholder": "Source journey",
+            "type": "ocr",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "9591b5de-b0db-4695-9b37-1e45576a57e6",
+        "document": "Source email",
+        "metadata": {
+            "element_id": "9591b5de-b0db-4695-9b37-1e45576a57e6",
+            "page_name": "detail2",
+            "get_by_text": "Source email",
+            "label_text": "Source email",
+            "intent": "source_email_field",
+            "dom_matched": false,
+            "placeholder": "Source email",
+            "unique_name": "detail2_source_email_textbox_source_email_field_ff13f0fc",
+            "ocr_type": "textbox",
+            "type": "ocr",
+            "external": false
+        }
+    },
+    {
+        "id": "13fd1561-e47a-4a0c-a246-c9e4efdf94b6",
+        "document": "Source marketing form",
+        "metadata": {
+            "page_name": "detail2",
+            "ocr_type": "textbox",
+            "get_by_text": "Source marketing form",
+            "label_text": "Source marketing form",
+            "unique_name": "detail2_source_marketing_form_textbox_source_marketing_form_field_6754886e",
+            "element_id": "13fd1561-e47a-4a0c-a246-c9e4efdf94b6",
+            "type": "ocr",
+            "dom_matched": false,
+            "placeholder": "Source marketing form",
+            "external": false,
+            "intent": "source_marketing_form_field"
+        }
+    },
+    {
+        "id": "ce95549a-fd90-40af-971f-60c55d4e2280",
+        "document": "Contact Method",
+        "metadata": {
+            "get_by_text": "Contact Method",
+            "ocr_type": "select",
+            "label_text": "Contact Method",
+            "placeholder": "Contact Method",
+            "type": "ocr",
+            "dom_matched": false,
+            "page_name": "detail2",
+            "external": false,
+            "intent": "contact_method_select",
+            "element_id": "ce95549a-fd90-40af-971f-60c55d4e2280",
+            "unique_name": "detail2_contact_method_select_contact_method_select_df2cf53e"
+        }
+    },
+    {
+        "id": "a877be45-c207-4b2e-9a9c-78d92d15a702",
+        "document": "Email",
+        "metadata": {
+            "label_text": "Email",
+            "page_name": "detail2",
+            "unique_name": "detail2_email_select_email_select_b4aae5a7",
+            "intent": "email_select",
+            "external": false,
+            "get_by_text": "Email",
+            "element_id": "a877be45-c207-4b2e-9a9c-78d92d15a702",
+            "placeholder": "Email",
+            "type": "ocr",
+            "ocr_type": "select",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "b403e339-c506-40c1-9e52-ebbed4fef1ea",
+        "document": "Follow Email",
+        "metadata": {
+            "dom_matched": false,
+            "intent": "follow_email_select",
+            "label_text": "Follow Email",
+            "ocr_type": "select",
+            "page_name": "detail2",
+            "placeholder": "Follow Email",
+            "external": false,
+            "element_id": "b403e339-c506-40c1-9e52-ebbed4fef1ea",
+            "get_by_text": "Follow Email",
+            "type": "ocr",
+            "unique_name": "detail2_follow_email_select_follow_email_select_5fc95414"
+        }
+    },
+    {
+        "id": "7637c233-6915-4ee4-817a-168c4dca4b54",
+        "document": "Bulk Email",
+        "metadata": {
+            "page_name": "detail2",
+            "get_by_text": "Bulk Email",
+            "intent": "bulk_email_select",
+            "dom_matched": false,
+            "label_text": "Bulk Email",
+            "unique_name": "detail2_bulk_email_select_bulk_email_select_293b792b",
+            "ocr_type": "select",
+            "element_id": "7637c233-6915-4ee4-817a-168c4dca4b54",
+            "placeholder": "Bulk Email",
+            "external": false,
+            "type": "ocr"
+        }
+    }
+]

@@ -1,0 +1,155 @@
+[
+    {
+        "id": "3d7e1510-340a-4182-bb8c-759619284189",
+        "document": "plaintext",
+        "metadata": {
+            "placeholder": "plaintext",
+            "external": false,
+            "element_id": "3d7e1510-340a-4182-bb8c-759619284189",
+            "get_by_text": "plaintext",
+            "page_name": "bank_customer",
+            "type": "ocr",
+            "label_text": "plaintext",
+            "dom_matched": false,
+            "ocr_type": "label",
+            "unique_name": "bank_customer_plaintext_label_plaintext_info_5adffc4e",
+            "intent": "plaintext_info"
+        }
+    },
+    {
+        "id": "8e6e9a69-40e8-43e4-b588-ca172633e8ae",
+        "document": "Bank CRM",
+        "metadata": {
+            "unique_name": "bank_customer_bank_crm_label_bank_crm_info_e81414fe",
+            "element_id": "8e6e9a69-40e8-43e4-b588-ca172633e8ae",
+            "label_text": "Bank CRM",
+            "ocr_type": "label",
+            "type": "ocr",
+            "placeholder": "Bank CRM",
+            "external": false,
+            "page_name": "bank_customer",
+            "intent": "bank_crm_info",
+            "get_by_text": "Bank CRM",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "5d78fdda-e7a8-47bf-9134-84679590e352",
+        "document": "Search customers, loans, transactions...",
+        "metadata": {
+            "ocr_type": "textbox",
+            "dom_matched": false,
+            "placeholder": "Search customers, loans, transactions...",
+            "get_by_text": "Search customers, loans, transactions...",
+            "external": false,
+            "label_text": "Search customers, loans, transactions...",
+            "unique_name": "bank_customer_search_customers,_loans,_transactions..._textbox_search_customers_loans_transactions_field_00b5deeb",
+            "page_name": "bank_customer",
+            "intent": "search_customers_loans_transactions_field",
+            "element_id": "5d78fdda-e7a8-47bf-9134-84679590e352",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "1390701b-765b-48f2-b02e-987a160d1a1f",
+        "document": "Customers",
+        "metadata": {
+            "dom_matched": false,
+            "ocr_type": "label",
+            "element_id": "1390701b-765b-48f2-b02e-987a160d1a1f",
+            "placeholder": "Customers",
+            "label_text": "Customers",
+            "type": "ocr",
+            "get_by_text": "Customers",
+            "intent": "customers_info",
+            "page_name": "bank_customer",
+            "external": false,
+            "unique_name": "bank_customer_customers_label_customers_info_89afecf2"
+        }
+    },
+    {
+        "id": "31fc282f-d0ef-458b-85fd-4637128fb0b6",
+        "document": "Search customers...",
+        "metadata": {
+            "label_text": "Search customers...",
+            "dom_matched": false,
+            "type": "ocr",
+            "external": false,
+            "intent": "search_customers_field",
+            "page_name": "bank_customer",
+            "placeholder": "Search customers...",
+            "get_by_text": "Search customers...",
+            "unique_name": "bank_customer_search_customers..._textbox_search_customers_field_4073572f",
+            "ocr_type": "textbox",
+            "element_id": "31fc282f-d0ef-458b-85fd-4637128fb0b6"
+        }
+    },
+    {
+        "id": "26aec9f7-0e42-434a-8c70-c0c35c74a2cd",
+        "document": "Export",
+        "metadata": {
+            "placeholder": "Export",
+            "unique_name": "bank_customer_export_button_export_action_30d6b1cb",
+            "label_text": "Export",
+            "intent": "export_action",
+            "get_by_text": "Export",
+            "type": "ocr",
+            "dom_matched": false,
+            "external": false,
+            "element_id": "26aec9f7-0e42-434a-8c70-c0c35c74a2cd",
+            "page_name": "bank_customer",
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "bcd1deaa-4424-4bcd-b22e-c71cf5561f6d",
+        "document": "Add new Customer",
+        "metadata": {
+            "type": "ocr",
+            "unique_name": "bank_customer_add_new_customer_button_add_new_customer_action_62f3d845",
+            "label_text": "Add new Customer",
+            "external": false,
+            "get_by_text": "Add new Customer",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "element_id": "bcd1deaa-4424-4bcd-b22e-c71cf5561f6d",
+            "page_name": "bank_customer",
+            "placeholder": "Add new Customer",
+            "intent": "add_new_customer_action"
+        }
+    },
+    {
+        "id": "28b7e952-800e-4f70-bdda-b0ba87ba9ebd",
+        "document": "Filters",
+        "metadata": {
+            "type": "ocr",
+            "ocr_type": "button",
+            "intent": "filters_action",
+            "unique_name": "bank_customer_filters_button_filters_action_16b8862e",
+            "external": false,
+            "get_by_text": "Filters",
+            "label_text": "Filters",
+            "element_id": "28b7e952-800e-4f70-bdda-b0ba87ba9ebd",
+            "placeholder": "Filters",
+            "page_name": "bank_customer",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "b310f907-9062-4947-a5bd-3ca06adaf29b",
+        "document": "Edit with Lovable",
+        "metadata": {
+            "page_name": "bank_customer",
+            "unique_name": "bank_customer_edit_with_lovable_button_edit_with_lovable_action_c8e810be",
+            "element_id": "b310f907-9062-4947-a5bd-3ca06adaf29b",
+            "type": "ocr",
+            "intent": "edit_with_lovable_action",
+            "label_text": "Edit with Lovable",
+            "dom_matched": false,
+            "placeholder": "Edit with Lovable",
+            "ocr_type": "button",
+            "external": false,
+            "get_by_text": "Edit with Lovable"
+        }
+    }
+]

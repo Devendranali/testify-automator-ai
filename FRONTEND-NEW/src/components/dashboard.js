@@ -10,6 +10,7 @@ const Dashboard = ({
   expandedProjectKey,
   loadingProjectKey,
   getProjectKey,
+  hideRecentProjects = false,
 }) => {
   const totalProjects = Array.isArray(projects) ? projects.length : 0;
 
@@ -56,86 +57,95 @@ const Dashboard = ({
         </div>
       </div>
 
-      <div className={styles.recentProjectsHeader}>
-        <h1 className={styles.recentProjectsTitle}>Recent Projects</h1>
-        <button className={styles.viewAllButton}>
-          View All Projects <i className="fa-solid fa-circle-chevron-down"></i>
-        </button>
-      </div>
+      {hideRecentProjects ? (
+        <div className={styles.projectListDormant}>
+          <h2>Editor in focus</h2>
+          <p>Close the editor to return to your recent projects.</p>
+        </div>
+      ) : (
+        <>
+          <div className={styles.recentProjectsHeader}>
+            <h1 className={styles.recentProjectsTitle}>Recent Projects</h1>
+            <button className={styles.viewAllButton}>
+              View All Projects <i className="fa-solid fa-circle-chevron-down"></i>
+            </button>
+          </div>
 
-      <div className={styles.projectList}>
-        {totalProjects === 0 ? (
-          <div style={{ color: "#666" }}>No projects yet. Create one to get started.</div>
-        ) : (
-          projects.map((p, idx) => {
-            const projectKey = resolveProjectKey(p, idx);
-            const isActive = expandedProjectKey === projectKey;
-            const isLoading = loadingProjectKey === projectKey;
+          <div className={styles.projectList}>
+            {totalProjects === 0 ? (
+              <div style={{ color: "#666" }}>No projects yet. Create one to get started.</div>
+            ) : (
+              projects.map((p, idx) => {
+                const projectKey = resolveProjectKey(p, idx);
+                const isActive = expandedProjectKey === projectKey;
+                const isLoading = loadingProjectKey === projectKey;
 
-            return (
-              <div
-                key={projectKey}
-                className={`${styles.projectCard} ${isActive ? styles.projectCardActive : ""}`}
-              >
-                <div className={styles.projectCardHeader}>
-                  <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
-                  <div className={styles.projectCardMeta}>
-                    <span className={styles.projectStatus}>saved</span>
-                    <button
-                      type="button"
-                      className={styles.deleteButton}
-                      onClick={() => onDelete && onDelete(p)}
-                      aria-label={`Delete ${p.project_name}`}
-                    >
-                      <i className="fa-solid fa-trash" aria-hidden="true"></i>
-                    </button>
+                return (
+                  <div
+                    key={projectKey}
+                    className={`${styles.projectCard} ${isActive ? styles.projectCardActive : ""}`}
+                  >
+                    <div className={styles.projectCardHeader}>
+                      <h2 className={styles.projectCardTitle}>{p.project_name}</h2>
+                      <div className={styles.projectCardMeta}>
+                        <span className={styles.projectStatus}>saved</span>
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => onDelete && onDelete(p)}
+                          aria-label={`Delete ${p.project_name}`}
+                        >
+                          <i className="fa-solid fa-trash" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className={styles.projectDescription}>
+                      {(p.framework || "").trim()} {p.language ? ` / ${p.language}` : ""}
+                    </p>
+
+                    <div className={styles.projectDetails}>
+                      <div className={styles.projectDetailRow}>
+                        <span className={styles.projectDetailLabel}>Created</span>
+                        <strong className={styles.projectDetailValue}>
+                          {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <hr className={styles.projectCardDivider} />
+
+                    <div className={styles.projectCardActions}>
+                      <button
+                        className={styles.actionButton}
+                        onClick={() => onToggle && onToggle(p, projectKey)}
+                      >
+                        <i className="fa-solid fa-gear"></i> Configure
+                      </button>
+                      <button
+                        className={styles.actionButton}
+                        onClick={() => onDownload && onDownload(p)}
+                      >
+                        <i className="fa-solid fa-download"></i> Download
+                      </button>
+                      <button
+                        className={styles.executeButton}
+                        onClick={() => onOpen && onOpen(p)}
+                      >
+                        <i className="fa-solid fa-play"></i> Open
+                      </button>
+                    </div>
+
+                    {isActive && isLoading && (
+                      <p className={styles.projectInlineLoading}>Loading...</p>
+                    )}
                   </div>
-                </div>
-
-                <p className={styles.projectDescription}>
-                  {(p.framework || "").trim()} {p.language ? ` / ${p.language}` : ""}
-                </p>
-
-                <div className={styles.projectDetails}>
-                  <div className={styles.projectDetailRow}>
-                    <span className={styles.projectDetailLabel}>Created</span>
-                    <strong className={styles.projectDetailValue}>
-                      {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
-                    </strong>
-                  </div>
-                </div>
-
-                <hr className={styles.projectCardDivider} />
-
-                <div className={styles.projectCardActions}>
-                  <button
-                    className={styles.actionButton}
-                    onClick={() => onToggle && onToggle(p, projectKey)}
-                  >
-                    <i className="fa-solid fa-gear"></i> Configure
-                  </button>
-                  <button
-                    className={styles.actionButton}
-                    onClick={() => onDownload && onDownload(p)}
-                  >
-                    <i className="fa-solid fa-download"></i> Download
-                  </button>
-                  <button
-                    className={styles.executeButton}
-                    onClick={() => onOpen && onOpen(p)}
-                  >
-                    <i className="fa-solid fa-play"></i> Open
-                  </button>
-                </div>
-
-                {isActive && isLoading && (
-                  <p className={styles.projectInlineLoading}>Loading...</p>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

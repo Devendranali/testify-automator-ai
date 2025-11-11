@@ -97,6 +97,15 @@
   justify-items: center;
 }
 
+.projectListDormant {
+  padding: clamp(1.5rem, 5vw, 3rem);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background-color: var(--color-white);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
 /* ---------- PROJECT CARD ---------- */
 .projectCard {
   background-color: var(--color-white);

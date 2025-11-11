@@ -1,0 +1,189 @@
+[
+    {
+        "id": "5144eee3-7f66-42d7-a006-dc1e1d6c5e9d",
+        "document": "Give us your exact location",
+        "metadata": {
+            "type": "ocr",
+            "placeholder": "Give us your exact location",
+            "intent": "give_us_your_exact_location_action",
+            "ocr_type": "button",
+            "element_id": "5144eee3-7f66-42d7-a006-dc1e1d6c5e9d",
+            "label_text": "Give us your exact location",
+            "get_by_text": "Give us your exact location",
+            "dom_matched": false,
+            "page_name": "dominos_main",
+            "external": false,
+            "unique_name": "dominos_main_give_us_your_exact_location_button_give_us_your_exact_location_action_6dda9406"
+        }
+    },
+    {
+        "id": "5f504fb6-713c-453f-8961-705efd4fbbc3",
+        "document": "Detect location",
+        "metadata": {
+            "element_id": "5f504fb6-713c-453f-8961-705efd4fbbc3",
+            "external": false,
+            "intent": "detect_location_action",
+            "placeholder": "Detect location",
+            "type": "ocr",
+            "ocr_type": "button",
+            "page_name": "dominos_main",
+            "get_by_text": "Detect location",
+            "dom_matched": false,
+            "unique_name": "dominos_main_detect_location_button_detect_location_action_20e0a246",
+            "label_text": "Detect location"
+        }
+    },
+    {
+        "id": "77dfdc5a-db4d-492b-a99b-f60b262f9150",
+        "document": "Delivery",
+        "metadata": {
+            "ocr_type": "select",
+            "element_id": "77dfdc5a-db4d-492b-a99b-f60b262f9150",
+            "get_by_text": "Delivery",
+            "intent": "delivery_select",
+            "type": "ocr",
+            "placeholder": "Delivery",
+            "dom_matched": false,
+            "page_name": "dominos_main",
+            "external": false,
+            "unique_name": "dominos_main_delivery_select_delivery_select_f274deb7",
+            "label_text": "Delivery"
+        }
+    },
+    {
+        "id": "1ec03869-6d22-4234-b4a6-63d779cfb3ee",
+        "document": "Takeaway",
+        "metadata": {
+            "label_text": "Takeaway",
+            "placeholder": "Takeaway",
+            "intent": "takeaway_select",
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Takeaway",
+            "ocr_type": "select",
+            "external": false,
+            "unique_name": "dominos_main_takeaway_select_takeaway_select_0524dea9",
+            "element_id": "1ec03869-6d22-4234-b4a6-63d779cfb3ee",
+            "page_name": "dominos_main"
+        }
+    },
+    {
+        "id": "5f959f8e-69d2-431b-9df3-77f13592a633",
+        "document": "Dine - in",
+        "metadata": {
+            "label_text": "Dine - in",
+            "placeholder": "Dine - in",
+            "intent": "dine_in_select",
+            "external": false,
+            "ocr_type": "select",
+            "type": "ocr",
+            "page_name": "dominos_main",
+            "dom_matched": false,
+            "element_id": "5f959f8e-69d2-431b-9df3-77f13592a633",
+            "unique_name": "dominos_main_dine_-_in_select_dine_in_select_9e113140",
+            "get_by_text": "Dine - in"
+        }
+    },
+    {
+        "id": "5eb10c5b-848f-4bde-a0dd-aae6dfcd7fc5",
+        "document": "Get ₹30 OFF",
+        "metadata": {
+            "intent": "get_30_off_action",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "get_by_text": "Get ₹30 OFF",
+            "element_id": "5eb10c5b-848f-4bde-a0dd-aae6dfcd7fc5",
+            "type": "ocr",
+            "page_name": "dominos_main",
+            "unique_name": "dominos_main_get_₹30_off_button_get_30_off_action_cd6f5e88",
+            "label_text": "Get ₹30 OFF",
+            "placeholder": "Get ₹30 OFF",
+            "external": false
+        }
+    },
+    {
+        "id": "56ae7f2c-de92-45c4-a53f-4e3d879adf61",
+        "document": "View",
+        "metadata": {
+            "unique_name": "dominos_main_view_button_view_action_28d05804",
+            "intent": "view_action",
+            "type": "ocr",
+            "dom_matched": false,
+            "external": false,
+            "get_by_text": "View",
+            "element_id": "56ae7f2c-de92-45c4-a53f-4e3d879adf61",
+            "page_name": "dominos_main",
+            "label_text": "View",
+            "placeholder": "View",
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "c2784cf6-bad2-4268-bd8f-ce6bb8052c85",
+        "document": "Top 10 Bestsellers",
+        "metadata": {
+            "external": false,
+            "dom_matched": false,
+            "ocr_type": "label",
+            "label_text": "Top 10 Bestsellers",
+            "placeholder": "Top 10 Bestsellers",
+            "page_name": "dominos_main",
+            "get_by_text": "Top 10 Bestsellers",
+            "intent": "top_10_bestsellers_info",
+            "type": "ocr",
+            "unique_name": "dominos_main_top_10_bestsellers_label_top_10_bestsellers_info_b54ae143",
+            "element_id": "c2784cf6-bad2-4268-bd8f-ce6bb8052c85"
+        }
+    },
+    {
+        "id": "c4f6208f-0c6b-4cac-a8d1-5092a4a94dc7",
+        "document": "In Bangalore",
+        "metadata": {
+            "external": false,
+            "get_by_text": "In Bangalore",
+            "placeholder": "In Bangalore",
+            "dom_matched": false,
+            "type": "ocr",
+            "page_name": "dominos_main",
+            "element_id": "c4f6208f-0c6b-4cac-a8d1-5092a4a94dc7",
+            "intent": "in_bangalore_info",
+            "ocr_type": "label",
+            "label_text": "In Bangalore",
+            "unique_name": "dominos_main_in_bangalore_label_in_bangalore_info_a7ee7b37"
+        }
+    },
+    {
+        "id": "7f896765-204e-432b-bf4d-31bafca7cb53",
+        "document": "Menu",
+        "metadata": {
+            "intent": "menu_action",
+            "external": false,
+            "page_name": "dominos_main",
+            "type": "ocr",
+            "ocr_type": "button",
+            "element_id": "7f896765-204e-432b-bf4d-31bafca7cb53",
+            "placeholder": "Menu",
+            "label_text": "Menu",
+            "get_by_text": "Menu",
+            "unique_name": "dominos_main_menu_button_menu_action_795e0131",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "1f410a07-3701-467a-87d7-6f2d9a175dce",
+        "document": "Offers",
+        "metadata": {
+            "get_by_text": "Offers",
+            "unique_name": "dominos_main_offers_button_offers_action_b9d069b6",
+            "ocr_type": "button",
+            "dom_matched": false,
+            "intent": "offers_action",
+            "type": "ocr",
+            "placeholder": "Offers",
+            "label_text": "Offers",
+            "external": false,
+            "page_name": "dominos_main",
+            "element_id": "1f410a07-3701-467a-87d7-6f2d9a175dce"
+        }
+    }
+]

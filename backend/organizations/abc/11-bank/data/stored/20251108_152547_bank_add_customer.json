@@ -1,0 +1,172 @@
+[
+    {
+        "id": "a3993903-22a1-4395-9ac7-a657a1344a44",
+        "document": "Full Name",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "get_by_text": "Full Name",
+            "element_id": "a3993903-22a1-4395-9ac7-a657a1344a44",
+            "ocr_type": "textbox",
+            "label_text": "Full Name",
+            "external": false,
+            "placeholder": "Full Name",
+            "page_name": "bank_add_customer",
+            "intent": "full_name_field",
+            "unique_name": "bank_add_customer_full_name_textbox_full_name_field_40e113c6"
+        }
+    },
+    {
+        "id": "48d00fd5-4f07-47e6-8456-767a6156222a",
+        "document": "Email",
+        "metadata": {
+            "external": false,
+            "element_id": "48d00fd5-4f07-47e6-8456-767a6156222a",
+            "intent": "email_field",
+            "get_by_text": "Email",
+            "page_name": "bank_add_customer",
+            "label_text": "Email",
+            "dom_matched": false,
+            "placeholder": "Email",
+            "ocr_type": "textbox",
+            "type": "ocr",
+            "unique_name": "bank_add_customer_email_textbox_email_field_85d360b6"
+        }
+    },
+    {
+        "id": "a6364408-181e-4331-afee-e15cba6a20a0",
+        "document": "Phone Number",
+        "metadata": {
+            "placeholder": "Phone Number",
+            "external": false,
+            "intent": "phone_number_field",
+            "label_text": "Phone Number",
+            "dom_matched": false,
+            "type": "ocr",
+            "page_name": "bank_add_customer",
+            "get_by_text": "Phone Number",
+            "element_id": "a6364408-181e-4331-afee-e15cba6a20a0",
+            "ocr_type": "textbox",
+            "unique_name": "bank_add_customer_phone_number_textbox_phone_number_field_842781f1"
+        }
+    },
+    {
+        "id": "374ff5fd-3bf9-4549-9529-2ee7e338d2a1",
+        "document": "Account Type",
+        "metadata": {
+            "page_name": "bank_add_customer",
+            "unique_name": "bank_add_customer_account_type_select_account_type_select_350a177a",
+            "label_text": "Account Type",
+            "external": false,
+            "ocr_type": "select",
+            "get_by_text": "Account Type",
+            "type": "ocr",
+            "dom_matched": false,
+            "element_id": "374ff5fd-3bf9-4549-9529-2ee7e338d2a1",
+            "placeholder": "Account Type",
+            "intent": "account_type_select"
+        }
+    },
+    {
+        "id": "bb6f5414-9568-4730-98bb-bf3fb1cf0ec8",
+        "document": "Address",
+        "metadata": {
+            "element_id": "bb6f5414-9568-4730-98bb-bf3fb1cf0ec8",
+            "label_text": "Address",
+            "external": false,
+            "unique_name": "bank_add_customer_address_textbox_address_field_0fe8df05",
+            "type": "ocr",
+            "get_by_text": "Address",
+            "ocr_type": "textbox",
+            "intent": "address_field",
+            "placeholder": "Address",
+            "dom_matched": false,
+            "page_name": "bank_add_customer"
+        }
+    },
+    {
+        "id": "fd4c8756-980e-4aa0-95c8-c112c1e93eb4",
+        "document": "Occupation",
+        "metadata": {
+            "placeholder": "Occupation",
+            "external": false,
+            "unique_name": "bank_add_customer_occupation_textbox_occupation_field_c89f7c78",
+            "type": "ocr",
+            "get_by_text": "Occupation",
+            "page_name": "bank_add_customer",
+            "intent": "occupation_field",
+            "ocr_type": "textbox",
+            "element_id": "fd4c8756-980e-4aa0-95c8-c112c1e93eb4",
+            "dom_matched": false,
+            "label_text": "Occupation"
+        }
+    },
+    {
+        "id": "4746e3ff-2b7e-424d-8354-bf5c5cbd3687",
+        "document": "Annual Income",
+        "metadata": {
+            "ocr_type": "textbox",
+            "element_id": "4746e3ff-2b7e-424d-8354-bf5c5cbd3687",
+            "get_by_text": "Annual Income",
+            "unique_name": "bank_add_customer_annual_income_textbox_annual_income_field_8c15d088",
+            "type": "ocr",
+            "label_text": "Annual Income",
+            "placeholder": "Annual Income",
+            "external": false,
+            "intent": "annual_income_field",
+            "dom_matched": false,
+            "page_name": "bank_add_customer"
+        }
+    },
+    {
+        "id": "6b98b9ab-9e0a-4c4a-a95e-70dbd943f4df",
+        "document": "Initial Deposit",
+        "metadata": {
+            "label_text": "Initial Deposit",
+            "element_id": "6b98b9ab-9e0a-4c4a-a95e-70dbd943f4df",
+            "ocr_type": "textbox",
+            "intent": "initial_deposit_field",
+            "placeholder": "Initial Deposit",
+            "external": false,
+            "get_by_text": "Initial Deposit",
+            "page_name": "bank_add_customer",
+            "type": "ocr",
+            "dom_matched": false,
+            "unique_name": "bank_add_customer_initial_deposit_textbox_initial_deposit_field_b4fe30de"
+        }
+    },
+    {
+        "id": "ab5b7f79-1cd7-4ee8-ab35-94efbb59d2f0",
+        "document": "Cancel",
+        "metadata": {
+            "placeholder": "Cancel",
+            "ocr_type": "button",
+            "type": "ocr",
+            "unique_name": "bank_add_customer_cancel_button_cancel_action_6675b2bc",
+            "label_text": "Cancel",
+            "intent": "cancel_action",
+            "dom_matched": false,
+            "element_id": "ab5b7f79-1cd7-4ee8-ab35-94efbb59d2f0",
+            "get_by_text": "Cancel",
+            "page_name": "bank_add_customer",
+            "external": false
+        }
+    },
+    {
+        "id": "dcc94f43-4d7e-4cd7-a242-66ae86713ccc",
+        "document": "Add Customer",
+        "metadata": {
+            "unique_name": "bank_add_customer_add_customer_button_add_customer_action_2b596169",
+            "page_name": "bank_add_customer",
+            "placeholder": "Add Customer",
+            "element_id": "dcc94f43-4d7e-4cd7-a242-66ae86713ccc",
+            "ocr_type": "button",
+            "type": "ocr",
+            "get_by_text": "Add Customer",
+            "dom_matched": false,
+            "external": false,
+            "label_text": "Add Customer",
+            "intent": "add_customer_action"
+        }
+    }
+]

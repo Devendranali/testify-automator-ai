@@ -1,0 +1,461 @@
+[
+    {
+        "id": "52b31ce9-bc82-45eb-91d9-c2f2399b1576",
+        "document": "Veg Pizza",
+        "metadata": {
+            "ocr_type": "link",
+            "dom_matched": false,
+            "placeholder": "Veg Pizza",
+            "type": "ocr",
+            "page_name": "dominos_viewcart",
+            "label_text": "Veg Pizza",
+            "unique_name": "dominos_viewcart_veg_pizza_link_veg_pizza_action_01959c17",
+            "intent": "veg_pizza_action",
+            "get_by_text": "Veg Pizza",
+            "element_id": "52b31ce9-bc82-45eb-91d9-c2f2399b1576",
+            "external": false
+        }
+    },
+    {
+        "id": "537d20cb-4927-4e78-8294-1c5308a70ca4",
+        "document": "Non - Veg Pizza",
+        "metadata": {
+            "element_id": "537d20cb-4927-4e78-8294-1c5308a70ca4",
+            "type": "ocr",
+            "ocr_type": "link",
+            "label_text": "Non - Veg Pizza",
+            "get_by_text": "Non - Veg Pizza",
+            "intent": "non_veg_pizza_action",
+            "dom_matched": false,
+            "external": false,
+            "page_name": "dominos_viewcart",
+            "unique_name": "dominos_viewcart_non_-_veg_pizza_link_non_veg_pizza_action_ae5159b2",
+            "placeholder": "Non - Veg Pizza"
+        }
+    },
+    {
+        "id": "46171569-2f08-4ebd-bd72-aa6bfcc65f97",
+        "document": "Cheese Volcano",
+        "metadata": {
+            "label_text": "Cheese Volcano",
+            "element_id": "46171569-2f08-4ebd-bd72-aa6bfcc65f97",
+            "dom_matched": false,
+            "external": false,
+            "page_name": "dominos_viewcart",
+            "intent": "cheese_volcano_action",
+            "get_by_text": "Cheese Volcano",
+            "placeholder": "Cheese Volcano",
+            "type": "ocr",
+            "ocr_type": "link",
+            "unique_name": "dominos_viewcart_cheese_volcano_link_cheese_volcano_action_3aedee8a"
+        }
+    },
+    {
+        "id": "dda3700b-d3e7-4376-801f-03406cdc47dc",
+        "document": "Chicken Feast",
+        "metadata": {
+            "get_by_text": "Chicken Feast",
+            "dom_matched": false,
+            "placeholder": "Chicken Feast",
+            "element_id": "dda3700b-d3e7-4376-801f-03406cdc47dc",
+            "ocr_type": "link",
+            "external": false,
+            "page_name": "dominos_viewcart",
+            "unique_name": "dominos_viewcart_chicken_feast_link_chicken_feast_action_c82509b9",
+            "intent": "chicken_feast_action",
+            "type": "ocr",
+            "label_text": "Chicken Feast"
+        }
+    },
+    {
+        "id": "50d1e56d-4f7e-4aab-9ebc-81e1622413f3",
+        "document": "Pizza Mania",
+        "metadata": {
+            "page_name": "dominos_viewcart",
+            "intent": "pizza_mania_action",
+            "type": "ocr",
+            "element_id": "50d1e56d-4f7e-4aab-9ebc-81e1622413f3",
+            "placeholder": "Pizza Mania",
+            "external": false,
+            "label_text": "Pizza Mania",
+            "ocr_type": "link",
+            "get_by_text": "Pizza Mania",
+            "dom_matched": false,
+            "unique_name": "dominos_viewcart_pizza_mania_link_pizza_mania_action_f145501f"
+        }
+    },
+    {
+        "id": "f9190caa-569c-4d7c-88db-417ab4629f41",
+        "document": "Garlic Breads & Dips",
+        "metadata": {
+            "page_name": "dominos_viewcart",
+            "dom_matched": false,
+            "ocr_type": "link",
+            "element_id": "f9190caa-569c-4d7c-88db-417ab4629f41",
+            "get_by_text": "Garlic Breads & Dips",
+            "placeholder": "Garlic Breads & Dips",
+            "intent": "garlic_breads_dips_action",
+            "external": false,
+            "unique_name": "dominos_viewcart_garlic_breads_&_dips_link_garlic_breads_dips_action_cf71abae",
+            "label_text": "Garlic Breads & Dips",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "1c9188ab-7f18-4291-bec9-3c8fa856c376",
+        "document": "Beverages",
+        "metadata": {
+            "external": false,
+            "label_text": "Beverages",
+            "type": "ocr",
+            "ocr_type": "link",
+            "element_id": "1c9188ab-7f18-4291-bec9-3c8fa856c376",
+            "unique_name": "dominos_viewcart_beverages_link_beverages_action_86a8b510",
+            "placeholder": "Beverages",
+            "dom_matched": false,
+            "page_name": "dominos_viewcart",
+            "get_by_text": "Beverages",
+            "intent": "beverages_action"
+        }
+    },
+    {
+        "id": "c0ff2714-f065-4255-88c9-7a2a31dd2c5e",
+        "document": "Desserts",
+        "metadata": {
+            "get_by_text": "Desserts",
+            "intent": "desserts_action",
+            "label_text": "Desserts",
+            "placeholder": "Desserts",
+            "element_id": "c0ff2714-f065-4255-88c9-7a2a31dd2c5e",
+            "dom_matched": false,
+            "ocr_type": "link",
+            "page_name": "dominos_viewcart",
+            "type": "ocr",
+            "external": false,
+            "unique_name": "dominos_viewcart_desserts_link_desserts_action_3a42fc55"
+        }
+    },
+    {
+        "id": "a97f1d3b-8ec7-4a86-ae71-30b837b87b84",
+        "document": "Recommended",
+        "metadata": {
+            "get_by_text": "Recommended",
+            "dom_matched": false,
+            "unique_name": "dominos_viewcart_recommended_link_recommended_action_36c60400",
+            "type": "ocr",
+            "page_name": "dominos_viewcart",
+            "element_id": "a97f1d3b-8ec7-4a86-ae71-30b837b87b84",
+            "ocr_type": "link",
+            "label_text": "Recommended",
+            "intent": "recommended_action",
+            "placeholder": "Recommended",
+            "external": false
+        }
+    },
+    {
+        "id": "ca58c089-8a40-48ec-a91f-7dfa2f8b94ea",
+        "document": "New Launches",
+        "metadata": {
+            "dom_matched": false,
+            "ocr_type": "link",
+            "get_by_text": "New Launches",
+            "element_id": "ca58c089-8a40-48ec-a91f-7dfa2f8b94ea",
+            "intent": "new_launches_action",
+            "placeholder": "New Launches",
+            "type": "ocr",
+            "label_text": "New Launches",
+            "unique_name": "dominos_viewcart_new_launches_link_new_launches_action_61ca5351",
+            "external": false,
+            "page_name": "dominos_viewcart"
+        }
+    },
+    {
+        "id": "eea894c5-ab03-4603-872f-3a733d472791",
+        "document": "Chicken Burst",
+        "metadata": {
+            "unique_name": "dominos_viewcart_chicken_burst_link_chicken_burst_action_09315e63",
+            "ocr_type": "link",
+            "intent": "chicken_burst_action",
+            "external": false,
+            "dom_matched": false,
+            "type": "ocr",
+            "element_id": "eea894c5-ab03-4603-872f-3a733d472791",
+            "placeholder": "Chicken Burst",
+            "page_name": "dominos_viewcart",
+            "label_text": "Chicken Burst",
+            "get_by_text": "Chicken Burst"
+        }
+    },
+    {
+        "id": "4f437843-7549-4f6e-a6ea-3f5d46afffba",
+        "document": "Cheese Burst Pizza",
+        "metadata": {
+            "get_by_text": "Cheese Burst Pizza",
+            "element_id": "4f437843-7549-4f6e-a6ea-3f5d46afffba",
+            "ocr_type": "link",
+            "page_name": "dominos_viewcart",
+            "type": "ocr",
+            "unique_name": "dominos_viewcart_cheese_burst_pizza_link_cheese_burst_pizza_action_8e926963",
+            "placeholder": "Cheese Burst Pizza",
+            "intent": "cheese_burst_pizza_action",
+            "label_text": "Cheese Burst Pizza",
+            "external": false,
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "c3c4c388-4cad-482c-87d6-d5a24452df01",
+        "document": "Big Big Pizza",
+        "metadata": {
+            "page_name": "dominos_viewcart",
+            "type": "ocr",
+            "element_id": "c3c4c388-4cad-482c-87d6-d5a24452df01",
+            "external": false,
+            "placeholder": "Big Big Pizza",
+            "unique_name": "dominos_viewcart_big_big_pizza_link_big_big_pizza_action_45b44860",
+            "ocr_type": "link",
+            "intent": "big_big_pizza_action",
+            "label_text": "Big Big Pizza",
+            "get_by_text": "Big Big Pizza",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "bc077f97-dcaa-4d04-9101-cf91de717540",
+        "document": "Hot D",
+        "metadata": {
+            "label_text": "Hot D",
+            "get_by_text": "Hot D",
+            "intent": "hot_d_action",
+            "external": false,
+            "unique_name": "dominos_viewcart_hot_d_link_hot_d_action_ae0d69a5",
+            "element_id": "bc077f97-dcaa-4d04-9101-cf91de717540",
+            "page_name": "dominos_viewcart",
+            "dom_matched": false,
+            "placeholder": "Hot D",
+            "ocr_type": "link",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "1a976043-d36f-42f3-9335-12cfa3b7a952",
+        "document": "Regular Plus | Cheese Volcano",
+        "metadata": {
+            "intent": "regular_plus_cheese_volcano_info",
+            "external": false,
+            "get_by_text": "Regular Plus | Cheese Volcano",
+            "ocr_type": "label",
+            "page_name": "dominos_viewcart",
+            "placeholder": "Regular Plus | Cheese Volcano",
+            "label_text": "Regular Plus | Cheese Volcano",
+            "unique_name": "dominos_viewcart_regular_plus_|_cheese_volcano_label_regular_plus_cheese_volcano_info_f48f0e7b",
+            "element_id": "1a976043-d36f-42f3-9335-12cfa3b7a952",
+            "dom_matched": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+        "document": "Add +",
+        "metadata": {
+            "placeholder": "Add +",
+            "unique_name": "dominos_viewcart_add_+_button_add_action_2288a9b7",
+            "get_by_text": "Add +",
+            "dom_matched": false,
+            "external": false,
+            "label_text": "Add +",
+            "ocr_type": "button",
+            "element_id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+            "intent": "add_action",
+            "type": "ocr",
+            "page_name": "dominos_viewcart"
+        }
+    },
+    {
+        "id": "1531a90e-3a6e-400d-a596-e466fe7de4c4",
+        "document": "Garlic Breadsticks + Beverage",
+        "metadata": {
+            "dom_matched": false,
+            "element_id": "1531a90e-3a6e-400d-a596-e466fe7de4c4",
+            "unique_name": "dominos_viewcart_garlic_breadsticks_+_beverage_label_garlic_breadsticks_beverage_info_10b4f693",
+            "ocr_type": "label",
+            "placeholder": "Garlic Breadsticks + Beverage",
+            "external": false,
+            "type": "ocr",
+            "get_by_text": "Garlic Breadsticks + Beverage",
+            "page_name": "dominos_viewcart",
+            "intent": "garlic_breadsticks_beverage_info",
+            "label_text": "Garlic Breadsticks + Beverage"
+        }
+    },
+    {
+        "id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+        "document": "Add +",
+        "metadata": {
+            "unique_name": "dominos_viewcart_add_+_button_add_action_2288a9b7",
+            "placeholder": "Add +",
+            "ocr_type": "button",
+            "label_text": "Add +",
+            "page_name": "dominos_viewcart",
+            "intent": "add_action",
+            "type": "ocr",
+            "dom_matched": false,
+            "external": false,
+            "element_id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+            "get_by_text": "Add +"
+        }
+    },
+    {
+        "id": "f68a5193-7f06-4f55-b1f8-5a8d45e71b00",
+        "document": "All Garlic Breads & Dips",
+        "metadata": {
+            "external": false,
+            "dom_matched": false,
+            "intent": "all_garlic_breads_dips_select",
+            "label_text": "All Garlic Breads & Dips",
+            "ocr_type": "select",
+            "page_name": "dominos_viewcart",
+            "element_id": "f68a5193-7f06-4f55-b1f8-5a8d45e71b00",
+            "get_by_text": "All Garlic Breads & Dips",
+            "type": "ocr",
+            "unique_name": "dominos_viewcart_all_garlic_breads_&_dips_select_all_garlic_breads_dips_select_7508837a",
+            "placeholder": "All Garlic Breads & Dips"
+        }
+    },
+    {
+        "id": "6224d9ab-fe8e-4116-9a0e-452c51c763d3",
+        "document": "Garlic Breadsticks",
+        "metadata": {
+            "element_id": "6224d9ab-fe8e-4116-9a0e-452c51c763d3",
+            "ocr_type": "label",
+            "unique_name": "dominos_viewcart_garlic_breadsticks_label_garlic_breadsticks_info_8cba09e5",
+            "page_name": "dominos_viewcart",
+            "external": false,
+            "placeholder": "Garlic Breadsticks",
+            "get_by_text": "Garlic Breadsticks",
+            "label_text": "Garlic Breadsticks",
+            "dom_matched": false,
+            "intent": "garlic_breadsticks_info",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+        "document": "Add +",
+        "metadata": {
+            "external": false,
+            "placeholder": "Add +",
+            "intent": "add_action",
+            "page_name": "dominos_viewcart",
+            "element_id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+            "ocr_type": "button",
+            "label_text": "Add +",
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Add +",
+            "unique_name": "dominos_viewcart_add_+_button_add_action_2288a9b7"
+        }
+    },
+    {
+        "id": "f68a5193-7f06-4f55-b1f8-5a8d45e71b00",
+        "document": "All Garlic Breads & Dips",
+        "metadata": {
+            "type": "ocr",
+            "intent": "all_garlic_breads_dips_select",
+            "ocr_type": "select",
+            "external": false,
+            "unique_name": "dominos_viewcart_all_garlic_breads_&_dips_select_all_garlic_breads_dips_select_7508837a",
+            "dom_matched": false,
+            "label_text": "All Garlic Breads & Dips",
+            "page_name": "dominos_viewcart",
+            "get_by_text": "All Garlic Breads & Dips",
+            "placeholder": "All Garlic Breads & Dips",
+            "element_id": "f68a5193-7f06-4f55-b1f8-5a8d45e71b00"
+        }
+    },
+    {
+        "id": "c33d257d-450b-4247-aa1a-adf6e629bb56",
+        "document": "Coca Cola 475ml",
+        "metadata": {
+            "type": "ocr",
+            "intent": "coca_cola_475ml_info",
+            "get_by_text": "Coca Cola 475ml",
+            "label_text": "Coca Cola 475ml",
+            "page_name": "dominos_viewcart",
+            "external": false,
+            "dom_matched": false,
+            "placeholder": "Coca Cola 475ml",
+            "element_id": "c33d257d-450b-4247-aa1a-adf6e629bb56",
+            "unique_name": "dominos_viewcart_coca_cola_475ml_label_coca_cola_475ml_info_6aeb31bc",
+            "ocr_type": "label"
+        }
+    },
+    {
+        "id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+        "document": "Add +",
+        "metadata": {
+            "external": false,
+            "ocr_type": "button",
+            "unique_name": "dominos_viewcart_add_+_button_add_action_2288a9b7",
+            "intent": "add_action",
+            "dom_matched": false,
+            "type": "ocr",
+            "label_text": "Add +",
+            "element_id": "e19d81b2-77b5-4f6d-9416-829b3d4ebc85",
+            "placeholder": "Add +",
+            "get_by_text": "Add +",
+            "page_name": "dominos_viewcart"
+        }
+    },
+    {
+        "id": "e6e28181-a824-4238-8878-eec4ca2a3d16",
+        "document": "All Beverages",
+        "metadata": {
+            "get_by_text": "All Beverages",
+            "label_text": "All Beverages",
+            "ocr_type": "select",
+            "intent": "all_beverages_select",
+            "external": false,
+            "page_name": "dominos_viewcart",
+            "type": "ocr",
+            "unique_name": "dominos_viewcart_all_beverages_select_all_beverages_select_685a5e3d",
+            "dom_matched": false,
+            "placeholder": "All Beverages",
+            "element_id": "e6e28181-a824-4238-8878-eec4ca2a3d16"
+        }
+    },
+    {
+        "id": "84b8affe-6eb1-48f4-ad51-1117fc6c7482",
+        "document": "1 item",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "unique_name": "dominos_viewcart_1_item_label_1_item_info_06a252a6",
+            "element_id": "84b8affe-6eb1-48f4-ad51-1117fc6c7482",
+            "ocr_type": "label",
+            "intent": "1_item_info",
+            "placeholder": "1 item",
+            "get_by_text": "1 item",
+            "external": false,
+            "label_text": "1 item",
+            "page_name": "dominos_viewcart"
+        }
+    },
+    {
+        "id": "b53be157-1a7a-482b-a680-05eba8f2546e",
+        "document": "View Cart",
+        "metadata": {
+            "element_id": "b53be157-1a7a-482b-a680-05eba8f2546e",
+            "unique_name": "dominos_viewcart_view_cart_button_view_cart_action_0d964350",
+            "ocr_type": "button",
+            "type": "ocr",
+            "dom_matched": false,
+            "label_text": "View Cart",
+            "intent": "view_cart_action",
+            "get_by_text": "View Cart",
+            "placeholder": "View Cart",
+            "external": false,
+            "page_name": "dominos_viewcart"
+        }
+    }
+]

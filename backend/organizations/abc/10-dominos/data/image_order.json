@@ -1,0 +1,20 @@
+{
+  "ordered_from_frontend": [
+    "dominos_viewcart.png",
+    "dominos_add.png",
+    "dominos_add_address.png",
+    "dominos_enter_address.png",
+    "dominos_login.png",
+    "dominos_main.png",
+    "dominos_pizza.png"
+  ],
+  "processed_order": [
+    "dominos_viewcart.png",
+    "dominos_add.png",
+    "dominos_add_address.png",
+    "dominos_enter_address.png",
+    "dominos_login.png",
+    "dominos_main.png",
+    "dominos_pizza.png"
+  ]
+}

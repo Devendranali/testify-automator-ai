@@ -112,6 +112,12 @@ class ProjectActivateRequest(BaseModel):
     project_name: str
 
 
+class ProjectFileUpdateRequest(BaseModel):
+    path: str
+    content: str
+    encoding: Optional[str] = "utf-8"
+
+
 def _ensure_project_structure(project: Project) -> dict:
     project_root = _project_root(project)
     data_dir = project_root / "data"
@@ -393,6 +399,57 @@ def get_project_file_content(
         "encoding": encoding,
         "language": extension or "text",
         "content": content,
+    }
+
+
+@router.put("/projects/{project_id}/files/content")
+def update_project_file_content(
+    project_id: int,
+    payload: ProjectFileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_org = current_user.organization.strip()
+    project = _get_project_for_user(project_id, db, user_org)
+
+    try:
+        project_paths = _ensure_project_structure(project)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
+
+    base_dir = Path(project_paths["src_dir"])
+    relative_path = (payload.path or "").strip()
+    if not relative_path:
+        raise HTTPException(status_code=400, detail="Path is required")
+    target = _resolve_project_path(base_dir, relative_path)
+
+    if target.exists() and target.is_dir():
+        raise HTTPException(status_code=400, detail="Cannot overwrite a directory")
+
+    encoding = (payload.encoding or "utf-8").lower().strip() or "utf-8"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare directories: {exc}") from exc
+
+    try:
+        target.write_text(payload.content or "", encoding=encoding)
+    except LookupError as exc:
+        raise HTTPException(status_code=400, detail=f"Unsupported encoding '{encoding}'") from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {exc}") from exc
+
+    stat = target.stat()
+    extension = target.suffix.lower().lstrip(".")
+
+    return {
+        "status": "saved",
+        "project_id": project_id,
+        "path": target.relative_to(base_dir).as_posix(),
+        "encoding": encoding,
+        "language": extension or "text",
+        "size": stat.st_size,
+        "modified_at": stat.st_mtime,
     }
 
 

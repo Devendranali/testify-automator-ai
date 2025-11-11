@@ -28,6 +28,15 @@ const Home = () => {
   const [selectedFilePaths, setSelectedFilePaths] = useState({});
   const [loadingFileKey, setLoadingFileKey] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
+  const [editorValue, setEditorValue] = useState("");
+  const [isSavingFile, setIsSavingFile] = useState(false);
+  const [isRunningTests, setIsRunningTests] = useState(false);
+  const [openFiles, setOpenFiles] = useState({});
+
+  const clearEditorState = () => {
+    setActiveFile(null);
+    setEditorValue("");
+  };
 
   const apiBase = process.env.REACT_APP_API_URL || "http://127.0.0.1:8001";
 
@@ -177,6 +186,10 @@ const Home = () => {
   const activePaths = activeProjectDetails?.paths || null;
   const activeFileMap = activeProjectKey ? projectFiles[activeProjectKey] || {} : {};
   const selectedProjectFile = activeProjectKey ? selectedFilePaths[activeProjectKey] || "" : "";
+  const isEditorDirty = Boolean(
+    activeFile && editorValue !== (activeFile.content ?? "")
+  );
+  const canSaveFile = Boolean(activeFile?.projectId && selectedProjectFile);
 
   const renderDirectoryTree = (currentPath = "", depth = 0) => {
     if (!activeProjectKey) {
@@ -317,16 +330,33 @@ const Home = () => {
       const fetched = await res.json();
       const language = resolveLanguage(fetched?.language);
       const data = { ...fetched, language };
-      setSelectedFilePaths((prev) => ({
-        ...prev,
-        [projectKey]: data?.path || path,
-      }));
-      setActiveFile({
+      const filePayload = {
         projectKey,
         projectId: project.id,
         projectName: project.project_name,
         ...data,
+        originalContent: data.content || "",
+      };
+      setSelectedFilePaths((prev) => ({
+        ...prev,
+        [projectKey]: data?.path || path,
+      }));
+      setActiveFile(filePayload);
+      setOpenFiles((prev) => {
+        const projectEntries = prev[projectKey] || [];
+        const existingIdx = projectEntries.findIndex((entry) => entry.path === filePayload.path);
+        const nextEntries = [...projectEntries];
+        if (existingIdx >= 0) {
+          nextEntries[existingIdx] = filePayload;
+        } else {
+          nextEntries.push(filePayload);
+        }
+        return {
+          ...prev,
+          [projectKey]: nextEntries,
+        };
       });
+      setEditorValue(filePayload.content || "");
       return data;
     } catch (e) {
       console.error("Failed to load project file content:", e);
@@ -335,6 +365,108 @@ const Home = () => {
       setLoadingFileKey(null);
     }
     return null;
+  };
+
+  const handleEditorChange = (value) => {
+    setEditorValue(value ?? "");
+  };
+
+  const handleDiscardEditorChanges = () => {
+    if (activeFile) {
+      setEditorValue(activeFile.content ?? "");
+    }
+  };
+
+  const handleSaveActiveFile = async () => {
+    if (!canSaveFile || isSavingFile) {
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    try {
+      setIsSavingFile(true);
+      const res = await fetch(`${apiBase}/projects/${activeFile.projectId}/files/content`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          path: selectedProjectFile,
+          content: editorValue ?? "",
+        }),
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      const saved = await res.json();
+      setActiveFile((prev) =>
+        prev
+          ? {
+              ...prev,
+              content: editorValue ?? "",
+              language: resolveLanguage(saved?.language || prev.language),
+            }
+          : prev
+      );
+      toast.success(`Saved ${saved?.path || "file"}`);
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      toast.error(`Failed to save file: ${e.message || e}`);
+    } finally {
+      setIsSavingFile(false);
+    }
+  };
+
+  const handleRunTests = async () => {
+    if (isRunningTests) {
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleLogout();
+      return;
+    }
+    try {
+      setIsRunningTests(true);
+      const res = await fetch(`${apiBase}/rag/run-generated-story-test`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => null);
+        throw new Error(txt || `Server returned ${res.status}`);
+      }
+      let payload = null;
+      try {
+        payload = await res.json();
+      } catch (err) {
+        payload = null;
+      }
+      const status = payload?.status || "Triggered";
+      toast.success(`Test run status: ${status}`);
+    } catch (e) {
+      console.error("Failed to run generated tests:", e);
+      toast.error(`Failed to run tests: ${e.message || e}`);
+    } finally {
+      setIsRunningTests(false);
+    }
   };
 
   const handleStartProject = async () => {
@@ -454,6 +586,7 @@ const Home = () => {
       });
       if (expandedProjectKey === projectKey) {
         setExpandedProjectKey(null);
+        clearEditorState();
       }
       if (loadingProjectKey === projectKey) {
         setLoadingProjectKey(null);
@@ -479,14 +612,14 @@ const Home = () => {
         delete next[projectKey];
         return next;
       });
-      setActiveFile(null);
+      clearEditorState();
       return;
     }
 
     setExpandedProjectKey(projectKey);
     setOpenDirectories({});
     setLoadingFileKey(null);
-    setActiveFile(null);
+    clearEditorState();
     setSelectedFilePaths((prev) => {
       const next = { ...prev };
       delete next[projectKey];
@@ -544,6 +677,13 @@ const Home = () => {
     } finally {
       setLoadingProjectKey(null);
     }
+  };
+
+  const handleCloseEditor = () => {
+    if (!expandedProjectKey) {
+      return;
+    }
+    handleToggleProject(activeProject || null, expandedProjectKey);
   };
 
   const handleDownloadProject = async (project) => {
@@ -630,11 +770,91 @@ const Home = () => {
         </button>
       </nav>
 
+      {expandedProjectKey && (
+        <section className={styles.ideLayout}>
+          <div className={styles.ideToolbar}>
+            <div>
+              <p className={styles.ideToolbarLabel}>Project editor</p>
+              <h3 className={styles.ideToolbarTitle}>
+                {activeProject?.project_name || "Generated files"}
+              </h3>
+              {selectedProjectFile && (
+                <p className={styles.ideToolbarPath}>{selectedProjectFile}</p>
+              )}
+            </div>
+            <div className={styles.ideToolbarActions}>
+              <button
+                type="button"
+                className={`${styles.ideActionButton} ${styles.ideActionButtonPrimary}`}
+                disabled={!canSaveFile || !isEditorDirty || isSavingFile}
+                onClick={handleSaveActiveFile}
+              >
+                <i className="fa-solid fa-floppy-disk"></i>
+                {isSavingFile ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                type="button"
+                className={`${styles.ideActionButton} ${styles.ideActionButtonPrimary}`}
+                onClick={handleRunTests}
+                disabled={isRunningTests}
+              >
+                <i className="fa-solid fa-play"></i>
+                {isRunningTests ? "Running..." : "Run tests"}
+              </button>
+              <button
+                type="button"
+                className={styles.ideActionButton}
+                disabled={!isEditorDirty || isSavingFile}
+                onClick={handleDiscardEditorChanges}
+              >
+                <i className="fa-solid fa-rotate-left"></i> Discard
+              </button>
+              <button
+                type="button"
+                className={`${styles.ideActionButton} ${styles.ideCloseButton}`}
+                onClick={handleCloseEditor}
+              >
+                <i className="fa-solid fa-circle-xmark"></i> Close editor
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.ideWorkspace}>
+            <div className={styles.leftPanel}>
+              <h4>Project Files</h4>
+              {renderDirectoryTree()}
+            </div>
+            <div className={styles.rightPanel}>
+              {activeFile ? (
+                <Editor
+                  height="100%"
+                  language={resolveLanguage(activeFile.language)}
+                  value={editorValue}
+                  onChange={handleEditorChange}
+                  options={{
+                    readOnly: false,
+                    minimap: { enabled: true },
+                    scrollBeyondLastLine: false,
+                    fontSize: 14,
+                    wordWrap: "on",
+                  }}
+                />
+              ) : (
+                <div className={styles.noFileSelected}>
+                  <p>Select a file to view its content</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       <Dashboard
         projects={projects}
         expandedProjectKey={expandedProjectKey}
         loadingProjectKey={loadingProjectKey}
         getProjectKey={getProjectKey}
+        hideRecentProjects={Boolean(expandedProjectKey)}
         onToggle={handleToggleProject}
         onOpen={async (p) => {
           try {
@@ -669,35 +889,6 @@ const Home = () => {
         onDownload={handleDownloadProject}
         onDelete={handleDeleteProject}
       />
-
-      {expandedProjectKey && (
-        <div className={styles.ideLayout}>
-          <div className={styles.leftPanel}>
-            <h4>Project Files</h4>
-            {renderDirectoryTree()}
-          </div>
-          <div className={styles.rightPanel}>
-            {activeFile ? (
-              <Editor
-                height="100%"
-                language={resolveLanguage(activeFile.language)}
-                value={activeFile.content || ""}
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: true },
-                  scrollBeyondLastLine: false,
-                  fontSize: 14,
-                  wordWrap: "on",
-                }}
-              />
-            ) : (
-              <div className={styles.noFileSelected}>
-                <p>Select a file to view its content</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Projects are now displayed inside Dashboard's Recent Projects */}
 

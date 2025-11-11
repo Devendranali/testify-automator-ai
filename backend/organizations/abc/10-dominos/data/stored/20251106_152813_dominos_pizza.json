@@ -1,0 +1,155 @@
+[
+    {
+        "id": "a9b6518b-1ad3-4cb0-a935-ed5b195ff868",
+        "document": "OUR MENU",
+        "metadata": {
+            "external": false,
+            "ocr_type": "link",
+            "intent": "our_menu_action",
+            "placeholder": "OUR MENU",
+            "type": "ocr",
+            "get_by_text": "OUR MENU",
+            "element_id": "a9b6518b-1ad3-4cb0-a935-ed5b195ff868",
+            "label_text": "OUR MENU",
+            "unique_name": "dominos_pizza_our_menu_link_our_menu_action_5731fa20",
+            "dom_matched": false,
+            "page_name": "dominos_pizza"
+        }
+    },
+    {
+        "id": "0bdf6db6-e78c-478b-a37d-4a84b323227d",
+        "document": "DOMINO'S STORES",
+        "metadata": {
+            "dom_matched": false,
+            "unique_name": "dominos_pizza_dominos_stores_link_dominos_stores_action_b54670c2",
+            "ocr_type": "link",
+            "type": "ocr",
+            "intent": "dominos_stores_action",
+            "label_text": "DOMINO'S STORES",
+            "placeholder": "DOMINO'S STORES",
+            "external": false,
+            "element_id": "0bdf6db6-e78c-478b-a37d-4a84b323227d",
+            "get_by_text": "DOMINO'S STORES",
+            "page_name": "dominos_pizza"
+        }
+    },
+    {
+        "id": "70efe6e1-ada7-4731-a74f-4eceb2bf1dc1",
+        "document": "GIFT CARD",
+        "metadata": {
+            "placeholder": "GIFT CARD",
+            "page_name": "dominos_pizza",
+            "label_text": "GIFT CARD",
+            "get_by_text": "GIFT CARD",
+            "dom_matched": false,
+            "intent": "gift_card_action",
+            "element_id": "70efe6e1-ada7-4731-a74f-4eceb2bf1dc1",
+            "type": "ocr",
+            "ocr_type": "link",
+            "external": false,
+            "unique_name": "dominos_pizza_gift_card_link_gift_card_action_7f025d00"
+        }
+    },
+    {
+        "id": "f9d56f80-45f2-4f47-9a3a-6190f0ff483d",
+        "document": "CORPORATE ENQUIRY",
+        "metadata": {
+            "ocr_type": "link",
+            "placeholder": "CORPORATE ENQUIRY",
+            "type": "ocr",
+            "external": false,
+            "page_name": "dominos_pizza",
+            "label_text": "CORPORATE ENQUIRY",
+            "dom_matched": false,
+            "get_by_text": "CORPORATE ENQUIRY",
+            "element_id": "f9d56f80-45f2-4f47-9a3a-6190f0ff483d",
+            "unique_name": "dominos_pizza_corporate_enquiry_link_corporate_enquiry_action_31252895",
+            "intent": "corporate_enquiry_action"
+        }
+    },
+    {
+        "id": "1d320f21-c6eb-4c22-b6f6-108ac7775a59",
+        "document": "CONTACT",
+        "metadata": {
+            "element_id": "1d320f21-c6eb-4c22-b6f6-108ac7775a59",
+            "type": "ocr",
+            "intent": "contact_action",
+            "unique_name": "dominos_pizza_contact_link_contact_action_02fdbd40",
+            "dom_matched": false,
+            "get_by_text": "CONTACT",
+            "placeholder": "CONTACT",
+            "page_name": "dominos_pizza",
+            "ocr_type": "link",
+            "external": false,
+            "label_text": "CONTACT"
+        }
+    },
+    {
+        "id": "7953ee8a-1079-4d87-acc2-c5ef5905df1d",
+        "document": "Download App",
+        "metadata": {
+            "intent": "download_app_action",
+            "label_text": "Download App",
+            "unique_name": "dominos_pizza_download_app_button_download_app_action_f6ff9e02",
+            "external": false,
+            "placeholder": "Download App",
+            "element_id": "7953ee8a-1079-4d87-acc2-c5ef5905df1d",
+            "type": "ocr",
+            "get_by_text": "Download App",
+            "page_name": "dominos_pizza",
+            "ocr_type": "button",
+            "dom_matched": false
+        }
+    },
+    {
+        "id": "355ced24-5f07-49bc-aeb4-c32ff4e0d5fc",
+        "document": "ORDER ONLINE NOW",
+        "metadata": {
+            "type": "ocr",
+            "get_by_text": "ORDER ONLINE NOW",
+            "external": false,
+            "unique_name": "dominos_pizza_order_online_now_button_order_online_now_action_f4e0f5c3",
+            "page_name": "dominos_pizza",
+            "element_id": "355ced24-5f07-49bc-aeb4-c32ff4e0d5fc",
+            "placeholder": "ORDER ONLINE NOW",
+            "intent": "order_online_now_action",
+            "label_text": "ORDER ONLINE NOW",
+            "dom_matched": false,
+            "ocr_type": "button"
+        }
+    },
+    {
+        "id": "b090ff59-7518-4cff-91ed-e228707be574",
+        "document": "Home",
+        "metadata": {
+            "external": false,
+            "label_text": "Home",
+            "placeholder": "Home",
+            "intent": "home_action",
+            "type": "ocr",
+            "dom_matched": false,
+            "ocr_type": "link",
+            "element_id": "b090ff59-7518-4cff-91ed-e228707be574",
+            "get_by_text": "Home",
+            "unique_name": "dominos_pizza_home_link_home_action_4efd27d4",
+            "page_name": "dominos_pizza"
+        }
+    },
+    {
+        "id": "845cfc3f-78e2-46f3-a0f4-84e1743905a6",
+        "document": "Chat with us",
+        "metadata": {
+            "placeholder": "Chat with us",
+            "element_id": "845cfc3f-78e2-46f3-a0f4-84e1743905a6",
+            "intent": "chat_with_us_action",
+            "dom_matched": false,
+            "get_by_text": "Chat with us",
+            "page_name": "dominos_pizza",
+            "unique_name": "dominos_pizza_chat_with_us_link_chat_with_us_action_90025dd6",
+            "external": false,
+            "type": "ocr",
+            "ocr_type": "link",
+            "label_text": "Chat with us"
+        }
+    }
+]

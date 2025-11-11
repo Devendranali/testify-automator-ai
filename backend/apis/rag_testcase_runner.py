@@ -22,6 +22,15 @@ def _candidate_src_dirs() -> list[Path]:
                 dirs.append(cand)
         except Exception:
             continue
+    org_root = backend_root / "organizations"
+    if org_root.exists():
+        for sub in org_root.rglob("generated_runs"):
+            try:
+                src_dir = sub / "src"
+                if src_dir.exists():
+                    dirs.append(src_dir)
+            except Exception:
+                continue
     # Legacy repo-level path
     legacy = backend_root / "generated_runs" / "src"
     if legacy.exists():

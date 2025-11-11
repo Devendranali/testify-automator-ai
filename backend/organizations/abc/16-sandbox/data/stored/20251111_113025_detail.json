@@ -1,0 +1,257 @@
+[
+    {
+        "id": "7ee1808d-4d01-45cd-8364-29d883bdaced",
+        "document": "New Contact",
+        "metadata": {
+            "intent": "new_contact_info",
+            "placeholder": "New Contact",
+            "dom_matched": false,
+            "external": false,
+            "element_id": "7ee1808d-4d01-45cd-8364-29d883bdaced",
+            "page_name": "detail",
+            "unique_name": "detail_new_contact_label_new_contact_info_59b7ccad",
+            "label_text": "New Contact",
+            "get_by_text": "New Contact",
+            "ocr_type": "label",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "91f0f040-7fec-4856-b8e0-648e192309a9",
+        "document": "Contact",
+        "metadata": {
+            "external": false,
+            "dom_matched": false,
+            "get_by_text": "Contact",
+            "ocr_type": "select",
+            "unique_name": "detail_contact_select_contact_select_a3347554",
+            "placeholder": "Contact",
+            "page_name": "detail",
+            "element_id": "91f0f040-7fec-4856-b8e0-648e192309a9",
+            "intent": "contact_select",
+            "type": "ocr",
+            "label_text": "Contact"
+        }
+    },
+    {
+        "id": "df4936d1-8e68-47b1-a1f2-752e8468d1d6",
+        "document": "Summary",
+        "metadata": {
+            "element_id": "df4936d1-8e68-47b1-a1f2-752e8468d1d6",
+            "intent": "summary_action",
+            "ocr_type": "link",
+            "external": false,
+            "placeholder": "Summary",
+            "page_name": "detail",
+            "dom_matched": false,
+            "get_by_text": "Summary",
+            "unique_name": "detail_summary_link_summary_action_10c47050",
+            "label_text": "Summary",
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "fcab2e35-ebba-4e6e-9128-419bee2abf7c",
+        "document": "Details",
+        "metadata": {
+            "placeholder": "Details",
+            "ocr_type": "link",
+            "dom_matched": false,
+            "element_id": "fcab2e35-ebba-4e6e-9128-419bee2abf7c",
+            "external": false,
+            "intent": "details_action",
+            "page_name": "detail",
+            "type": "ocr",
+            "label_text": "Details",
+            "unique_name": "detail_details_link_details_action_a0a659ae",
+            "get_by_text": "Details"
+        }
+    },
+    {
+        "id": "f8f2066e-00f2-47ce-9f09-40ba53049571",
+        "document": "Insights",
+        "metadata": {
+            "intent": "insights_action",
+            "label_text": "Insights",
+            "placeholder": "Insights",
+            "unique_name": "detail_insights_link_insights_action_5845d771",
+            "element_id": "f8f2066e-00f2-47ce-9f09-40ba53049571",
+            "external": false,
+            "dom_matched": false,
+            "page_name": "detail",
+            "ocr_type": "link",
+            "type": "ocr",
+            "get_by_text": "Insights"
+        }
+    },
+    {
+        "id": "ae7f5c81-806a-428a-a9b6-1d7fc8735f26",
+        "document": "Gender",
+        "metadata": {
+            "intent": "gender_select",
+            "external": false,
+            "get_by_text": "Gender",
+            "unique_name": "detail_gender_select_gender_select_4efd93c1",
+            "dom_matched": false,
+            "placeholder": "Gender",
+            "page_name": "detail",
+            "label_text": "Gender",
+            "element_id": "ae7f5c81-806a-428a-a9b6-1d7fc8735f26",
+            "type": "ocr",
+            "ocr_type": "select"
+        }
+    },
+    {
+        "id": "305ed50c-7143-4171-8838-34f164f13ae9",
+        "document": "Marital Status",
+        "metadata": {
+            "external": false,
+            "intent": "marital_status_select",
+            "element_id": "305ed50c-7143-4171-8838-34f164f13ae9",
+            "dom_matched": false,
+            "placeholder": "Marital Status",
+            "page_name": "detail",
+            "label_text": "Marital Status",
+            "type": "ocr",
+            "get_by_text": "Marital Status",
+            "ocr_type": "select",
+            "unique_name": "detail_marital_status_select_marital_status_select_7dab01a6"
+        }
+    },
+    {
+        "id": "d5dd67e9-5f12-4988-ab39-9396194044b0",
+        "document": "Spouse/Partner Name",
+        "metadata": {
+            "placeholder": "Spouse/Partner Name",
+            "element_id": "d5dd67e9-5f12-4988-ab39-9396194044b0",
+            "external": false,
+            "page_name": "detail",
+            "ocr_type": "textbox",
+            "unique_name": "detail_spouse/partner_name_textbox_spousepartner_name_field_f4fb2f49",
+            "dom_matched": false,
+            "type": "ocr",
+            "get_by_text": "Spouse/Partner Name",
+            "intent": "spousepartner_name_field",
+            "label_text": "Spouse/Partner Name"
+        }
+    },
+    {
+        "id": "6fa10d76-e318-46e7-bb90-6724e458f878",
+        "document": "Currency",
+        "metadata": {
+            "label_text": "Currency",
+            "element_id": "6fa10d76-e318-46e7-bb90-6724e458f878",
+            "type": "ocr",
+            "unique_name": "detail_currency_select_currency_select_c24f7dc0",
+            "dom_matched": false,
+            "get_by_text": "Currency",
+            "placeholder": "Currency",
+            "page_name": "detail",
+            "intent": "currency_select",
+            "ocr_type": "select",
+            "external": false
+        }
+    },
+    {
+        "id": "1a14c3a8-7685-4ae2-9e6b-72492ba01039",
+        "document": "Credit Limit",
+        "metadata": {
+            "placeholder": "Credit Limit",
+            "type": "ocr",
+            "intent": "credit_limit_field",
+            "dom_matched": false,
+            "get_by_text": "Credit Limit",
+            "external": false,
+            "page_name": "detail",
+            "label_text": "Credit Limit",
+            "ocr_type": "textbox",
+            "element_id": "1a14c3a8-7685-4ae2-9e6b-72492ba01039",
+            "unique_name": "detail_credit_limit_textbox_credit_limit_field_d4c789a8"
+        }
+    },
+    {
+        "id": "e595e7f4-5345-44be-b8f0-7365902d1547",
+        "document": "Contact point preferences",
+        "metadata": {
+            "external": false,
+            "intent": "contact_point_preferences_info",
+            "dom_matched": false,
+            "placeholder": "Contact point preferences",
+            "unique_name": "detail_contact_point_preferences_label_contact_point_preferences_info_1e46a171",
+            "type": "ocr",
+            "element_id": "e595e7f4-5345-44be-b8f0-7365902d1547",
+            "get_by_text": "Contact point preferences",
+            "label_text": "Contact point preferences",
+            "ocr_type": "label",
+            "page_name": "detail"
+        }
+    },
+    {
+        "id": "baae844f-ea62-4813-939e-0b91de8d4ac7",
+        "document": "Shipping Method",
+        "metadata": {
+            "type": "ocr",
+            "unique_name": "detail_shipping_method_select_shipping_method_select_86feada2",
+            "dom_matched": false,
+            "page_name": "detail",
+            "ocr_type": "select",
+            "placeholder": "Shipping Method",
+            "get_by_text": "Shipping Method",
+            "intent": "shipping_method_select",
+            "external": false,
+            "label_text": "Shipping Method",
+            "element_id": "baae844f-ea62-4813-939e-0b91de8d4ac7"
+        }
+    },
+    {
+        "id": "76aefdd8-10f3-4b1f-a29c-7aff3d319c54",
+        "document": "Freight Terms",
+        "metadata": {
+            "dom_matched": false,
+            "page_name": "detail",
+            "type": "ocr",
+            "ocr_type": "select",
+            "unique_name": "detail_freight_terms_select_freight_terms_select_0bdb28e5",
+            "get_by_text": "Freight Terms",
+            "external": false,
+            "placeholder": "Freight Terms",
+            "intent": "freight_terms_select",
+            "label_text": "Freight Terms",
+            "element_id": "76aefdd8-10f3-4b1f-a29c-7aff3d319c54"
+        }
+    },
+    {
+        "id": "5b54ada3-e336-4ed0-881e-e04bb89e0e85",
+        "document": "Originating Lead",
+        "metadata": {
+            "placeholder": "Originating Lead",
+            "unique_name": "detail_originating_lead_textbox_originating_lead_field_c230994c",
+            "label_text": "Originating Lead",
+            "page_name": "detail",
+            "get_by_text": "Originating Lead",
+            "dom_matched": false,
+            "element_id": "5b54ada3-e336-4ed0-881e-e04bb89e0e85",
+            "ocr_type": "textbox",
+            "intent": "originating_lead_field",
+            "external": false,
+            "type": "ocr"
+        }
+    },
+    {
+        "id": "a610087a-1029-4cb9-9270-379b42e15ad3",
+        "document": "Form assist",
+        "metadata": {
+            "type": "ocr",
+            "dom_matched": false,
+            "ocr_type": "button",
+            "element_id": "a610087a-1029-4cb9-9270-379b42e15ad3",
+            "page_name": "detail",
+            "external": false,
+            "unique_name": "detail_form_assist_button_form_assist_action_767338c1",
+            "intent": "form_assist_action",
+            "get_by_text": "Form assist",
+            "label_text": "Form assist",
+            "placeholder": "Form assist"
+        }
+    }
+]
