@@ -7,7 +7,7 @@ from typing import Optional
 from utils.smart_ai_utils import ensure_smart_ai_module
 from sqlalchemy.orm import Session
 
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 from database.session import get_db
 from database.models import Project
 

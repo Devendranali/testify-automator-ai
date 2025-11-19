@@ -35,7 +35,7 @@ from logic.manual_capture_mode import (
 from utils.match_utils import normalize_page_name
 from utils.file_utils import build_standard_metadata
 from utils.smart_ai_utils import get_smartai_src_dir
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 from database.session import get_db, session_scope
 from database.models import Project
 from sqlalchemy.orm import Session

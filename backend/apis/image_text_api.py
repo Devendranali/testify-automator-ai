@@ -20,7 +20,7 @@ from config.settings import get_data_path
 from utils.chroma_client import get_collection
 from database.session import get_db
 from database.models import Project, ImageMetadata, ImageUploadRun
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 from datetime import datetime
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import re

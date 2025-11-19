@@ -13,7 +13,7 @@ from services.test_generation_utils import runtime_collection, filter_all_pages
 from utils.match_utils import normalize_page_name
 from utils.smart_ai_utils import ensure_smart_ai_module, get_smartai_src_dir
 from orchestrator.orchestrator import send_message
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 from database.session import get_db
 from database.models import Project
 

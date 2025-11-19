@@ -17,7 +17,7 @@ from services.test_generation_utils import openai_client
 from utils.prompt_utils import build_prompt
 from utils.chroma_client import get_collection
 from utils.file_utils import generate_unique_name
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 from database.session import get_db
 from database.models import Project
 

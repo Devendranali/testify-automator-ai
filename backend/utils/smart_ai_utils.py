@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from storage.project_storage import DatabaseBackedProjectStorage
+    from database.project_storage import DatabaseBackedProjectStorage
 
 SMART_AI_CODE = """
 

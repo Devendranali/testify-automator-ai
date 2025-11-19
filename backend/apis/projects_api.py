@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 import auth
 from database.models import Project, User
 from database.session import get_db
-from storage.project_storage import DatabaseBackedProjectStorage
+from database.project_storage import DatabaseBackedProjectStorage
 
 router = APIRouter()
 
