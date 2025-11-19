@@ -87,10 +87,9 @@ Rules:
    - Also include any clickable cards, or app names (like "Customer Service", "Sales Hub") visible on the screen.
    - Never leave label_text blank unless nothing is visible nearby.
 
-2. <ocr_type> — One of: textbox, button, label, checkbox, **select**, **date**, link, image.  
+2. <ocr_type> — One of: textbox, button, label, checkbox, **select**, link, image.  
    - **Always classify dropdowns, picklists, comboboxes, or any field with an angle-down (▼) icon or down arrow symbol as `select`.**  
-   - **Use `date` for fields that open a calendar picker when clicked (e.g., Birthday, Anniversary, Start Date, End Date).**  
-   - If the field shows a calendar icon, date symbol, or a formatted date (like "29 Oct 2025" or "---"), classify it as `date`.  
+   - If the field displays a default or pre-selected value (for example, showing a word or option inside), but also has a dropdown indicator or opens a list of options, it must still be categorized as `select`.  
    - Fields with free text entry and no dropdown or arrow indicator → `textbox`.  
    - When in doubt, if the element visually includes a chevron, down-arrow, caret, or expandable menu indicator, treat it as a `select`.
 
@@ -99,16 +98,17 @@ Rules:
        "Email" → email_field  
        "Password" → password_field  
        "Login" → login_action  
-       "Account Type" → account_type_select  
-       "Lead Source" → lead_source_select  
-       "Birthday" → birthday_date  
-       "Anniversary" → anniversary_date  
+       "Account Type" → account_type_select
+       "Lead Source" → lead_source_select
+       
+        
+     
 
 4. Do NOT include any commentary, numbering, or blank lines.
 
 5. Do NOT paraphrase label_text — use the **exact on-screen wording**.
 
-6. Be exhaustive: every visible field, dropdown, date picker, or button must appear as one output line.
+6. Be exhaustive: every visible field, dropdown, or button must appear as one output line.
 
 Examples:
   Username - textbox - username_field
@@ -116,11 +116,14 @@ Examples:
   Login - button - login_action
   Remember Me - checkbox - remember_me_checkbox
   Account Type - select - account_type_select
+  Originating Lead - enter - originating_lead_field
   Preferred Method of Contact - select - preferred_method_of_contact_select
   Primary Time Zone - select - primary_time_zone_select
   Lead Source - select - lead_source_select
-  Birthday - date - birthday_date
-  Anniversary - date - anniversary_date
+  Company Name - enter - company_name_field
+  Home Phone - enter - home_phone_field
+  Coustomer Service - link - customer_service_action
+
 """
 
 # ------------------------------------------------------------------------------------

@@ -14,8 +14,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import auth
-from db.models import Project, User
-from db.session import get_db
+from database.models import Project, User
+from database.session import get_db
+from storage.project_storage import DatabaseBackedProjectStorage
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ class TokenPayload(BaseModel):
     sub: EmailStr
     uid: int
     org: str
+    org_id: Optional[int] = None
     exp: Optional[int] = None
 
 
@@ -98,6 +100,8 @@ def get_current_user(
 
     if (user.organization or "").strip().lower() != (token_data.org or "").strip().lower():
         raise credentials_exception
+    if token_data.org_id is not None and user.organization_id != token_data.org_id:
+        raise credentials_exception
 
     return user
 
@@ -140,17 +144,19 @@ def _ensure_project_structure(project: Project) -> dict:
     }
 
 
-def _activate_env(project_paths: dict) -> None:
+def _activate_env(project_paths: dict, project: Optional[Project] = None) -> None:
     os.environ["SMARTAI_PROJECT_DIR"] = project_paths["project_root"]
     os.environ["SMARTAI_SRC_DIR"] = project_paths["src_dir"]
     os.environ["SMARTAI_CHROMA_PATH"] = project_paths["chroma_path"]
+    if project and project.id:
+        os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
 
 
 def _clear_env_if_active(project_root: Path) -> None:
     """Unset SMARTAI_* env vars if they point at the deleted project."""
     resolved = str(project_root.resolve())
     if os.environ.get("SMARTAI_PROJECT_DIR") == resolved:
-        for key in ("SMARTAI_PROJECT_DIR", "SMARTAI_SRC_DIR", "SMARTAI_CHROMA_PATH"):
+        for key in ("SMARTAI_PROJECT_DIR", "SMARTAI_SRC_DIR", "SMARTAI_CHROMA_PATH", "SMARTAI_PROJECT_ID"):
             os.environ.pop(key, None)
 
 
@@ -177,9 +183,11 @@ def save_project_details(
     current_user: User = Depends(get_current_user),
 ):
     user_org = current_user.organization.strip()
+    user_org_id = current_user.organization_id
     try:
         project = Project(
             organization=user_org,
+            organization_id=user_org_id,
             project_name=details.project_name.strip(),
             framework=details.framework.strip(),
             language=details.language.strip(),
@@ -209,7 +217,7 @@ def save_project_details(
         raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
 
     try:
-        _activate_env(project_paths)
+        _activate_env(project_paths, project)
     except Exception:
         # Environment activation is best-effort; failures shouldn't prevent API success.
         pass
@@ -228,10 +236,10 @@ def list_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
+    org_id = current_user.organization_id
     projects = (
         db.query(Project)
-        .filter(Project.organization == user_org)
+        .filter(Project.organization_id == org_id)
         .order_by(Project.created_at.desc())
         .all()
     )
@@ -245,6 +253,7 @@ def activate_project(
     current_user: User = Depends(get_current_user),
 ):
     user_org = current_user.organization.strip()
+    org_id = current_user.organization_id
     name = (req.project_name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="project_name is required")
@@ -254,7 +263,7 @@ def activate_project(
         db.query(Project)
         .filter(
             Project.project_key == project_key,
-            Project.organization == user_org,
+            Project.organization_id == org_id,
         )
         .first()
     )
@@ -269,7 +278,7 @@ def activate_project(
             detail=f"Failed to prepare project directories: {exc}",
         ) from exc
     try:
-        _activate_env(project_paths)
+        _activate_env(project_paths, project)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to activate project: {exc}") from exc
 
@@ -286,10 +295,10 @@ def get_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
+    org_id = current_user.organization_id
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.organization == user_org)
+        .filter(Project.id == project_id, Project.organization_id == org_id)
         .first()
     )
     if not project:
@@ -306,10 +315,10 @@ def get_project(
     }
 
 
-def _get_project_for_user(project_id: int, db: Session, user_org: str) -> Project:
+def _get_project_for_user(project_id: int, db: Session, org_id: int) -> Project:
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.organization == user_org)
+        .filter(Project.id == project_id, Project.organization_id == org_id)
         .first()
     )
     if not project:
@@ -324,8 +333,8 @@ def list_project_files(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
-    project = _get_project_for_user(project_id, db, user_org)
+    org_id = current_user.organization_id
+    project = _get_project_for_user(project_id, db, org_id)
 
     try:
         project_paths = _ensure_project_structure(project)
@@ -370,8 +379,8 @@ def get_project_file_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
-    project = _get_project_for_user(project_id, db, user_org)
+    org_id = current_user.organization_id
+    project = _get_project_for_user(project_id, db, org_id)
 
     try:
         project_paths = _ensure_project_structure(project)
@@ -379,26 +388,23 @@ def get_project_file_content(
         raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
 
     base_dir = Path(project_paths["src_dir"])
+    storage = DatabaseBackedProjectStorage(project, base_dir, db)
     target = _resolve_project_path(base_dir, path)
 
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
-    try:
-        content = target.read_text(encoding="utf-8")
-        encoding = "utf-8"
-    except UnicodeDecodeError:
-        content = target.read_text(encoding="utf-8", errors="replace")
-        encoding = "utf-8 (errors replaced)"
-
+    relative_path = target.relative_to(base_dir).as_posix()
+    file_data = storage.read_file(relative_path, target)
     extension = target.suffix.lower().lstrip(".")
 
     return {
         "project_id": project_id,
-        "path": target.relative_to(base_dir).as_posix(),
-        "encoding": encoding,
+        "path": relative_path,
+        "encoding": file_data.encoding,
         "language": extension or "text",
-        "content": content,
+        "content": file_data.content,
+        "source": file_data.source,
     }
 
 
@@ -409,8 +415,8 @@ def update_project_file_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
-    project = _get_project_for_user(project_id, db, user_org)
+    org_id = current_user.organization_id
+    project = _get_project_for_user(project_id, db, org_id)
 
     try:
         project_paths = _ensure_project_structure(project)
@@ -418,6 +424,7 @@ def update_project_file_content(
         raise HTTPException(status_code=500, detail=f"Failed to prepare project directories: {exc}") from exc
 
     base_dir = Path(project_paths["src_dir"])
+    storage = DatabaseBackedProjectStorage(project, base_dir, db)
     relative_path = (payload.path or "").strip()
     if not relative_path:
         raise HTTPException(status_code=400, detail="Path is required")
@@ -439,6 +446,8 @@ def update_project_file_content(
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {exc}") from exc
 
+    storage.write_file(target.relative_to(base_dir).as_posix(), payload.content or "", encoding)
+
     stat = target.stat()
     extension = target.suffix.lower().lstrip(".")
 
@@ -459,10 +468,10 @@ def delete_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
+    org_id = current_user.organization_id
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.organization == user_org)
+        .filter(Project.id == project_id, Project.organization_id == org_id)
         .first()
     )
     if not project:
@@ -493,10 +502,10 @@ def download_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    user_org = current_user.organization.strip()
+    org_id = current_user.organization_id
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.organization == user_org)
+        .filter(Project.id == project_id, Project.organization_id == org_id)
         .first()
     )
     if not project:

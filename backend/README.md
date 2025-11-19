@@ -17,22 +17,25 @@
 
 ## Database Setup
 
-The backend now uses SQLAlchemy with Alembic migrations. By default it falls back to the local SQLite file `backend/test.db`, but production/staging deployments should supply a PostgreSQL URL.
+The backend now uses SQLAlchemy with Alembic migrations. By default it falls back to the local SQLite file `backend/database/test.db`, but production/staging deployments should supply a PostgreSQL URL.
 
 1. **Configure the connection string**
    - Copy `.env.example` to `.env` if needed.
    - Add `DATABASE_URL=postgresql+psycopg://user:password@host:5432/testify`.
-   - To keep using SQLite for local runs, omit the variable or set `DATABASE_URL=sqlite:///backend/test.db`.
+   - To keep using SQLite for local runs, omit the variable or set `DATABASE_URL=sqlite:///backend/database/test.db`.
 
 2. **Run migrations**
    ```bash
-   alembic -c backend/alembic.ini upgrade head
+   alembic -c backend/database/alembic.ini upgrade head
    ```
-   This bootstraps the schema (see `backend/migrations/`).
+   This bootstraps the schema (see `backend/database/migrations/`).
 
 3. **Optional: skip auto-create**
    - The app calls `Base.metadata.create_all()` on import for convenience.
    - Set `SQLALCHEMY_SKIP_AUTO_INIT=1` to require migrations instead.
 
 Existing project endpoints (`/projects/save-details`, `/projects`, `/projects/activate`) now persist to the `projects` table and automatically prepare project directories under `backend/<project_name>/...`.
+
+Project file edits performed through the `/projects/{id}/files/*` APIs are duplicated into the `project_files` table so their latest contents are always stored in the shared database (in addition to the on-disk copy the SmartAI runtime still requires).
+
 

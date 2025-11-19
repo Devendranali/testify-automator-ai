@@ -6,13 +6,13 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # ---------------------------------------------------------------------
-# Ensure Alembic can find your app modules (db/, models/, etc.)
+# Ensure Alembic can find your app modules (database/, models/, etc.)
 # ---------------------------------------------------------------------
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Import your Base and engine
-from db.session import Base, engine
-import db.models  # noqa: F401  # ensure models are registered
+from database.session import Base, engine
+import database.models  # noqa: F401  # ensure models are registered
 
 # ---------------------------------------------------------------------
 # Alembic Config setup

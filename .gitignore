@@ -7,6 +7,8 @@ venv/
 frontend-demo/node_modules
 node_modules
 
+backend/organizations/
+
 #for cookies
 backend/storage/
 

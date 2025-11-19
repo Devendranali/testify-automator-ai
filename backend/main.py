@@ -29,8 +29,8 @@ from apis.generate_testcases_from_methods import router as generate_test_code_fr
 from apis.manual_add_metadata import router as manual_add_metadata
 from apis.projects_api import router as projects_router
 import auth
-from db.models import User
-from db.session import Base, engine, get_db
+from database.models import User, Organization
+from database.session import Base, engine, get_db
 from utils.security import hash_password, verify_password
 
 # Ensure schema exists before handling traffic (Alembic should manage in production).
@@ -107,6 +107,10 @@ class LoginRequest(_AuthBase):
 @app.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
     try:
+        org = Organization.get_or_create(db, payload.organization)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    try:
         password_hash = hash_password(payload.password)
     except ValueError as exc:
         raise HTTPException(
@@ -120,7 +124,8 @@ def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
         ) from exc
 
     user = User(
-        organization=payload.organization.strip(),
+        organization=org.display_name,
+        organization_id=org.id,
         email=payload.normalized_email(),
         password_hash=password_hash,
     )
@@ -165,7 +170,7 @@ def login_for_access_token(payload: LoginRequest, db: Session = Depends(get_db))
         )
 
     access_token = auth.create_access_token(
-        data={"sub": user.email, "uid": user.id, "org": user.organization}
+        data={"sub": user.email, "uid": user.id, "org": user.organization, "org_id": user.organization_id}
     )
     return {"access_token": access_token, "token_type": "bearer"}
 

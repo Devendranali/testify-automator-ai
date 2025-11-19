@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from pathlib import Path
 from typing import List, Optional
 
@@ -9,6 +9,7 @@ import re
 import textwrap
 
 import pandas as pd
+from sqlalchemy.orm import Session
 
 # Kept for future use (silence linter if configured)
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path  # noqa: F401
@@ -16,6 +17,9 @@ from services.test_generation_utils import openai_client
 from utils.prompt_utils import build_prompt
 from utils.chroma_client import get_collection
 from utils.file_utils import generate_unique_name
+from storage.project_storage import DatabaseBackedProjectStorage
+from database.session import get_db
+from database.models import Project
 
 
 router = APIRouter()
@@ -25,7 +29,7 @@ router = APIRouter()
 
 # Matches lines like: "    enter_username(page, value)" or "    select_country(page, value)"
 METHOD_CALL_RE = re.compile(
-    r'^(\s*)((?:enter_|fill_|select_)[a-zA-Z0-9_]+)\(\s*page\s*,\s*(.+?)\s*\)\s*$'
+    r'^(\s*)((?:enter_|fill_|select_)[a-zA-Z0-9_]+)\(s*page\s*,\s*(.+?)\s*\)\s*$'
 )
 
 
@@ -52,10 +56,67 @@ def inject_assertions_after_actions(code: str) -> str:
 # ----------------------------------------------------------------------
 
 
+def _get_active_project(db: Session) -> Project:
+    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
+    if project_id_value:
+        try:
+            project = (
+                db.query(Project)
+                .filter(Project.id == int(project_id_value))
+                .first()
+            )
+            if project:
+                return project
+        except ValueError:
+            pass
+
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if project_dir:
+        segment = Path(project_dir).name
+        match = re.match(r"(?P<id>\d+)-", segment)
+        if match:
+            candidate_id = int(match.group("id"))
+            project = (
+                db.query(Project)
+                .filter(Project.id == candidate_id)
+                .first()
+            )
+            if project:
+                os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+                return project
+
+        normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
+        project = (
+            db.query(Project)
+            .filter(Project.project_key == normalized_slug)
+            .order_by(Project.created_at.desc())
+            .first()
+        )
+        if project:
+            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+            return project
+
+    raise HTTPException(
+        status_code=400,
+        detail="Active project not found in database. Activate a project before generating stories.",
+    )
+
+
+def _persist_project_file(path: Path, content: str, storage: Optional[DatabaseBackedProjectStorage], encoding: str = "utf-8") -> None:
+    if not storage:
+        return
+    try:
+        relative = path.relative_to(storage.base_dir)
+    except ValueError:
+        return
+    storage.write_file(relative.as_posix(), content, encoding)
+
+
 def create_default_test_data(
     run_folder: Path,
     method_map_full: Optional[dict] = None,
     test_data_json: Optional[str] = None,
+    storage: Optional[DatabaseBackedProjectStorage] = None,
 ) -> None:
     """
     Create or write test data for the run. If `test_data_json` is provided it will be used (must be JSON string).
@@ -77,15 +138,17 @@ def create_default_test_data(
     data_dir = Path(run_folder) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "__init__.py").touch()
-    with open(data_dir / "test_data.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    target = data_dir / "test_data.json"
+    json_text = json.dumps(data, indent=2)
+    target.write_text(json_text, encoding="utf-8")
+    _persist_project_file(target, json_text, storage)
 
 
 def extract_method_names_from_file(file_path: Path) -> List[str]:
     method_names: List[str] = []
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
-            m = re.match(r"def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^\)]*\):", line)
+            m = re.match(r"def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\):", line)
             if m:
                 method_names.append(line.strip())
     return method_names
@@ -111,6 +174,7 @@ def generate_test_code_from_methods(
     page_names: List[str],
     site_url: str,
     run_folder: Path,
+    storage: Optional[DatabaseBackedProjectStorage] = None,
 ) -> str:
     # Summarize available methods into human-friendly steps; this feeds the prompt
     dynamic_steps: List[str] = []
@@ -119,7 +183,7 @@ def generate_test_code_from_methods(
             name = method.split("(")[0].replace("def ", "").strip()
             if name.startswith(("enter_", "fill_")):
                 param = name.replace("enter_", "").replace("fill_", "")
-                dynamic_steps.append(f'    - Call `{name}("<{param}>")`')
+                dynamic_steps.append(f'    - Call `{name}("<"+param+">")`')
             elif name.startswith(("click_", "select_")):
                 if name.startswith("select_"):
                     dynamic_steps.append(f'    - Call `{name}("<value>")`')
@@ -129,7 +193,7 @@ def generate_test_code_from_methods(
                 readable = name.replace("verify_", "").replace("_", " ").capitalize()
                 dynamic_steps.append(f"    - Assert `{name}()` checks if **{readable}** is visible")
 
-    user_story_clean = user_story.replace('"""', '\\"""')
+    user_story_clean = user_story.replace('"""', '\"""')
     story_block = f'"""{user_story_clean}"""'
 
     # Save dynamic steps log
@@ -141,10 +205,9 @@ def generate_test_code_from_methods(
         if not output_file.exists():
             break
         i += 1
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write("# Dynamic Steps\n\n")
-        for step in dynamic_steps:
-            f.write(step + "\n")
+    dynamic_steps_text = "# Dynamic Steps\n\n" + "\n".join(dynamic_steps) + ("\n" if dynamic_steps else "")
+    output_file.write_text(dynamic_steps_text, encoding="utf-8")
+    _persist_project_file(output_file, dynamic_steps_text, storage)
 
     # Build prompt
     prompt = build_prompt(
@@ -164,8 +227,8 @@ def generate_test_code_from_methods(
         if not prompt_file.exists():
             break
         i += 1
-    with open(prompt_file, "w", encoding="utf-8") as f:
-        f.write(prompt)
+    prompt_file.write_text(prompt, encoding="utf-8")
+    _persist_project_file(prompt_file, prompt, storage)
 
     # Call LLM to generate test code
     model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
@@ -190,7 +253,7 @@ def generate_test_code_from_methods(
     try:
         if site_url and str(site_url).strip():
             goto_literal = json.dumps(site_url)
-            clean_output = re.sub(r"page\.goto\([^\)]*\)", f"page.goto({goto_literal})", clean_output)
+            clean_output = re.sub(r"page\\.goto\\([^\\)]*\\)", f"page.goto({goto_literal})", clean_output)
     except Exception:
         pass
 
@@ -203,8 +266,8 @@ def generate_test_code_from_methods(
         if not output_file.exists():
             break
         i += 1
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(clean_output)
+    output_file.write_text(clean_output, encoding="utf-8")
+    _persist_project_file(output_file, clean_output, storage)
 
     return clean_output
 
@@ -247,12 +310,15 @@ async def generate_from_user_story(
     ai_model: Optional[str] = Form(None),
     infer_pages: Optional[bool] = Form(False),
     test_data_json: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
 ):
     src_env = os.environ.get("SMARTAI_SRC_DIR")
     if not src_env:
         raise HTTPException(status_code=400, detail="No active project. Start a project first (SMARTAI_SRC_DIR not set).")
 
+    project = _get_active_project(db)
     run_folder = Path(src_env)
+    storage = DatabaseBackedProjectStorage(project, run_folder, db)
     pages_dir = run_folder / "pages"
     tests_dir = run_folder / "tests"
     logs_dir = run_folder / "logs"
@@ -327,8 +393,9 @@ async def generate_from_user_story(
         else:
             all_chroma_metadatas.append(m)
     before_file = meta_dir / "before_enrichment.json"
-    with open(before_file, "w", encoding="utf-8") as f:
-        json.dump(all_chroma_metadatas, f, indent=2)
+    before_text = json.dumps(all_chroma_metadatas, indent=2)
+    before_file.write_text(before_text, encoding="utf-8")
+    _persist_project_file(before_file, before_text, storage)
 
     method_map_full = get_all_page_methods(pages_dir)
 
@@ -354,7 +421,7 @@ async def generate_from_user_story(
             continue
         all_path_pages.extend(path_pages)
         sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
+        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder, storage)
         test_functions.append(code)
         results.append({
             "Prompt": f" Prompt\n\n1. {story}\nExpected: Success",
@@ -378,14 +445,18 @@ async def generate_from_user_story(
         import_lines.append(f"from pages.{module_name} import *")
 
     # Write the raw test(s) as produced by LLM
-    test_file.write_text("\n\n".join(import_lines + test_functions), encoding="utf-8")
+    test_content = "\n\n".join(import_lines + test_functions)
+    test_file.write_text(test_content, encoding="utf-8")
+    _persist_project_file(test_file, test_content, storage)
 
     if all_path_pages:
-        log_file.write_text("\n".join(all_path_pages), encoding="utf-8")
+        log_content = "\n".join(all_path_pages)
     else:
-        log_file.write_text("No stories were processed.", encoding="utf-8")
+        log_content = "No stories were processed."
+    log_file.write_text(log_content, encoding="utf-8")
+    _persist_project_file(log_file, log_content, storage)
 
-    create_default_test_data(run_folder, method_map_full=method_map_full, test_data_json=test_data_json)
+    create_default_test_data(run_folder, method_map_full=method_map_full, test_data_json=test_data_json, storage=storage)
 
     # ================== ui_script.py generation block =======================
     test_files = sorted(tests_dir.glob("test_*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -410,7 +481,7 @@ async def generate_from_user_story(
                 in_func = True
                 continue
             if in_func:
-                if re.match(r"def [a-zA-Z_]", line):
+                if not line.startswith("    "):
                     in_func = False
                     continue
                 func_body.append(line)
@@ -441,42 +512,11 @@ async def generate_from_user_story(
 
             if storage_override_js:
                 storage_snippet = (
-                    f"""        try:
-            context = browser.new_context(storage_state={storage_override_js})
-            page = context.new_page()
-            print(f\"[ui_runner] Restored storage_state from provided path\")
-        except Exception as e:
-            print(f\"[ui_runner] Failed to restore provided storage_state: {{e}}\")
-            context = browser.new_context()
-            page = context.new_page()
-"""
+                    f"""        try:\n            context = browser.new_context(storage_state={storage_override_js})\n            page = context.new_page()\n            print(f"[ui_runner] Restored storage_state from provided path")\n        except Exception as e:\n            print(f"[ui_runner] Failed to restore provided storage_state: {{e}}}}")\n            context = browser.new_context()\n            page = context.new_page()\n"""
                 )
             else:
                 storage_snippet = (
-                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.
-        # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)
-        storage_file = None
-        env_sf = os.getenv("UI_STORAGE_FILE", "").strip()
-        if env_sf:
-            storage_file = _Path(env_sf)
-        else:
-            guessed = _Path(__file__).resolve().parents[3] / "backend" / "storage" / "cookies.json"
-            if guessed.exists():
-                storage_file = guessed
-
-        if storage_file and storage_file.exists():
-            try:
-                context = browser.new_context(storage_state=str(storage_file))
-                page = context.new_page()
-                print(f"[ui_runner] Restored storage_state from: {storage_file}")
-            except Exception as e:
-                print(f"[ui_runner] Failed to restore storage_state: {e}")
-                context = browser.new_context()
-                page = context.new_page()
-        else:
-            context = browser.new_context()
-            page = context.new_page()
-"""
+                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.\n        # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)\n        storage_file = None\n        env_sf = os.getenv("UI_STORAGE_FILE", "").strip()\n        if env_sf:\n            storage_file = _Path(env_sf)\n        else:\n            guessed = _Path(__file__).resolve().parents[3] / "backend" / "storage" / "cookies.json"\n            if guessed.exists():\n                storage_file = guessed\n\n        if storage_file and storage_file.exists():\n            try:\n                context = browser.new_context(storage_state=str(storage_file))\n                page = context.new_page()\n                print(f"[ui_runner] Restored storage_state from: {storage_file}")\n            except Exception as e:\n                print(f"[ui_runner] Failed to restore storage_state: {e}")\n                context = browser.new_context()\n                page = context.new_page()\n        else:\n            context = browser.new_context()\n            page = context.new_page()\n"""
                 )
 
             goto_line = ""
@@ -486,54 +526,39 @@ async def generate_from_user_story(
             except Exception:
                 goto_line = ""
 
-            runner_block = f"""def {runner_name}():
-    import time
-    import os
-    from pathlib import Path as _Path
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, slow_mo=300)
-
-{storage_snippet}
-        # Patch SmartAI
-        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
-        with open(metadata_path, "r") as f:
-            actual_metadata = json.load(f)
-{goto_line}        patch_page_with_smartai(page, actual_metadata)
-{steps}
-        time.sleep(3)
-        browser.close()
-
-"""
+            runner_block = f"""def {runner_name}():\n    import time\n    import os\n    from pathlib import Path as _Path\n    with sync_playwright() as p:\n        browser = p.chromium.launch(headless=False, slow_mo=300)\n\n{storage_snippet}\n        # Patch SmartAI\n        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"\n        with open(metadata_path, "r") as f:\n            actual_metadata = json.load(f)\n{goto_line}        patch_page_with_smartai(page, actual_metadata)\n{steps}\n        time.sleep(3)\n        browser.close()\n\n"""
             wrapper_blocks.append(runner_block)
 
-        header = """# Auto-generated UI runner
-import sys
-from pathlib import Path as _Path
-# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running
-# this script from the repository root or the backend folder.
-_ROOT = _Path(__file__).resolve().parents[1]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-from playwright.sync_api import sync_playwright
-import json
-from pathlib import Path
-{page_imports}
-from lib.smart_ai import patch_page_with_smartai
-""".format(page_imports="\n".join([ln for ln in import_lines if ln.startswith("from pages.")]))
+        header = """# Auto-generated UI runner\nimport sys\nfrom pathlib import Path as _Path\n# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running\n# this script from the repository root or the backend folder.\n_ROOT = _Path(__file__).resolve().parents[1]\nif str(_ROOT) not in sys.path:\n    sys.path.insert(0, str(_ROOT))\nfrom playwright.sync_api import sync_playwright\nimport json\nfrom pathlib import Path\n{page_imports}\nfrom lib.smart_ai import patch_page_with_smartai\n""".format(page_imports="\n".join([ln for ln in import_lines if ln.startswith("from pages.")]))
 
-        main_block = "\nif __name__ == '__main__':\n"
+        main_lines = [
+            "",
+            "if __name__ == '__main__':",
+            "    failures = []",
+        ]
         for func_name, _ in func_blocks:
             runner_name = "run_" + func_name.replace("test_", "")
-            main_block += f"    {runner_name}()\n"
+            main_lines.append("    try:")
+            main_lines.append(f"        {runner_name}()")
+            main_lines.append("    except Exception as exc:")
+            main_lines.append(f"        failures.append((\"{runner_name}\", str(exc)))")
+        main_lines.append("    if failures:")
+        main_lines.append("        print(\"\\n[Test Runner] Failures detected:\")")
+        main_lines.append("        for name, err in failures:")
+        main_lines.append(f"            print(f\" - {{name}}: {{err}}\")")
+        main_lines.append("        raise SystemExit(1)")
+        main_lines.append("    print(\"\\n[Test Runner] All generated flows completed without fatal errors.\")")
+        main_block = "\n".join(main_lines) + "\n"
 
-        m = re.search(r"test_(\d+)\.py$", latest_test.name)
+        m = re.search(r"test_(\d+)\\.py$", latest_test.name)
         ui_script_filename = f"ui_script_{m.group(1)}.py" if m else "ui_script.py"
         ui_script_path = tests_dir / ui_script_filename
-        with open(ui_script_path, "w", encoding="utf-8") as f:
-            f.write(header)
-            for block in wrapper_blocks:
-                f.write(block)
-            f.write(main_block)
+        ui_script_content = [header]
+        ui_script_content.extend(wrapper_blocks)
+        ui_script_content.append(main_block)
+        final_script = "\n".join(ui_script_content)
+        ui_script_path.write_text(final_script, encoding="utf-8")
+        _persist_project_file(ui_script_path, final_script, storage)
         print(f"{ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
     # ================== End ui_script.py generation block ===================
 

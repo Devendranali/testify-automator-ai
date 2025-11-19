@@ -1,21 +1,26 @@
 # image_text_api.py
 
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
 from fastapi.responses import JSONResponse
-from typing import List
+from typing import List, Optional
 from PIL import Image
 import os
 import zipfile
 import tempfile
 import json
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 from logic.image_text_extractor import process_image_gpt
 from services.graph_service import build_dependency_graph
 from utils.match_utils import normalize_page_name
 from config.settings import get_data_path
 from utils.chroma_client import get_collection
+from database.session import get_db
+from database.models import Project, ImageMetadata, ImageUploadRun
+from storage.project_storage import DatabaseBackedProjectStorage
 from datetime import datetime
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import re
@@ -42,14 +47,139 @@ def _chroma_collection():
     return get_collection("element_metadata", embedding_function=embedding_function)
 
 
+def _get_active_project(db: Session) -> Project:
+    """Resolve the currently active project using env hints."""
+    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
+    if project_id_value:
+        try:
+            project = (
+                db.query(Project)
+                .filter(Project.id == int(project_id_value))
+                .first()
+            )
+            if project:
+                return project
+        except ValueError:
+            pass
+
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if project_dir:
+        segment = Path(project_dir).name
+        match = re.match(r"(?P<id>\d+)-", segment)
+        if match:
+            candidate_id = int(match.group("id"))
+            project = (
+                db.query(Project)
+                .filter(Project.id == candidate_id)
+                .first()
+            )
+            if project:
+                os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+                return project
+
+        normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
+        project = (
+            db.query(Project)
+            .filter(Project.project_key == normalized_slug)
+            .order_by(Project.created_at.desc())
+            .first()
+        )
+        if project:
+            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+            return project
+
+    raise HTTPException(
+        status_code=400,
+        detail="Active project not found in database. Activate a project before uploading images.",
+    )
+
+
+def _serialize_metadata_list(metadata_list: List[dict]) -> List[dict]:
+    """Convert numpy/complex objects to JSON-friendly structures."""
+
+    def _default(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, set):
+            return list(obj)
+        return str(obj)
+
+    return json.loads(json.dumps(metadata_list, default=_default))
+
+
+def _serialize_results(results: List[dict]) -> List[dict]:
+    return json.loads(json.dumps(results))
+
+
+def _merge_metadata_entries(existing: List[dict], incoming: List[dict]) -> List[dict]:
+    """Merge metadata lists, overwriting matches by stable identifiers."""
+    merged: List[dict] = []
+    index_map = {}
+
+    def _key(item: dict) -> tuple:
+        identifier = (
+            (item or {}).get("id")
+            or (item or {}).get("ocr_id")
+            or (item or {}).get("unique_name")
+            or (item or {}).get("label_text")
+            or ""
+        )
+        intent = (item or {}).get("intent") or ""
+        return (identifier.strip().lower(), intent.strip().lower())
+
+    for entry in existing or []:
+        key = _key(entry)
+        index_map[key] = len(merged)
+        merged.append(entry)
+
+    for entry in incoming or []:
+        key = _key(entry)
+        if key in index_map:
+            merged[index_map[key]] = entry
+        else:
+            index_map[key] = len(merged)
+            merged.append(entry)
+
+    return merged
+
+
+def _project_root_storage(project: Project, db: Session) -> Optional[DatabaseBackedProjectStorage]:
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if not project_dir:
+        return None
+    try:
+        root = Path(project_dir).resolve()
+    except Exception:
+        return None
+    return DatabaseBackedProjectStorage(project, root, db)
+
+
+def _persist_data_file(
+    storage: Optional[DatabaseBackedProjectStorage],
+    absolute_path: Path,
+    payload: str,
+    encoding: str = "utf-8",
+) -> None:
+    if not storage:
+        return
+    try:
+        relative = absolute_path.resolve().relative_to(storage.base_dir.resolve())
+    except Exception:
+        return
+    storage.write_file(relative.as_posix(), payload, encoding or "utf-8")
+
+
 @router.post("/upload-image")
 async def upload_image(
     images: List[UploadFile] = File(...),
-    ordered_images: str = Form(None)
+    ordered_images: str = Form(None),
+    db: Session = Depends(get_db),
 ):
     # Require an active project so we don't write to repo-level defaults
     if not os.environ.get("SMARTAI_PROJECT_DIR") or not os.environ.get("SMARTAI_SRC_DIR"):
         raise HTTPException(status_code=400, detail="No active project. Start a project first (POST /projects/save-details).")
+    project = _get_active_project(db)
+    data_storage = _project_root_storage(project, db)
     dp = get_data_path()
     os.makedirs(os.path.join(dp, "regions"), exist_ok=True)
     os.makedirs(os.path.join(dp, "images"), exist_ok=True)
@@ -142,26 +272,57 @@ async def upload_image(
                         img, image_name,
                         image_path=permanent_image_path,
                         # debug_log_path=DEBUG_LOG_PATH
-                    )                    
+                    )
+                    metadata_list = metadata_list or []
+                    serialized_metadata = _serialize_metadata_list(metadata_list)
 
                     # Save per-image metadata to data/stored/timestamp_imageName.json
-                    def to_serializable(obj):
-                        if isinstance(obj, np.ndarray):
-                            return obj.tolist()
-                        if isinstance(obj, (set,)):
-                            return list(obj)
-                        return obj
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     base_image_name = os.path.splitext(os.path.basename(image_name))[0]
-                    os.makedirs(os.path.join(get_data_path(), "stored"), exist_ok=True)
-                    out_file = os.path.join(
-                        get_data_path(), "stored", f"{timestamp}_{base_image_name}.json")
-                    with open(out_file, "w", encoding="utf-8") as f:
-                        json.dump(metadata_list, f, indent=4, ensure_ascii=False, default=to_serializable)
+                    store_dir = Path(get_data_path()) / "stored"
+                    store_dir.mkdir(parents=True, exist_ok=True)
+                    out_path = store_dir / f"{base_image_name}.json"
+                    if out_path.exists():
+                        try:
+                            existing_meta = json.loads(out_path.read_text(encoding="utf-8") or "[]")
+                        except json.JSONDecodeError:
+                            existing_meta = []
+                        combined = _merge_metadata_entries(existing_meta, serialized_metadata)
+                    else:
+                        combined = serialized_metadata
+                    stored_payload = json.dumps(combined, indent=4, ensure_ascii=False)
+                    out_path.write_text(stored_payload, encoding="utf-8")
+                    _persist_data_file(data_storage, out_path, stored_payload)
 
-                    
-                    
-                    
+                    record = (
+                        db.query(ImageMetadata)
+                        .filter(
+                            ImageMetadata.project_id == project.id,
+                            ImageMetadata.image_name == image_name,
+                        )
+                        .first()
+                    )
+                    if record:
+                        record.page_name = page_name
+                        record.metadata_json = serialized_metadata
+                    else:
+                        record = ImageMetadata(
+                            project_id=project.id,
+                            page_name=page_name,
+                            image_name=image_name,
+                            metadata_json=serialized_metadata,
+                        )
+                        db.add(record)
+                        db.flush()
+
+                    results.append(
+                        {
+                            "image_name": image_name,
+                            "page_name": page_name,
+                            "metadata_id": record.id,
+                            "metadata_count": len(serialized_metadata),
+                        }
+                    )
+
                     # all_raw_metadata.append({
                     #     "image_name": image_name,
                     #     "metadata": metadata_list
@@ -206,9 +367,17 @@ async def upload_image(
                 "ordered_from_frontend": ordered_image_list,
                 "processed_order": actual_received_images
             }, f, indent=2)
-        logger.info("📄 Ordered images logged to data/image_order.json")
+        logger.info("[FILES] Ordered images logged to data/image_order.json")
 
-        return JSONResponse(content={"status": "success", "data": results})
+        run_record = ImageUploadRun(
+            project_id=project.id,
+            results=_serialize_results(results),
+            image_count=len(results),
+        )
+        db.add(run_record)
+        db.flush()
+
+        return JSONResponse(content={"status": "success", "data": results, "run_id": run_record.id})
 
     except Exception as e:
         logger.error("❌ Error in upload_image", exc_info=True)

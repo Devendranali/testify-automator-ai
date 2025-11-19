@@ -8,12 +8,13 @@ import re
 import pprint
 import asyncio
 import hashlib
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union, Tuple
 from urllib.parse import urlparse, urljoin
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from chromadb import PersistentClient
 from config.settings import get_chroma_path
@@ -34,11 +35,16 @@ from logic.manual_capture_mode import (
 from utils.match_utils import normalize_page_name
 from utils.file_utils import build_standard_metadata
 from utils.smart_ai_utils import get_smartai_src_dir
+from storage.project_storage import DatabaseBackedProjectStorage
+from database.session import get_db, session_scope
+from database.models import Project
+from sqlalchemy.orm import Session
 
 # -----------------------------------------------------------------------------
 # Router & DB
 # -----------------------------------------------------------------------------
 router = APIRouter()
+_ACTIVE_STORAGE: Optional[DatabaseBackedProjectStorage] = None
 # Lazy chroma accessor to avoid creating repo-level data folder before a project is active
 def _get_chroma_collection():
     client = PersistentClient(path=get_chroma_path())
@@ -272,6 +278,91 @@ def _canonical(name: str) -> str:
 def _ensure_dirs() -> Dict[str, Path]:
     return {"debug": _debug_dir(), "meta": _meta_dir()}
 
+
+def _set_active_storage(storage: Optional[DatabaseBackedProjectStorage]) -> None:
+    global _ACTIVE_STORAGE
+    _ACTIVE_STORAGE = storage
+
+@contextmanager
+def _activate_project_storage(db: Session):
+    project = _get_active_project(db)
+    storage = DatabaseBackedProjectStorage(project, _src_dir(), db)
+    _set_active_storage(storage)
+    try:
+        yield project, storage
+    finally:
+        _set_active_storage(None)
+
+@contextmanager
+def _activate_project_storage_from_scope():
+    with session_scope() as scoped_db:
+        with _activate_project_storage(scoped_db) as ctx:
+            yield ctx
+
+def _persist_project_file(path: Path, content: str, encoding: str = "utf-8") -> None:
+    if path.suffix.lower() == ".txt":
+        return
+    storage = _ACTIVE_STORAGE
+    if not storage:
+        return
+    try:
+        relative = path.relative_to(storage.base_dir)
+    except ValueError:
+        try:
+            relative = path.relative_to(_src_dir())
+        except ValueError:
+            return
+    storage.write_file(relative.as_posix(), content, encoding)
+
+def _write_project_file(path: Path, content: str, encoding: str = "utf-8") -> None:
+    path.write_text(content, encoding=encoding)
+    _persist_project_file(path, content, encoding)
+
+def _get_active_project(db: Session) -> Project:
+    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
+    if project_id_value:
+        try:
+            project = (
+                db.query(Project)
+                .filter(Project.id == int(project_id_value))
+                .first()
+            )
+            if project:
+                return project
+        except ValueError:
+            pass
+
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if project_dir:
+        segment = Path(project_dir).name
+        match = re.match(r"(?P<id>\d+)-", segment)
+        if match:
+            candidate_id = int(match.group("id"))
+            project = (
+                db.query(Project)
+                .filter(Project.id == candidate_id)
+                .first()
+            )
+            if project:
+                os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+                return project
+
+        normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
+        project = (
+            db.query(Project)
+            .filter(Project.project_key == normalized_slug)
+            .order_by(Project.created_at.desc())
+            .first()
+        )
+        if project:
+            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+            return project
+
+    raise HTTPException(
+        status_code=400,
+        detail="Active project not found in database. Activate a project before enriching.",
+    )
+
 def _same_origin(a: Optional[str], b: Optional[str]) -> bool:
     pa, pb = urlparse(a or ""), urlparse(b or "")
     return (pa.netloc or "").lower() != "" and (pa.netloc or "").lower() == (pb.netloc or "").lower()
@@ -324,19 +415,37 @@ def _short_hash(s: str) -> str:
 
 def _output_path_for_page(page_name: str, source_url: Optional[str]) -> Path:
     meta_dir = _ensure_dirs()["meta"]
-    base = meta_dir / f"after_enrichment_{page_name}.json"
-    if not base.exists():
-        return base
-    try:
-        prev = json.loads(base.read_text(encoding="utf-8") or "[]")
-        if isinstance(prev, list) and prev and isinstance(prev[0], dict):
-            prev_url = prev[0].get("source_url")
-            if prev_url == (source_url or ""):
-                return base
-    except Exception:
-        pass
-    suf = _short_hash(source_url or page_name)
-    return meta_dir / f"after_enrichment_{page_name}_{suf}.json"
+    return meta_dir / f"after_enrichment_{page_name}.json"
+
+def _merge_enrichment_records(existing: List[Dict[str, Any]], incoming: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    merged: List[Dict[str, Any]] = []
+    index_map: Dict[tuple, int] = {}
+
+    def _key(item: Dict[str, Any]) -> tuple:
+        identifier = (
+            (item or {}).get("unique_name")
+            or (item or {}).get("id")
+            or (item or {}).get("ocr_id")
+            or (item or {}).get("label_text")
+            or ""
+        )
+        intent = (item or {}).get("intent") or ""
+        return (identifier.strip().lower(), intent.strip().lower())
+
+    for entry in existing or []:
+        key = _key(entry)
+        index_map[key] = len(merged)
+        merged.append(entry)
+
+    for entry in incoming or []:
+        key = _key(entry)
+        if key in index_map:
+            merged[index_map[key]] = entry
+        else:
+            index_map[key] = len(merged)
+            merged.append(entry)
+
+    return merged
 
 def _norm_text(s: Optional[str]) -> str:
     if not s: return ""
@@ -1010,10 +1119,12 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
             probe["is_js_accessible"] = bool(await _is_js_accessible(TARGET))
         except Exception:
             probe["is_js_accessible"] = False
-        (paths["debug"] / f"dom_eval_debug_{CURRENT_PAGE_NAME}.json").write_text(json.dumps(probe, ensure_ascii=False, indent=2), encoding="utf-8")
+        debug_path = paths["debug"] / f"dom_eval_debug_{CURRENT_PAGE_NAME}.json"
+        _write_project_file(debug_path, json.dumps(probe, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         try:
-            (paths["debug"] / f"dom_eval_debug_{CURRENT_PAGE_NAME}_error.txt").write_text(str(e), encoding="utf-8")
+            error_path = paths["debug"] / f"dom_eval_debug_{CURRENT_PAGE_NAME}_error.txt"
+            _write_project_file(error_path, str(e), encoding="utf-8")
         except Exception:
             pass
 
@@ -1054,12 +1165,12 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
     ocr_data = _get_ocr_data_by_canonical(CURRENT_PAGE_NAME)
 
     # debug dumps
-    (paths["debug"] / f"dom_data_{CURRENT_PAGE_NAME}.txt").write_text(pprint.pformat(dom_data), encoding="utf-8")
-    (paths["debug"] / f"ocr_data_{CURRENT_PAGE_NAME}.txt").write_text(pprint.pformat(ocr_data), encoding="utf-8")
+    _write_project_file(paths["debug"] / f"dom_data_{CURRENT_PAGE_NAME}.txt", pprint.pformat(dom_data), encoding="utf-8")
+    _write_project_file(paths["debug"] / f"ocr_data_{CURRENT_PAGE_NAME}.txt", pprint.pformat(ocr_data), encoding="utf-8")
 
     # matching
     updated_matches = match_and_update(ocr_data, dom_data, _get_chroma_collection())
-    (paths["debug"] / f"after_match_and_update_{CURRENT_PAGE_NAME}.txt").write_text(pprint.pformat(updated_matches), encoding="utf-8")
+    _write_project_file(paths["debug"] / f"after_match_and_update_{CURRENT_PAGE_NAME}.txt", pprint.pformat(updated_matches), encoding="utf-8")
 
     standardized_matches = [
         build_standard_metadata(m, CURRENT_PAGE_NAME, image_path="", source_url=getattr(PAGE, "url", None))
@@ -1079,14 +1190,19 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
                 _no_elements_record(CURRENT_PAGE_NAME, getattr(PAGE, "url", None))
             ]
 
-    # write per-page JSON (unique filename if clashes)
+    # write per-page JSON (merge with existing if present)
     out_path = _output_path_for_page(CURRENT_PAGE_NAME, getattr(PAGE, "url", None))
-    out_path.write_text(json.dumps(standardized_matches, indent=2), encoding="utf-8")
+    try:
+        existing_payload = json.loads(out_path.read_text(encoding="utf-8") or "[]") if out_path.exists() else []
+    except Exception:
+        existing_payload = []
+    combined_payload = _merge_enrichment_records(existing_payload, standardized_matches)
+    _write_project_file(out_path, json.dumps(combined_payload, indent=2), encoding="utf-8")
 
     # refresh global snapshot
     chroma_all = _get_chroma_collection().get() or {}
     chroma_all_metadatas = chroma_all.get("metadatas", []) or []
-    (paths["meta"] / "after_enrichment.json").write_text(json.dumps(chroma_all_metadatas, indent=2), encoding="utf-8")
+    _write_project_file(paths["meta"] / "after_enrichment.json", json.dumps(chroma_all_metadatas, indent=2), encoding="utf-8")
 
     _safe_log(f"[enrich] wrote: {out_path} ({len(standardized_matches)} records)")
     return {
@@ -1195,8 +1311,11 @@ async def _auto_enrich(strategy: str, crawl_max_pages: int, crawl_max_depth: int
 # Routes
 # -----------------------------------------------------------------------------
 @router.post("/launch-browser")
-async def launch_browser(req: LaunchRequest):
+async def launch_browser(req: LaunchRequest, db: Session = Depends(get_db)):
     global PLAYWRIGHT, BROWSER, PAGE, TARGET, CURRENT_PAGE_NAME, ENRICH_UI_ENABLED, AUTOSCROLL_ENABLED
+    project = _get_active_project(db)
+    storage = DatabaseBackedProjectStorage(project, _src_dir(), db)
+    _set_active_storage(storage)
     try:
         await _clean_restart()
         PLAYWRIGHT = await async_playwright().start()
@@ -1248,7 +1367,8 @@ async def launch_browser(req: LaunchRequest):
 
         async def _binding_enrich(source, page_name: str):
             try:
-                res = await _run_enrichment_for(page_name)
+                with _activate_project_storage_from_scope():
+                    res = await _run_enrichment_for(page_name)
                 return json.dumps(res)
             except HTTPException as he:
                 return json.dumps({"status": "fail", "error": he.detail})
@@ -1314,9 +1434,14 @@ async def launch_browser(req: LaunchRequest):
         import traceback; traceback.print_exc()
         await _clean_restart()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _set_active_storage(None)
 
 @router.post("/auto-enrich")
-async def auto_enrich_endpoint(req: AutoEnrichRequest):
+async def auto_enrich_endpoint(req: AutoEnrichRequest, db: Session = Depends(get_db)):
+    project = _get_active_project(db)
+    storage = DatabaseBackedProjectStorage(project, _src_dir(), db)
+    _set_active_storage(storage)
     try:
         res = await _auto_enrich(
             strategy=req.enrich_strategy,
@@ -1331,9 +1456,14 @@ async def auto_enrich_endpoint(req: AutoEnrichRequest):
         return {"status": "success", "result": res}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _set_active_storage(None)
 
 @router.post("/crawl-and-enrich")
-async def crawl_and_enrich_endpoint(req: CrawlRequest):
+async def crawl_and_enrich_endpoint(req: CrawlRequest, db: Session = Depends(get_db)):
+    project = _get_active_project(db)
+    storage = DatabaseBackedProjectStorage(project, _src_dir(), db)
+    _set_active_storage(storage)
     try:
         res = await _crawl_and_enrich(
             start_url=req.start_url or getattr(PAGE, "url", None),
@@ -1348,6 +1478,8 @@ async def crawl_and_enrich_endpoint(req: CrawlRequest):
         return {"status": "success", "result": res}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _set_active_storage(None)
 
 @router.post("/set-current-page-name")
 async def set_page_name(req: PageNameSetRequest):
@@ -1382,7 +1514,7 @@ async def disable_ui():
     return {"status": "success", "ui_enabled": ENRICH_UI_ENABLED}
 
 @router.post("/capture-dom-from-client")
-async def capture_from_keyboard(_: CaptureRequest):
+async def capture_from_keyboard(_: CaptureRequest, db: Session = Depends(get_db)):
     # Manual trigger kept; does NOT auto-close.
     global PAGE, TARGET, CURRENT_PAGE_NAME, AUTOSCROLL_ENABLED
     try:
@@ -1407,7 +1539,8 @@ async def capture_from_keyboard(_: CaptureRequest):
         finally:
             AUTOSCROLL_ENABLED = prev_scroll
 
-        result = await _run_enrichment_for(page_name)
+        with _activate_project_storage(db):
+            result = await _run_enrichment_for(page_name)
         await __snapshot_if_blank(PAGE, "after-capture")
         return {"status": "success", "message": f"[Keyboard Trigger] {result['message']}", **result}
 

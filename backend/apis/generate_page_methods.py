@@ -1,15 +1,22 @@
 # # apis/generate_page_methods.py
 
 
-from fastapi import APIRouter
-from pathlib import Path
+import os
 import re
 import json
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
 from services.test_generation_utils import runtime_collection, filter_all_pages
 from utils.match_utils import normalize_page_name
 from utils.smart_ai_utils import ensure_smart_ai_module, get_smartai_src_dir
 from orchestrator.orchestrator import send_message
- 
+from storage.project_storage import DatabaseBackedProjectStorage
+from database.session import get_db
+from database.models import Project
+
 router = APIRouter()
  
 def safe(s: str) -> str:
@@ -68,146 +75,37 @@ def _assert_method_for_input(unique: str, label_text: str, placeholder: str, met
     """
     Emits: def assert_<method_name>(page, expected, timeout=...)
     """
-    label_json = json.dumps(label_text or "")
-    placeholder_json = json.dumps(placeholder or "")
+    field_name = label_text or placeholder or unique or "field"
     return (
         f"def assert_{method_name}(page, expected: str, timeout: int = 6000):\n"
         f"    exp = str(expected)\n"
-        f"    # 1) Prefer SmartAI target\n"
+        f"    locator = page.smartAI('{unique}')\n"
         f"    try:\n"
-        f"        locator = page.smartAI('{unique}')\n"
-        f"        try:\n"
-        f"            expect(locator).to_have_value(exp, timeout=timeout)\n"
-        f"            return\n"
-        f"        except Exception:\n"
-        f"            actual = _safe_input_value(locator)\n"
-        f"            if _values_match(actual, exp):\n"
-        f"                return\n"
-        f"    except Exception:\n"
-        f"        pass\n"
-        f"    # 2) Fallback: label\n"
-        f"    lbl = {label_json}\n"
-        f"    if lbl:\n"
-        f"        try:\n"
-        f"            locator = page.get_by_label(lbl)\n"
-        f"            try:\n"
-        f"                expect(locator).to_have_value(exp, timeout=timeout)\n"
-        f"                return\n"
-        f"            except Exception:\n"
-        f"                actual = _safe_input_value(locator)\n"
-        f"                if _values_match(actual, exp):\n"
-        f"                    return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"    # 3) Fallback: placeholder\n"
-        f"    ph = {placeholder_json}\n"
-        f"    if ph:\n"
-        f"        try:\n"
-        f"            locator = page.get_by_placeholder(ph)\n"
-        f"            try:\n"
-        f"                expect(locator).to_have_value(exp, timeout=timeout)\n"
-        f"                return\n"
-        f"            except Exception:\n"
-        f"                actual = _safe_input_value(locator)\n"
-        f"                if _values_match(actual, exp):\n"
-        f"                    return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"    # 4) Last resort: first textbox on page\n"
-        f"    try:\n"
-        f"        locator = page.get_by_role('textbox').first\n"
-        f"        try:\n"
-        f"            expect(locator).to_have_value(exp, timeout=timeout)\n"
-        f"            return\n"
-        f"        except Exception as e:\n"
-        f"            actual = _safe_input_value(locator)\n"
-        f"            if _values_match(actual, exp):\n"
-        f"                return\n"
-        f"            raise AssertionError(f\"Assertion failed for '{{lbl or ph or '{unique}'}}' expecting '{{exp}}' (actual '{{actual}}'): {{e}}\")\n"
-        f"    except Exception as e:\n"
-        f"        raise AssertionError(f\"Assertion failed for '{{lbl or ph or '{unique}'}}' expecting '{{exp}}': {{e}}\")\n"
+        f"        expect(locator).to_have_value(exp, timeout=timeout)\n"
+        f"    except Exception as exc:\n"
+        f"        actual = _safe_input_value(locator)\n"
+        f"        raise AssertionError(f\"[ASSERT] Expected '{{exp}}' for '{field_name}' (actual '{{actual}}')\") from exc\n"
     )
- 
+
 def _assert_method_for_select(unique: str, label_text: str, method_name: str) -> str:
     """
     Emits: def assert_<method_name>(page, expected, timeout=...)
-    Validates native <select> (value/label) and custom combobox text.
     """
-    label_json = json.dumps(label_text or "")
-    # More robust select assertion: check native value, selected label via evaluate,
-    # option[selected] text, aria-selected options, and custom combobox text using an
-    # escaped regex for the label.
+    field_name = label_text or unique or "select"
     return (
         f"def assert_{method_name}(page, expected: str, timeout: int = 6000):\n"
         f"    exp = str(expected)\n"
-        f"    # 1) Native <select>: check value and selected label\n"
+        f"    locator = page.smartAI('{unique}')\n"
         f"    try:\n"
-        f"        el = page.smartAI('{unique}')\n"
+        f"        expect(locator).to_have_value(exp, timeout=timeout)\n"
+        f"    except Exception as exc:\n"
         f"        try:\n"
-        f"            expect(el).to_have_value(exp, timeout=timeout)\n"
-        f"            return\n"
+        f"            actual_text = locator.inner_text()\n"
         f"        except Exception:\n"
-        f"            pass\n"
-        f"        try:\n"
-        f"            sel_label = el.evaluate(\"el => el && el.options && el.selectedIndex>=0 ? (el.options[el.selectedIndex].label || el.options[el.selectedIndex].text || '') : ''\")\n"
-        f"            if _ci(sel_label) == _ci(exp):\n"
-        f"                return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"        try:\n"
-        f"            # Try option[selected] text or value if available\n"
-        f"            opt = el.locator('option[selected]').first\n"
-        f"            try:\n"
-        f"                txt = opt.inner_text()\n"
-        f"                if _ci(txt) == _ci(exp):\n"
-        f"                    return\n"
-        f"            except Exception:\n"
-        f"                pass\n"
-        f"            try:\n"
-        f"                val = opt.get_attribute('value')\n"
-        f"                if val is not None and _ci(val) == _ci(exp):\n"
-        f"                    return\n"
-        f"            except Exception:\n"
-        f"                pass\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"        try:\n"
-        f"            txt = (el.inner_text() or '').strip()\n"
-        f"            if txt and _ci(txt) == _ci(exp):\n"
-        f"                return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"        try:\n"
-        f"            expect(el).to_contain_text(exp, timeout=timeout)\n"
-        f"            return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"    except Exception:\n"
-        f"        pass\n"
-        f"    # 2) Custom combobox: trigger text by label\n"
-        f"    lbl = {label_json}\n"
-        f"    if lbl:\n"
-        f"        try:\n"
-        f"            cmb = page.get_by_role('combobox', name=re.compile(re.escape(lbl), re.I))\n"
-        f"            expect(cmb).to_contain_text(exp, timeout=timeout)\n"
-        f"            return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"    # 3) Fallback: selected option with aria-selected=true\n"
-        f"    try:\n"
-        f"        opt = page.locator(\"[role='option'][aria-selected='true']\").first\n"
-        f"        try:\n"
-        f"            expect(opt).to_contain_text(exp, timeout=timeout)\n"
-        f"            return\n"
-        f"        except Exception:\n"
-        f"            pass\n"
-        f"    except Exception:\n"
-        f"        pass\n"
-        f"    # Final failure\n"
-        f"    raise AssertionError(f\"Assertion failed for select '{{lbl or '{unique}'}}' expecting '{{exp}}'.\")\n"
+        f"            actual_text = _safe_input_value(locator)\n"
+        f"        raise AssertionError(f\"[ASSERT] Expected option '{{exp}}' for '{field_name}' (actual '{{actual_text}}')\") from exc\n"
     )
- 
-# -------- Build one method from a metadata entry --------
+
 def build_method(entry, used_names):
     ocr_type    = (entry.get("ocr_type") or "").lower()
     intent      = (entry.get("intent") or "").lower()
@@ -392,10 +290,67 @@ def _ensure_assert_helper(code: str) -> str:
     elif "from playwright.sync_api import expect" not in code:
         code = "from playwright.sync_api import expect\n" + code
     return code
+
+
+def _get_active_project(db: Session) -> Project:
+    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
+    if project_id_value:
+        try:
+            project = (
+                db.query(Project)
+                .filter(Project.id == int(project_id_value))
+                .first()
+            )
+            if project:
+                return project
+        except ValueError:
+            pass
+
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if project_dir:
+        segment = Path(project_dir).name
+        match = re.match(r"(?P<id>\d+)-", segment)
+        if match:
+            candidate_id = int(match.group("id"))
+            project = (
+                db.query(Project)
+                .filter(Project.id == candidate_id)
+                .first()
+            )
+            if project:
+                os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+                return project
+
+        normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
+        project = (
+            db.query(Project)
+            .filter(Project.project_key == normalized_slug)
+            .order_by(Project.created_at.desc())
+            .first()
+        )
+        if project:
+            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+            return project
+
+    raise HTTPException(
+        status_code=400,
+        detail="Active project not found in database. Activate a project before generating methods.",
+    )
+
+
+def _persist_project_file(path: Path, content: str, storage: DatabaseBackedProjectStorage, encoding: str = "utf-8") -> None:
+    try:
+        relative = path.relative_to(storage.base_dir)
+    except ValueError:
+        return
+    storage.write_file(relative.as_posix(), content, encoding)
  
 @router.post("/rag/generate-page-methods")
-def generate_page_methods():
-    ensure_smart_ai_module()
+def generate_page_methods(db: Session = Depends(get_db)):
+    project = _get_active_project(db)
+    src_dir = Path(get_smartai_src_dir())
+    storage = DatabaseBackedProjectStorage(project, src_dir, db)
+    ensure_smart_ai_module(storage)
     target_pages = filter_all_pages()
     collection = runtime_collection()
     print("apis.generate_page_methods.py | target_pages = ", target_pages)
@@ -442,14 +397,16 @@ def smartai_page(page):
     patch_page_with_smartai(page, meta)
     return page
 '''
-        tests_dir = get_smartai_src_dir() / "tests"
+        tests_dir = src_dir / "tests"
         tests_dir.mkdir(parents=True, exist_ok=True)
         conftest_path = tests_dir / "conftest.py"
-        conftest_path.write_text(conftest_content.strip())
+        conftest_text = conftest_content.strip()
+        conftest_path.write_text(conftest_text)
+        _persist_project_file(conftest_path, conftest_text, storage)
 
     create_conftest_file()
 
-    outdir = get_smartai_src_dir() / "pages"
+    outdir = src_dir / "pages"
     outdir.mkdir(parents=True, exist_ok=True)
  
     for page in target_pages:
@@ -463,8 +420,8 @@ def smartai_page(page):
         payload = response.payload   # {"filename": ..., "code": ...}
  
         # Inject assertion helper + keep generated code, then append our SmartAI-aware methods+asserts
-        generated = payload["code"]
-        generated = _ensure_assert_helper(generated)
+        generated_base = payload["code"]
+        generated_base = _ensure_assert_helper(generated_base)
  
         # Append SmartAI method implementations (built from metadata)
         used = {}
@@ -486,11 +443,26 @@ def smartai_page(page):
             except Exception:
                 continue
  
-        page_code = generated.rstrip() + "\n\n# ==== SmartAI methods & assertions ====\n\n" + "\n\n".join(blocks) + "\n"
- 
+        existing_prefix = ""
+        marker = "# ==== SmartAI methods & assertions ===="
         filename = outdir / payload["filename"]
+        if filename.exists():
+            existing_text = filename.read_text(encoding="utf-8")
+            marker_index = existing_text.find(marker)
+            if marker_index != -1:
+                existing_prefix = existing_text[:marker_index].rstrip()
+            else:
+                existing_prefix = existing_text.rstrip()
+            existing_prefix = _ensure_assert_helper(existing_prefix or "")
+        else:
+            existing_prefix = generated_base.rstrip()
+
+        smartai_section = "\n\n".join(blocks)
+        page_code = f"{existing_prefix}\n\n{marker}\n\n{smartai_section}\n"
+ 
         with open(filename, "w", encoding="utf-8") as f:
             f.write(page_code)
+        _persist_project_file(filename, page_code, storage)
  
         result[page] = {
             "filename": str(filename),

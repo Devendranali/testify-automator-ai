@@ -11,7 +11,7 @@ from config.settings import ROOT_PATH
 
 def _sqlite_path() -> str:
     """Fallback path when DATABASE_URL is not provided."""
-    default_db = os.path.join(ROOT_PATH, "test.db")
+    default_db = os.path.join(ROOT_PATH, "database", "test.db")
     return f"sqlite:///{default_db.replace(os.sep, '/')}"
 
 

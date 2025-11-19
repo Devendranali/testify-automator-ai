@@ -1,15 +1,12 @@
 # utils/smart_ai_utils.py
 import os
 from pathlib import Path
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from storage.project_storage import DatabaseBackedProjectStorage
 
 SMART_AI_CODE = """
-
-
-
-
-
-
-
 
 import os
 from pathlib import Path
@@ -1601,10 +1598,6 @@ def patch_page_with_smartai(page, metadata):
     page.smartAI = smartAI
     return page 
 
-
-
-
-
 """
 
 def get_smartai_src_dir() -> Path:
@@ -1641,12 +1634,27 @@ def get_smartai_src_dir() -> Path:
 
     return candidates[0] if candidates else Path.cwd()
 
-def ensure_smart_ai_module():
+def _persist_storage_file(storage: Optional["DatabaseBackedProjectStorage"], path: Path, content: str) -> None:
+    if not storage:
+        return
+    try:
+        relative = path.relative_to(storage.base_dir)
+    except ValueError:
+        return
+    storage.write_file(relative.as_posix(), content, "utf-8")
+
+
+def ensure_smart_ai_module(storage: Optional["DatabaseBackedProjectStorage"] = None):
     src_dir = get_smartai_src_dir()
     src_dir.mkdir(parents=True, exist_ok=True)
 
     lib_path = src_dir / "lib"
     lib_path.mkdir(parents=True, exist_ok=True)
-    (lib_path / "__init__.py").touch()
+    init_file = lib_path / "__init__.py"
+    init_content = ""
+    init_file.write_text(init_content, encoding="utf-8")
+    _persist_storage_file(storage, init_file, init_content)
+
     smart_ai_file = lib_path / "smart_ai.py"
     smart_ai_file.write_text(SMART_AI_CODE, encoding="utf-8")
+    _persist_storage_file(storage, smart_ai_file, SMART_AI_CODE)
