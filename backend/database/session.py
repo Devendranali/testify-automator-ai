@@ -1,18 +1,117 @@
 import os
+import re
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from config.settings import ROOT_PATH
 
 
+Base = declarative_base()
+
+
 def _sqlite_path() -> str:
     """Fallback path when DATABASE_URL is not provided."""
     default_db = os.path.join(ROOT_PATH, "database", "test.db")
     return f"sqlite:///{default_db.replace(os.sep, '/')}"
+
+
+def _normalized_slug(name: str) -> str:
+    cleaned = re.sub(r"\s+", " ", name or "").strip().lower()
+    cleaned = re.sub(r"[^a-z0-9_-]+", "-", cleaned)
+    return cleaned or "org"
+
+
+def _bootstrap_sqlite_schema(engine: Engine) -> None:
+    """Ensure legacy SQLite databases have the latest critical columns."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if not tables:
+        return
+
+    def _ensure_column(conn, table: str, column: str, ddl: str) -> None:
+        cols = {col["name"] for col in inspector.get_columns(table)}
+        if column not in cols:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+
+    def _ensure_org(conn, name: str) -> int:
+        cleaned = (name or "default").strip() or "default"
+        slug = _normalized_slug(cleaned)
+        existing = conn.execute(
+            text("SELECT id FROM organizations WHERE slug = :slug"),
+            {"slug": slug},
+        ).fetchone()
+        if existing:
+            return existing[0]
+        result = conn.execute(
+            text(
+                "INSERT INTO organizations (name, slug, display_name, created_at, updated_at) "
+                "VALUES (:name, :slug, :display, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"name": cleaned, "slug": slug, "display": cleaned},
+        )
+        return int(result.lastrowid)
+
+    with engine.begin() as conn:
+        if "organizations" not in tables:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS organizations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(255) NOT NULL,
+                        slug VARCHAR(255) NOT NULL,
+                        display_name VARCHAR(255) NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+                    )
+                    """
+                )
+            )
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_organizations_name ON organizations (name)"))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_organizations_slug ON organizations (slug)"))
+            tables.add("organizations")
+
+        if "users" in tables:
+            _ensure_column(conn, "users", "organization", "VARCHAR(255) DEFAULT ''")
+            _ensure_column(conn, "users", "organization_id", "INTEGER")
+
+        if "projects" in tables:
+            _ensure_column(conn, "projects", "organization", "VARCHAR(255) DEFAULT ''")
+            _ensure_column(conn, "projects", "organization_id", "INTEGER")
+
+        if "users" in tables:
+            rows = conn.execute(
+                text(
+                    "SELECT id, organization FROM users "
+                    "WHERE organization IS NOT NULL AND organization != '' "
+                    "AND (organization_id IS NULL OR organization_id = 0)"
+                )
+            )
+            for row_id, org_name in rows:
+                org_id = _ensure_org(conn, org_name)
+                conn.execute(
+                    text("UPDATE users SET organization_id = :org_id WHERE id = :row_id"),
+                    {"org_id": org_id, "row_id": row_id},
+                )
+
+        if "projects" in tables:
+            rows = conn.execute(
+                text(
+                    "SELECT id, organization FROM projects "
+                    "WHERE organization IS NOT NULL AND organization != '' "
+                    "AND (organization_id IS NULL OR organization_id = 0)"
+                )
+            )
+            for row_id, org_name in rows:
+                org_id = _ensure_org(conn, org_name)
+                conn.execute(
+                    text("UPDATE projects SET organization_id = :org_id WHERE id = :row_id"),
+                    {"org_id": org_id, "row_id": row_id},
+                )
 
 
 def _build_engine() -> Engine:
@@ -39,12 +138,14 @@ def _build_engine() -> Engine:
             cursor.execute("PRAGMA foreign_keys=ON;")
             cursor.close()
 
+    if url.startswith("sqlite"):
+        _bootstrap_sqlite_schema(engine)
+
     return engine
 
 
 engine: Engine = _build_engine()
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
-Base = declarative_base()
 
 
 def get_db() -> Generator[Session, None, None]:

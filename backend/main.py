@@ -27,10 +27,13 @@ from apis.generate_page_methods import router as generate_page_methods_router
 from apis.generate_from_manual_testcases import router as generate_from_manual_testcase_router
 from apis.generate_testcases_from_methods import router as generate_test_code_from_methods_router
 from apis.manual_add_metadata import router as manual_add_metadata
+# from apis.manual_enrichment_api import router as manual_enrichment_router
 from apis.projects_api import router as projects_router
+from apis.run_test_api import router as run_tests_router
+from apis.report_api import router as report_router
 import auth
-from database.models import User, Organization
-from database.session import Base, engine, get_db
+from db.models import User
+from db.session import Base, engine, get_db
 from utils.security import hash_password, verify_password
 
 # Ensure schema exists before handling traffic (Alembic should manage in production).
@@ -50,6 +53,8 @@ if sys.platform == "win32":
 
 # ✅ FastAPI app initialization
 app = FastAPI(title="AI Test Extractor")
+
+# Note: static reports are not mounted here — frontend opens generated_reports directly via file:// URIs.
 
 
 # origins = [
@@ -107,10 +112,6 @@ class LoginRequest(_AuthBase):
 @app.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
     try:
-        org = Organization.get_or_create(db, payload.organization)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    try:
         password_hash = hash_password(payload.password)
     except ValueError as exc:
         raise HTTPException(
@@ -124,8 +125,7 @@ def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
         ) from exc
 
     user = User(
-        organization=org.display_name,
-        organization_id=org.id,
+        organization=payload.organization.strip(),
         email=payload.normalized_email(),
         password_hash=password_hash,
     )
@@ -170,7 +170,7 @@ def login_for_access_token(payload: LoginRequest, db: Session = Depends(get_db))
         )
 
     access_token = auth.create_access_token(
-        data={"sub": user.email, "uid": user.id, "org": user.organization, "org_id": user.organization_id}
+        data={"sub": user.email, "uid": user.id, "org": user.organization}
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -203,7 +203,11 @@ app.include_router(generate_from_manual_testcase_router)
 app.include_router(generate_page_methods_router)
 app.include_router(generate_test_code_from_methods_router)
 app.include_router(manual_add_metadata)
+# app.include_router(manual_enrichment_router)
 app.include_router(projects_router)
+app.include_router(run_tests_router, prefix="/tests")
+app.include_router(report_router, prefix="/reports")
+
 
 
 # if __name__ == "__main__":

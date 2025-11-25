@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pathlib import Path
 from typing import List, Optional
 
@@ -9,7 +9,6 @@ import re
 import textwrap
 
 import pandas as pd
-from sqlalchemy.orm import Session
 
 # Kept for future use (silence linter if configured)
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path  # noqa: F401
@@ -17,26 +16,132 @@ from services.test_generation_utils import openai_client
 from utils.prompt_utils import build_prompt
 from utils.chroma_client import get_collection
 from utils.file_utils import generate_unique_name
-from database.project_storage import DatabaseBackedProjectStorage
-from database.session import get_db
-from database.models import Project
+from utils.match_utils import normalize_page_name
 
 
 router = APIRouter()
 
 
+# ----------------------------------------------------------------------
+# Merge helpers for incremental metadata updates
+# ----------------------------------------------------------------------
+def _is_blank_value(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, str):
+        stripped = value.strip().lower()
+        return stripped == "" or stripped in {"[]", "{}"}
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) == 0
+    return False
+
+
+def _record_identity(record: dict) -> str | None:
+    if not isinstance(record, dict):
+        return None
+    page = (record.get("page_name") or "").strip().lower()
+    intent = (record.get("intent") or "").strip().lower()
+    ocr_type = (record.get("ocr_type") or "").strip().lower()
+    if intent or ocr_type:
+        return f"intent:{page}|{intent}|{ocr_type}"
+    for key in ("ocr_id", "id", "unique_name", "element_id"):
+        value = record.get(key)
+        if isinstance(value, str) and value.strip():
+            return f"{key}:{value.strip().lower()}"
+    label = (record.get("label_text") or "").strip().lower()
+    if any((label, intent, ocr_type)):
+        return f"fallback:{label}|{intent}|{ocr_type}"
+    bbox = record.get("bbox")
+    if isinstance(bbox, str) and bbox.strip():
+        return f"bbox:{bbox.strip().lower()}"
+    return None
+
+
+def _should_replace(old_value, new_value) -> bool:
+    if isinstance(new_value, bool):
+        return new_value and not bool(old_value)
+    if _is_blank_value(new_value):
+        return False
+    return old_value is None or _is_blank_value(old_value)
+
+
+def _merge_record(existing: dict, incoming: dict) -> dict:
+    merged = dict(existing or {})
+    prefer_new = {"label_text", "get_by_text", "placeholder", "unique_name"}
+    for key, value in (incoming or {}).items():
+        if key in prefer_new:
+            if not _is_blank_value(value):
+                merged[key] = value
+            continue
+        if key not in merged or _should_replace(merged.get(key), value):
+            merged[key] = value
+    return merged
+
+
+def _merge_metadata_records(existing_records: list[dict], new_records: list[dict]) -> list[dict]:
+    """
+    Merge records keyed by identity. Existing entries for pages present in the new set
+    that are not in the new identities are dropped (authoritative replacement per page).
+    Other pages are preserved.
+    """
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+    counter = 0
+
+    # Identify pages covered by this new snapshot
+    new_pages = {
+        normalize_page_name((r or {}).get("page_name") or "")
+        for r in (new_records or [])
+        if isinstance(r, dict)
+    }
+    new_identities = {_record_identity(r) for r in (new_records or [])}
+
+    def _store(key: str, record: dict):
+        if key not in order:
+            order.append(key)
+        merged[key] = dict(record or {})
+
+    for record in existing_records or []:
+        key = _record_identity(record)
+        page = normalize_page_name((record or {}).get("page_name") or "")
+        if page in new_pages:
+            # Only keep existing entry if it is also present in the new set
+            if key and key in new_identities:
+                _store(key, record)
+            # else drop it
+        else:
+            if not key:
+                key = f"existing-{counter}"
+                counter += 1
+            _store(key, record)
+
+    for record in new_records or []:
+        key = _record_identity(record)
+        if not key:
+            key = f"new-{counter}"
+            counter += 1
+        if key in merged:
+            merged[key] = _merge_record(merged[key], record)
+        else:
+            _store(key, record)
+
+    return [merged[k] for k in order if k in merged]
+
+
 # ---------------- internal helpers to inject assertions ----------------
 
-# Matches lines like: "    enter_username(page, value)" or "    select_country(page, value)"
+# Matches lines like: "    enter_username(page, value)" (input actions only)
 METHOD_CALL_RE = re.compile(
-    r'^(\s*)((?:enter_|fill_|select_)[a-zA-Z0-9_]+)\(s*page\s*,\s*(.+?)\s*\)\s*$'
+    r'^(\s*)((?:enter_|fill_)[a-zA-Z0-9_]+)\(\s*page\s*,\s*(.+?)\s*\)\s*$'
 )
 
 
 def inject_assertions_after_actions(code: str) -> str:
     """
-    For every line like: enter_xxx(page, <value>) or select_xxx(page, <value>)
-    insert the next line: assert_enter_xxx(page, <value>) or assert_select_xxx(page, <value>)
+    For every line like: enter_xxx(page, <value>)
+    insert the next line: assert_enter_xxx(page, <value>)
     """
     out_lines: List[str] = []
 
@@ -56,67 +161,10 @@ def inject_assertions_after_actions(code: str) -> str:
 # ----------------------------------------------------------------------
 
 
-def _get_active_project(db: Session) -> Project:
-    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
-    if project_id_value:
-        try:
-            project = (
-                db.query(Project)
-                .filter(Project.id == int(project_id_value))
-                .first()
-            )
-            if project:
-                return project
-        except ValueError:
-            pass
-
-    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
-    if project_dir:
-        segment = Path(project_dir).name
-        match = re.match(r"(?P<id>\d+)-", segment)
-        if match:
-            candidate_id = int(match.group("id"))
-            project = (
-                db.query(Project)
-                .filter(Project.id == candidate_id)
-                .first()
-            )
-            if project:
-                os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
-                return project
-
-        normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
-        project = (
-            db.query(Project)
-            .filter(Project.project_key == normalized_slug)
-            .order_by(Project.created_at.desc())
-            .first()
-        )
-        if project:
-            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
-            return project
-
-    raise HTTPException(
-        status_code=400,
-        detail="Active project not found in database. Activate a project before generating stories.",
-    )
-
-
-def _persist_project_file(path: Path, content: str, storage: Optional[DatabaseBackedProjectStorage], encoding: str = "utf-8") -> None:
-    if not storage:
-        return
-    try:
-        relative = path.relative_to(storage.base_dir)
-    except ValueError:
-        return
-    storage.write_file(relative.as_posix(), content, encoding)
-
-
 def create_default_test_data(
     run_folder: Path,
     method_map_full: Optional[dict] = None,
     test_data_json: Optional[str] = None,
-    storage: Optional[DatabaseBackedProjectStorage] = None,
 ) -> None:
     """
     Create or write test data for the run. If `test_data_json` is provided it will be used (must be JSON string).
@@ -138,17 +186,15 @@ def create_default_test_data(
     data_dir = Path(run_folder) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "__init__.py").touch()
-    target = data_dir / "test_data.json"
-    json_text = json.dumps(data, indent=2)
-    target.write_text(json_text, encoding="utf-8")
-    _persist_project_file(target, json_text, storage)
+    with open(data_dir / "test_data.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 
 def extract_method_names_from_file(file_path: Path) -> List[str]:
     method_names: List[str] = []
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
-            m = re.match(r"def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\):", line)
+            m = re.match(r"def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^\)]*\):", line)
             if m:
                 method_names.append(line.strip())
     return method_names
@@ -174,7 +220,6 @@ def generate_test_code_from_methods(
     page_names: List[str],
     site_url: str,
     run_folder: Path,
-    storage: Optional[DatabaseBackedProjectStorage] = None,
 ) -> str:
     # Summarize available methods into human-friendly steps; this feeds the prompt
     dynamic_steps: List[str] = []
@@ -183,7 +228,7 @@ def generate_test_code_from_methods(
             name = method.split("(")[0].replace("def ", "").strip()
             if name.startswith(("enter_", "fill_")):
                 param = name.replace("enter_", "").replace("fill_", "")
-                dynamic_steps.append(f'    - Call `{name}("<"+param+">")`')
+                dynamic_steps.append(f'    - Call `{name}("<{param}>")`')
             elif name.startswith(("click_", "select_")):
                 if name.startswith("select_"):
                     dynamic_steps.append(f'    - Call `{name}("<value>")`')
@@ -193,7 +238,7 @@ def generate_test_code_from_methods(
                 readable = name.replace("verify_", "").replace("_", " ").capitalize()
                 dynamic_steps.append(f"    - Assert `{name}()` checks if **{readable}** is visible")
 
-    user_story_clean = user_story.replace('"""', '\"""')
+    user_story_clean = user_story.replace('"""', '\\"""')
     story_block = f'"""{user_story_clean}"""'
 
     # Save dynamic steps log
@@ -205,9 +250,10 @@ def generate_test_code_from_methods(
         if not output_file.exists():
             break
         i += 1
-    dynamic_steps_text = "# Dynamic Steps\n\n" + "\n".join(dynamic_steps) + ("\n" if dynamic_steps else "")
-    output_file.write_text(dynamic_steps_text, encoding="utf-8")
-    _persist_project_file(output_file, dynamic_steps_text, storage)
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("# Dynamic Steps\n\n")
+        for step in dynamic_steps:
+            f.write(step + "\n")
 
     # Build prompt
     prompt = build_prompt(
@@ -227,8 +273,8 @@ def generate_test_code_from_methods(
         if not prompt_file.exists():
             break
         i += 1
-    prompt_file.write_text(prompt, encoding="utf-8")
-    _persist_project_file(prompt_file, prompt, storage)
+    with open(prompt_file, "w", encoding="utf-8") as f:
+        f.write(prompt)
 
     # Call LLM to generate test code
     model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
@@ -253,7 +299,7 @@ def generate_test_code_from_methods(
     try:
         if site_url and str(site_url).strip():
             goto_literal = json.dumps(site_url)
-            clean_output = re.sub(r"page\\.goto\\([^\\)]*\\)", f"page.goto({goto_literal})", clean_output)
+            clean_output = re.sub(r"page\.goto\([^\)]*\)", f"page.goto({goto_literal})", clean_output)
     except Exception:
         pass
 
@@ -266,8 +312,8 @@ def generate_test_code_from_methods(
         if not output_file.exists():
             break
         i += 1
-    output_file.write_text(clean_output, encoding="utf-8")
-    _persist_project_file(output_file, clean_output, storage)
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(clean_output)
 
     return clean_output
 
@@ -310,15 +356,12 @@ async def generate_from_user_story(
     ai_model: Optional[str] = Form(None),
     infer_pages: Optional[bool] = Form(False),
     test_data_json: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
 ):
     src_env = os.environ.get("SMARTAI_SRC_DIR")
     if not src_env:
         raise HTTPException(status_code=400, detail="No active project. Start a project first (SMARTAI_SRC_DIR not set).")
 
-    project = _get_active_project(db)
     run_folder = Path(src_env)
-    storage = DatabaseBackedProjectStorage(project, run_folder, db)
     pages_dir = run_folder / "pages"
     tests_dir = run_folder / "tests"
     logs_dir = run_folder / "logs"
@@ -393,9 +436,17 @@ async def generate_from_user_story(
         else:
             all_chroma_metadatas.append(m)
     before_file = meta_dir / "before_enrichment.json"
-    before_text = json.dumps(all_chroma_metadatas, indent=2)
-    before_file.write_text(before_text, encoding="utf-8")
-    _persist_project_file(before_file, before_text, storage)
+    existing_before = []
+    if before_file.exists():
+        try:
+            existing_before = json.loads(before_file.read_text(encoding="utf-8")) or []
+            if not isinstance(existing_before, list):
+                existing_before = []
+        except Exception:
+            existing_before = []
+    merged_before = _merge_metadata_records(existing_before, all_chroma_metadatas)
+    with open(before_file, "w", encoding="utf-8") as f:
+        json.dump(merged_before, f, indent=2)
 
     method_map_full = get_all_page_methods(pages_dir)
 
@@ -421,7 +472,7 @@ async def generate_from_user_story(
             continue
         all_path_pages.extend(path_pages)
         sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder, storage)
+        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
         test_functions.append(code)
         results.append({
             "Prompt": f" Prompt\n\n1. {story}\nExpected: Success",
@@ -445,18 +496,14 @@ async def generate_from_user_story(
         import_lines.append(f"from pages.{module_name} import *")
 
     # Write the raw test(s) as produced by LLM
-    test_content = "\n\n".join(import_lines + test_functions)
-    test_file.write_text(test_content, encoding="utf-8")
-    _persist_project_file(test_file, test_content, storage)
+    test_file.write_text("\n\n".join(import_lines + test_functions), encoding="utf-8")
 
     if all_path_pages:
-        log_content = "\n".join(all_path_pages)
+        log_file.write_text("\n".join(all_path_pages), encoding="utf-8")
     else:
-        log_content = "No stories were processed."
-    log_file.write_text(log_content, encoding="utf-8")
-    _persist_project_file(log_file, log_content, storage)
+        log_file.write_text("No stories were processed.", encoding="utf-8")
 
-    create_default_test_data(run_folder, method_map_full=method_map_full, test_data_json=test_data_json, storage=storage)
+    create_default_test_data(run_folder, method_map_full=method_map_full, test_data_json=test_data_json)
 
     # ================== ui_script.py generation block =======================
     test_files = sorted(tests_dir.glob("test_*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -481,7 +528,7 @@ async def generate_from_user_story(
                 in_func = True
                 continue
             if in_func:
-                if not line.startswith("    "):
+                if re.match(r"def [a-zA-Z_]", line):
                     in_func = False
                     continue
                 func_body.append(line)
@@ -512,11 +559,42 @@ async def generate_from_user_story(
 
             if storage_override_js:
                 storage_snippet = (
-                    f"""        try:\n            context = browser.new_context(storage_state={storage_override_js})\n            page = context.new_page()\n            print(f"[ui_runner] Restored storage_state from provided path")\n        except Exception as e:\n            print(f"[ui_runner] Failed to restore provided storage_state: {{e}}}}")\n            context = browser.new_context()\n            page = context.new_page()\n"""
+                    f"""        try:
+            context = browser.new_context(storage_state={storage_override_js})
+            page = context.new_page()
+            print(f\"[ui_runner] Restored storage_state from provided path\")
+        except Exception as e:
+            print(f\"[ui_runner] Failed to restore provided storage_state: {{e}}\")
+            context = browser.new_context()
+            page = context.new_page()
+"""
                 )
             else:
                 storage_snippet = (
-                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.\n        # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)\n        storage_file = None\n        env_sf = os.getenv("UI_STORAGE_FILE", "").strip()\n        if env_sf:\n            storage_file = _Path(env_sf)\n        else:\n            guessed = _Path(__file__).resolve().parents[3] / "backend" / "storage" / "cookies.json"\n            if guessed.exists():\n                storage_file = guessed\n\n        if storage_file and storage_file.exists():\n            try:\n                context = browser.new_context(storage_state=str(storage_file))\n                page = context.new_page()\n                print(f"[ui_runner] Restored storage_state from: {storage_file}")\n            except Exception as e:\n                print(f"[ui_runner] Failed to restore storage_state: {e}")\n                context = browser.new_context()\n                page = context.new_page()\n        else:\n            context = browser.new_context()\n            page = context.new_page()\n"""
+                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.
+        # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)
+        storage_file = None
+        env_sf = os.getenv("UI_STORAGE_FILE", "").strip()
+        if env_sf:
+            storage_file = _Path(env_sf)
+        else:
+            guessed = _Path(__file__).resolve().parents[3] / "backend" / "storage" / "cookies.json"
+            if guessed.exists():
+                storage_file = guessed
+
+        if storage_file and storage_file.exists():
+            try:
+                context = browser.new_context(storage_state=str(storage_file))
+                page = context.new_page()
+                print(f"[ui_runner] Restored storage_state from: {storage_file}")
+            except Exception as e:
+                print(f"[ui_runner] Failed to restore storage_state: {e}")
+                context = browser.new_context()
+                page = context.new_page()
+        else:
+            context = browser.new_context()
+            page = context.new_page()
+"""
                 )
 
             goto_line = ""
@@ -526,39 +604,64 @@ async def generate_from_user_story(
             except Exception:
                 goto_line = ""
 
-            runner_block = f"""def {runner_name}():\n    import time\n    import os\n    from pathlib import Path as _Path\n    with sync_playwright() as p:\n        browser = p.chromium.launch(headless=False, slow_mo=300)\n\n{storage_snippet}\n        # Patch SmartAI\n        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"\n        with open(metadata_path, "r") as f:\n            actual_metadata = json.load(f)\n{goto_line}        patch_page_with_smartai(page, actual_metadata)\n{steps}\n        time.sleep(3)\n        browser.close()\n\n"""
+            runner_block = f"""def {runner_name}():
+    import time
+    import os
+    from pathlib import Path as _Path
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, slow_mo=300)
+
+{storage_snippet}
+        # Patch SmartAI
+        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
+        with open(metadata_path, "r") as f:
+            actual_metadata = json.load(f)
+{goto_line}        patch_page_with_smartai(page, actual_metadata)
+{steps}
+        time.sleep(3)
+        browser.close()
+
+"""
             wrapper_blocks.append(runner_block)
 
-        header = """# Auto-generated UI runner\nimport sys\nfrom pathlib import Path as _Path\n# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running\n# this script from the repository root or the backend folder.\n_ROOT = _Path(__file__).resolve().parents[1]\nif str(_ROOT) not in sys.path:\n    sys.path.insert(0, str(_ROOT))\nfrom playwright.sync_api import sync_playwright\nimport json\nfrom pathlib import Path\n{page_imports}\nfrom lib.smart_ai import patch_page_with_smartai\n""".format(page_imports="\n".join([ln for ln in import_lines if ln.startswith("from pages.")]))
+        header = """# Auto-generated UI runner
+import sys
+from pathlib import Path as _Path
+# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running
+# this script from the repository root or the backend folder.
+_ROOT = _Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from playwright.sync_api import sync_playwright
+import json
+from pathlib import Path
+{page_imports}
+from lib.smart_ai import patch_page_with_smartai
+""".format(page_imports="\n".join([ln for ln in import_lines if ln.startswith("from pages.")]))
 
-        main_lines = [
-            "",
-            "if __name__ == '__main__':",
-            "    failures = []",
-        ]
+        main_block = "\nif __name__ == '__main__':\n"
         for func_name, _ in func_blocks:
             runner_name = "run_" + func_name.replace("test_", "")
-            main_lines.append("    try:")
-            main_lines.append(f"        {runner_name}()")
-            main_lines.append("    except Exception as exc:")
-            main_lines.append(f"        failures.append((\"{runner_name}\", str(exc)))")
-        main_lines.append("    if failures:")
-        main_lines.append("        print(\"\\n[Test Runner] Failures detected:\")")
-        main_lines.append("        for name, err in failures:")
-        main_lines.append(f"            print(f\" - {{name}}: {{err}}\")")
-        main_lines.append("        raise SystemExit(1)")
-        main_lines.append("    print(\"\\n[Test Runner] All generated flows completed without fatal errors.\")")
-        main_block = "\n".join(main_lines) + "\n"
+            main_block += (
+                f"    try:\n"
+                f"        {runner_name}()\n"
+                f"    except Exception as exc:\n"
+                f"        print(f\"[ui_runner] {runner_name} failed: {{exc}}\")\n"
+            )
 
-        m = re.search(r"test_(\d+)\\.py$", latest_test.name)
-        ui_script_filename = f"ui_script_{m.group(1)}.py" if m else "ui_script.py"
+                # Always emit a single ui_script.py (clean up older ui_script_* first)
+        for stale in tests_dir.glob("ui_script_*.py"):
+            try:
+                stale.unlink()
+            except Exception:
+                pass
+        ui_script_filename = "ui_script1.py"
         ui_script_path = tests_dir / ui_script_filename
-        ui_script_content = [header]
-        ui_script_content.extend(wrapper_blocks)
-        ui_script_content.append(main_block)
-        final_script = "\n".join(ui_script_content)
-        ui_script_path.write_text(final_script, encoding="utf-8")
-        _persist_project_file(ui_script_path, final_script, storage)
+        with open(ui_script_path, "w", encoding="utf-8") as f:
+            f.write(header)
+            for block in wrapper_blocks:
+                f.write(block)
+            f.write(main_block)
         print(f"{ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
     # ================== End ui_script.py generation block ===================
 

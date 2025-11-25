@@ -9,6 +9,8 @@ import Home from './components/home';
 import Input from './components/inputs';
 import Login from './components/login';
 import Signup from './components/signup';
+import TestRunner from './components/testrunner';
+
 
 
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +41,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path='/test-runner'
+          element={
+            <ProtectedRoute>
+              <TestRunner />
+            </ProtectedRoute>
+          }
+        />  
+
       </Routes>
       <ToastContainer position="top-right" autoClose={4000} newestOnTop closeOnClick pauseOnHover draggable theme="colored" />
     </BrowserRouter>

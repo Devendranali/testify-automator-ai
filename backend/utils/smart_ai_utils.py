@@ -1,4 +1,4 @@
-# utils/smart_ai_utils.py
+    # utils/smart_ai_utils.py
 import os
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
