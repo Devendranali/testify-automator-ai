@@ -32,3 +32,11 @@ def get_collection(name: str, embedding_function=None):
     _COLLECTIONS[key] = coll
     return coll
 
+
+def reset_chroma_client() -> None:
+    """Clear cached chromadb client/collections so a new path can be re-initialized."""
+    global _CLIENT, _CLIENT_PATH, _COLLECTIONS
+    _CLIENT = None
+    _CLIENT_PATH = None
+    _COLLECTIONS = {}
+

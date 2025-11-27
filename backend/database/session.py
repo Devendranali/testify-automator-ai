@@ -7,16 +7,7 @@ from sqlalchemy import create_engine, event, text, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-from config.settings import ROOT_PATH
-
-
 Base = declarative_base()
-
-
-def _sqlite_path() -> str:
-    """Fallback path when DATABASE_URL is not provided."""
-    default_db = os.path.join(ROOT_PATH, "database", "test.db")
-    return f"sqlite:///{default_db.replace(os.sep, '/')}"
 
 
 def _normalized_slug(name: str) -> str:
@@ -116,7 +107,12 @@ def _bootstrap_sqlite_schema(engine: Engine) -> None:
 
 def _build_engine() -> Engine:
     raw_url = os.getenv("DATABASE_URL")
-    url = raw_url.strip() if raw_url else _sqlite_path()
+    if not raw_url or not raw_url.strip():
+        raise RuntimeError(
+            "DATABASE_URL must be set (e.g., postgresql+psycopg://user:pass@host:5432/testify or "
+            "sqlite:///absolute/path/to/db)."
+        )
+    url = raw_url.strip()
 
     connect_args = {}
     if url.startswith("sqlite"):
@@ -130,7 +126,6 @@ def _build_engine() -> Engine:
     )
 
     if url.startswith("sqlite"):
-        # Ensure write-ahead logging for better concurrency.
         @event.listens_for(engine, "connect")
         def _set_sqlite_pragma(dbapi_connection, connection_record):  # type: ignore[unused-ignore]
             cursor = dbapi_connection.cursor()
@@ -138,7 +133,6 @@ def _build_engine() -> Engine:
             cursor.execute("PRAGMA foreign_keys=ON;")
             cursor.close()
 
-    if url.startswith("sqlite"):
         _bootstrap_sqlite_schema(engine)
 
     return engine

@@ -17,12 +17,11 @@
 
 ## Database Setup
 
-The backend now uses SQLAlchemy with Alembic migrations. By default it falls back to the local SQLite file `backend/database/test.db`, but production/staging deployments should supply a PostgreSQL URL.
+The backend now uses SQLAlchemy with Alembic migrations and persists everything in the centralized database referenced by `DATABASE_URL`. There is no local SQLite fallback—every environment must point to the shared storage so all instances read/write the same data.
 
 1. **Configure the connection string**
    - Copy `.env.example` to `.env` if needed.
-   - Add `DATABASE_URL=postgresql+psycopg://user:password@host:5432/testify`.
-   - To keep using SQLite for local runs, omit the variable or set `DATABASE_URL=sqlite:///backend/database/test.db`.
+   - Set `DATABASE_URL=postgresql+psycopg://user:password@central-host:5432/testify` (or whatever your central Postgres endpoint is) before running any backend processes.
 
 2. **Run migrations**
    ```bash

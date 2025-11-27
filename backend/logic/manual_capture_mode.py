@@ -4,10 +4,11 @@ from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunct
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from playwright.async_api import Page
 from utils.file_utils import build_standard_metadata
+from utils.project_context import current_project_id
 from utils.smart_ai_utils import get_smartai_src_dir
 from utils.chroma_client import get_collection
 import json
@@ -262,9 +263,15 @@ def _choose_label(dom_candidate: str, ocr: dict) -> str:
     return dom_label or ocr_get_by or ocr_label
 
 
+def _attach_project_id(metadata: dict, project_id: Optional[int]) -> None:
+    if project_id is not None:
+        metadata["project_id"] = project_id
+
+
 def match_and_update(ocr_data, dom_data, collection, text_thresh=0.25, bbox_thresh=300):
     global LAST_MATCHED_RESULTS
     matched_records = []
+    project_id = current_project_id()
 
     # Filter for dicts only
     dict_ocr_data = [r for r in ocr_data if isinstance(r, dict)]
@@ -336,6 +343,7 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.25, bbox_thre
                         dom_candidate = (best_match.get("label_text") or best_match.get("text") or best_match.get("placeholder") or best_match.get("value") or "")
                         updated["label_text"] = _choose_label(dom_candidate, ocr)
                         updated = clean_metadata(updated)
+                        _attach_project_id(updated, project_id)
                         try:
                             collection.upsert(
                                 ids=[updated.get("element_id")],
@@ -395,6 +403,7 @@ def match_and_update(ocr_data, dom_data, collection, text_thresh=0.25, bbox_thre
                     dom_candidate = (best_match.get("label_text") or best_match.get("text") or best_match.get("placeholder") or best_match.get("value") or "")
                     updated["label_text"] = _choose_label(dom_candidate, ocr)
                     updated = clean_metadata(updated)
+                    _attach_project_id(updated, project_id)
                     try:
                         collection.upsert(
                             ids=[updated.get("element_id")],

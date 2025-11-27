@@ -126,6 +126,7 @@ from urllib.parse import urlparse
 from datetime import datetime
 import uuid
 from utils.match_utils import normalize_page_name
+from utils.project_context import current_project_id
 
 def sanitize_metadata(record: dict) -> dict:
     sanitized = {}
@@ -142,6 +143,7 @@ async def process_url_and_update_chroma(url: str, chroma_collection=None, embedd
     element_metadata = []
     page_name = page_name or normalize_page_name(url)
     snapshot_id = f"{page_name}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    project_id = current_project_id()
 
     print(f"✍️ [DEBUG] Processing URL: {url}")
     # print(f"✍️ [DEBUG] Extracted page_name: {page_name}")
@@ -246,6 +248,8 @@ async def process_url_and_update_chroma(url: str, chroma_collection=None, embedd
 
                 try:
                     sanitized_record = sanitize_metadata(record)
+                    if project_id is not None:
+                        sanitized_record["project_id"] = project_id
                     chroma_collection.upsert(
                         ids=[element_id],
                         documents=[text_to_embed],

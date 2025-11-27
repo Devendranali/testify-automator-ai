@@ -2,6 +2,7 @@
 
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 from utils.chroma_client import get_collection
+from utils.project_context import current_project_id
 from fastapi.concurrency import run_in_threadpool
 from services.ocr_type_classifier import classify_ocr_type
 import logging
@@ -44,6 +45,9 @@ def upsert_text_record(record: dict):
         "unique_name": _sanitize_metadata_value(record.get("unique_name")),
         "element_id": _sanitize_metadata_value(record.get("element_id") or record.get("id")),
     }
+    pid = current_project_id()
+    if pid is not None:
+        metadata["project_id"] = pid
     
     # ---- DUPLICATE CHECK START ----
     # 1. Query by the broadest field (the one with the most candidates)
@@ -135,6 +139,9 @@ def upsert_element_record(record: dict):
         "healing_success_rate": record.get("healing_success_rate") or 0.0,
         "type": "locator"
     }
+    pid = current_project_id()
+    if pid is not None:
+        metadata["project_id"] = pid
 
     try:
         collection = get_collection("element_metadata", embedding_function)

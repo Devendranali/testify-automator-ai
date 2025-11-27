@@ -33,6 +33,7 @@ from logic.manual_capture_mode import (
     set_last_match_result,
 )
 from utils.match_utils import normalize_page_name
+from utils.project_context import filter_metadata_by_project
 from utils.file_utils import build_standard_metadata
 from utils.smart_ai_utils import get_smartai_src_dir
 from database.project_storage import DatabaseBackedProjectStorage
@@ -390,7 +391,7 @@ def _ocr_name_counts() -> Dict[str, int]:
     counts: Dict[str, int] = {}
     try:
         recs = _get_chroma_collection().get() or {}
-        for m in (recs.get("metadatas") or []):
+        for m in filter_metadata_by_project(recs.get("metadatas") or []):
             pn = (m or {}).get("page_name")
             if not pn: continue
             c = _canonical(pn)
@@ -1056,7 +1057,7 @@ async def _refresh_target(reason: str = ""):
 def _get_ocr_data_by_canonical(canonical_page_name: str) -> List[Dict[str, Any]]:
     try:
         recs = _get_chroma_collection().get() or {}
-        metas = recs.get("metadatas", []) or []
+        metas = filter_metadata_by_project(recs.get("metadatas", []) or [])
         return [m for m in metas if _canonical((m or {}).get("page_name", "")) == canonical_page_name]
     except Exception:
         return []
@@ -1201,7 +1202,7 @@ async def _run_enrichment_for(page_name: str) -> Dict[str, Any]:
 
     # refresh global snapshot
     chroma_all = _get_chroma_collection().get() or {}
-    chroma_all_metadatas = chroma_all.get("metadatas", []) or []
+    chroma_all_metadatas = filter_metadata_by_project(chroma_all.get("metadatas", []) or [])
     _write_project_file(paths["meta"] / "after_enrichment.json", json.dumps(chroma_all_metadatas, indent=2), encoding="utf-8")
 
     _safe_log(f"[enrich] wrote: {out_path} ({len(standardized_matches)} records)")

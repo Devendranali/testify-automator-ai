@@ -6,6 +6,7 @@ import re
 import json
 from services.test_generation_utils import runtime_collection, filter_all_pages
 from utils.match_utils import normalize_page_name
+from utils.project_context import filter_metadata_by_project
 from utils.smart_ai_utils import ensure_smart_ai_module, get_smartai_src_dir
 from orchestrator.orchestrator import send_message
  
@@ -625,7 +626,7 @@ def generate_page_methods(pages: str | None = Query(None, description="Comma-sep
     # we don't miss pages whose stored page_name differs by case/formatting.
     records = collection.get()
     page_entries = {}
-    for meta in records.get("metadatas", []):
+    for meta in filter_metadata_by_project(records.get("metadatas", [])):
         original = (meta.get("page_name") or "").strip()
         keys = {normalize_page_name(original)}
         if original:

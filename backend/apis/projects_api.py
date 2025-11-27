@@ -18,6 +18,8 @@ from database.models import Project, User
 from database.session import get_db
 from database.project_storage import DatabaseBackedProjectStorage
 
+from utils.chroma_client import reset_chroma_client
+
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -150,6 +152,7 @@ def _activate_env(project_paths: dict, project: Optional[Project] = None) -> Non
     os.environ["SMARTAI_CHROMA_PATH"] = project_paths["chroma_path"]
     if project and project.id:
         os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+    reset_chroma_client()
 
 
 def _clear_env_if_active(project_root: Path) -> None:
