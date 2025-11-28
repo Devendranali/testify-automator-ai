@@ -237,4 +237,4 @@ if __name__ == "__main__":
     logging.getLogger("tqdm").setLevel(logging.WARNING)
 
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False, log_level="info")
