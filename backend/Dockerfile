@@ -2,7 +2,7 @@ FROM python:3.12.3-slim-bookworm
 
 WORKDIR /app
 
-# Install system dependencies for Playwright + OCR + Java 17 + Allure CLI requirements
+# Install system dependencies for Playwright + OCR + Java 17 + curl
 RUN apt-get update && apt-get install -y \
     build-essential \
     libglib2.0-0 \
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
     libgtk-3-0 \
     tesseract-ocr \
     curl \
-    unzip \
+    ca-certificates \
     openjdk-17-jdk \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,14 +32,18 @@ RUN apt-get update && apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
-# Install Allure CLI (latest stable using Maven central)
-RUN curl -o allure.tgz -Ls https://repo.maven.org/maven2/io/qameta/allure/allure-commandline/2.29.0/allure-commandline-2.29.0.tgz \
-    && tar -zxvf allure.tgz -C /opt/ \
-    && ln -s /opt/allure-2.29.0/bin/allure /usr/bin/allure \
-    && rm -rf allure.tgz
-
-# Verify Allure installed
-RUN allure --version || true
+# ---- Best-effort Allure CLI install ----
+# If download fails (no internet / DNS issues), don't fail the build.
+RUN ALLURE_VERSION=2.29.0; \
+    if curl -fSL "https://repo.maven.org/maven2/io/qameta/allure/allure-commandline/${ALLURE_VERSION}/allure-commandline-${ALLURE_VERSION}.tgz" -o allure.tgz; then \
+        echo "Downloaded Allure CLI ${ALLURE_VERSION}"; \
+        tar -zxf allure.tgz -C /opt/; \
+        ln -s /opt/allure-${ALLURE_VERSION}/bin/allure /usr/bin/allure; \
+        rm -f allure.tgz; \
+        allure --version || true; \
+    else \
+        echo "WARN: Failed to download Allure CLI. Tests will fall back to pytest-html."; \
+    fi
 
 # Copy and install Python dependencies
 COPY requirements.txt .
