@@ -5,1601 +5,1218 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from database.project_storage import DatabaseBackedProjectStorage
-
-SMART_AI_CODE = """
-
-import os
-from pathlib import Path
+  
+SMART_AI_CODE = """import os
 import json
 import re
+import time
+import numpy as np
+from functools import wraps
 
-def _smartai_logs_dir() -> str:
-    base = os.environ.get("SMARTAI_SRC_DIR")
-    if base:
-        path = Path(base) / "logs"
-    else:
-        project = os.environ.get("SMARTAI_PROJECT_DIR")
-        if project:
-            path = Path(project) / "generated_runs" / "src" / "logs"
-        else:
-            path = Path(__file__).resolve().parents[2] / "generated_runs" / "src" / "logs"
-    path.mkdir(parents=True, exist_ok=True)
-    return str(path)
-
-
-def _normalize_for_match(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
-
-
-def _label_variants(label: str):
-    base = (label or "").strip()
-    if not base:
-        return []
-    variants = []
-    seen = set()
-    candidates = {base, re.sub(r"\s+", " ", base)}
-    swap_candidates = [
-        (" - ", ": "),
-        ("-", ": "),
-        ("-", ":"),
-        (":", " - "),
-        (":", " -"),
-        (":", "-"),
-    ]
-    for src, dest in swap_candidates:
-        if src in base:
-            candidates.add(base.replace(src, dest))
-    collapsed = re.sub(r"[^A-Za-z0-9]+", " ", base).strip()
-    if collapsed:
-        candidates.add(collapsed)
-    for cand in candidates:
-        cand = cand.strip()
-        if not cand or cand in seen:
-            continue
-        variants.append(cand)
-        seen.add(cand)
-    return variants
-
-# Optional ML dependencies for self-healing. Allow module import even when these
-# packages are not installed (so tests that don't use ML healing can still run).
-HAS_NUMPY = False
+# Optional OpenAI + local SentenceTransformer backends
 try:
-    import numpy as np
-    HAS_NUMPY = True
-except Exception:
-    np = None
+    from openai import OpenAI
+except Exception:  # pragma: no cover
+    OpenAI = None
 
-# SentenceTransformers import is lazily attempted only if the env var
-# SMARTAI_ENABLE_ML is set. Avoid importing heavy ML packages at module
-# import time so simple runs are fast.
-HAS_SENTENCE_TRANSFORMERS = False
-SentenceTransformer = None
-util = None
+try:
+    from sentence_transformers import SentenceTransformer
+except Exception:  # pragma: no cover
+    SentenceTransformer = None
 
 
 class SmartAILocatorError(Exception):
     pass
 
 
-def _metadata_selector_variants(metadata_id):
-    if not metadata_id:
-        return []
-    low = str(metadata_id).lower()
-    pieces = {low}
-    if "_" in low:
-        pieces.add(low.split("_", 1)[-1])
-    for marker in ("textbox_", "input_", "select_", "button_", "toggle_", "field_", "lookup_"):
-        if marker in low:
+# ===========================================================
+# SEMANTIC ENCODER (OpenAI + SentenceTransformer fallback)
+# ===========================================================
+class SemanticEncoder:
+    '''
+    Wrapper around embedding backends.
+
+    Priority:
+      1) OpenAI embeddings (text-embedding-3-small by default)
+      2) Local SentenceTransformer ('all-MiniLM-L6-v2')
+      3) Zero-vector fallback (similarity=0)
+    '''
+
+    def __init__(self):
+        self.use_openai = False
+        self.client = None
+        self.openai_model = None
+        self.local_model = None
+
+        # Allow override via OPENAI_API_KEY or normal OPENAI_API_KEY
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+        if OpenAI is not None and api_key:
             try:
-                pieces.add(low.split(marker, 1)[1])
-            except Exception:
-                pass
-    if "_field_" in low:
+                self.client = OpenAI(api_key=api_key)
+                self.openai_model = os.getenv(
+                    "SMARTAI_OPENAI_EMBED_MODEL", "text-embedding-3-small"
+                )
+                self.use_openai = True
+                print(
+                    f"[SmartAI][SemanticEncoder] Using OpenAI embeddings: {self.openai_model}"
+                )
+            except Exception as e:  # pragma: no cover
+                print(f"[SmartAI][SemanticEncoder] OpenAI init failed: {e}")
+
+        if not self.use_openai and SentenceTransformer is not None:
+            try:
+                local_name = os.getenv(
+                    "SMARTAI_LOCAL_EMBED_MODEL", "all-MiniLM-L6-v2"
+                )
+                self.local_model = SentenceTransformer(local_name)
+                print(
+                    f"[SmartAI][SemanticEncoder] Using local SentenceTransformer: {local_name}"
+                )
+            except Exception as e:  # pragma: no cover
+                print(f"[SmartAI][SemanticEncoder] Local ST init failed: {e}")
+
+        if not self.use_openai and self.local_model is None:
+            print(
+                "[SmartAI][SemanticEncoder] WARNING: No embedding backend available. Similarity will be 0."
+            )
+
+        # -------- context + text enrichment for embeddings -----------------------
+    def enrich_for_embedding(self, meta: dict) -> str:
+        '''
+        Build a strong combined text representation including:
+        - label_text / get_by_text / placeholder / text
+        - aria_label / title_text / variant_text
+        - parent_block_text / sibling_text
+        '''
+        if not meta:
+            return ""
+
+        parts = [
+            meta.get("label_text") or "",
+            meta.get("get_by_text") or "",
+            meta.get("placeholder") or "",
+            meta.get("text") or "",
+            meta.get("value") or "",
+            meta.get("aria_label") or "",
+            meta.get("title_text") or "",
+            meta.get("variant_text") or "",
+            meta.get("parent_block_text") or "",
+        ]
+
+        # Add sibling list
+        sibs = meta.get("sibling_text", [])
+        if isinstance(sibs, list):
+            parts.extend(sibs)
+        elif isinstance(sibs, str):
+            parts.append(sibs)
+
+        return " | ".join(p for p in parts if p).strip()
+
+
+    # -------- core helpers -------------------------------------------------
+    def _encode_openai_many(self, texts):
+        if not texts:
+            return []
+        if self.client is None or not self.use_openai:
+            return None
         try:
-            pieces.add(low.split("_field_", 1)[0])
-        except Exception:
-            pass
-    variants = []
-    seen = set()
-    for piece in pieces:
-        piece = piece.strip("_- ")
-        if not piece:
-            continue
-        candidates = {
-            piece,
-            piece.replace("_-_", "_"),
-            piece.replace("__", "_"),
-            piece.replace("_", ""),
-            piece.replace("-", ""),
-        }
-        for cand in candidates:
-            cand = cand.strip("_- ")
-            if cand and cand not in seen:
-                variants.append(cand)
-                seen.add(cand)
-            if len(variants) >= 12:
-                break
-        if len(variants) >= 12:
-            break
-    return variants
+            resp = self.client.embeddings.create(
+                model=self.openai_model,
+                input=texts,
+            )
+            vecs = [np.array(d.embedding, dtype="float32") for d in resp.data]
+            # Normalize
+            return [v / (np.linalg.norm(v) + 1e-12) for v in vecs]
+        except Exception as e:  # pragma: no cover
+            print(
+                f"[SmartAI][SemanticEncoder] OpenAI embedding failed, falling back to local if available: {e}"
+            )
+            self.use_openai = False
+            return None
+
+    def _encode_local_many(self, texts):
+        if not texts or self.local_model is None:
+            return None
+        try:
+            arr = self.local_model.encode(texts, normalize_embeddings=True)
+            return [np.array(v, dtype="float32") for v in arr]
+        except Exception as e:  # pragma: no cover
+            print(f"[SmartAI][SemanticEncoder] Local embedding failed: {e}")
+            return None
+
+    # -------- public API ---------------------------------------------------
+    def encode_many(self, texts):
+        '''
+        Batch encode a list of strings into normalized numpy vectors.
+        '''
+        if not texts:
+            return []
+        cleaned = [
+            t if (t is not None and isinstance(t, str) and t.strip()) else " "
+            for t in texts
+        ]
+
+        vecs = None
+        # Try OpenAI first
+        if self.use_openai and self.client is not None:
+            vecs = self._encode_openai_many(cleaned)
+
+        # Fall back to local ST
+        if vecs is None and self.local_model is not None:
+            vecs = self._encode_local_many(cleaned)
+
+        # Final safety: zero vectors
+        if vecs is None:
+            dim = 384
+            vecs = [np.zeros(dim, dtype="float32") for _ in cleaned]
+
+        return vecs
+
+    def encode(self, text: str):
+        return self.encode_many([text or " "])[0]
+
+    def similarity_vec(self, a: np.ndarray, b: np.ndarray) -> float:
+        if a is None or b is None:
+            return 0.0
+        if a.shape != b.shape:
+            m = min(a.shape[0], b.shape[0])
+            if m == 0:
+                return 0.0
+            a = a[:m]
+            b = b[:m]
+        denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-12
+        if denom == 0:
+            return 0.0
+        return float(np.dot(a, b) / denom)
+
+    def similarity_text(self, t1: str, t2: str) -> float:
+        if not t1 or not t2:
+            return 0.0
+        v1 = self.encode(t1)
+        v2 = self.encode(t2)
+        return self.similarity_vec(v1, v2)
 
 
+# ===========================================================
+# WRAPPED LOCATOR
+# ===========================================================
 class SmartAIWrappedLocator:
-    def __init__(self, locator, page, unique_name=None, healer=None):
+    '''
+    Thin wrapper over Playwright's Locator that:
+    - Auto scrolls element into view before interaction
+    - Provides robust fill() with verification & retries
+    - Provides robust select_option() with multiple fallbacks
+    '''
+
+    def __init__(self, locator, page):
         self._locator = locator
         self._page = page
-        self._unique_name = unique_name
-        # Optional reference back to the SmartAISelfHealing instance that
-        # created this wrapper. Allows using metadata when performing
-        # complex actions like combobox selection.
-        self._healer = healer
 
-    def fill(self, value, timeout=3000, max_retries=5, verify=True):
-        import time
-        locator = self._locator.first if hasattr(self._locator, 'first') else self._locator
+    def __getattr__(self, name):
+        # Delegate all unknown attributes/methods to the underlying locator
+        return getattr(self._locator, name)
+
+    # --- helpers -------------------------------------------------------------
+    def _safe_scroll(self, timeout: int = 2000):
+        try:
+            self._locator.scroll_into_view_if_needed(timeout=timeout)
+        except Exception:
+            # We never want scroll failures to block interaction
+            pass
+    def _safe_has_text(self, tag: str, txt: str):
+        '''
+        Build a safe Playwright selector:
+            tag:has-text("value")
+        Automatically escapes:
+        - quotes
+        - plus signs
+        - brackets
+        - parentheses
+        Prevents SyntaxError and invalid selector errors.
+        ''' 
+        if not txt:
+            return None
+
+        # Escape quotes
+        safe_txt = txt.replace('"', '\"').strip()
+
+        # Escape CSS-special characters: + ( ) [ ]
+        import re
+        safe_txt = re.sub(r'([+()\[\]])', r'\', safe_txt)
+
+        # Final selector
+        return f'{tag}:has-text("{safe_txt}")'
+
+
+    # --- core interactions ---------------------------------------------------
+    def click(self, *args, **kwargs):
+        self._safe_scroll()
+        # Always click the first element for stability
+        return self._locator.first.click(*args, **kwargs)
+
+    def fill(self, value, retries: int = 3, timeout: int = 3000, force: bool = False):
+        '''
+        Fill value with validation and limited retries.
+        If after all retries the field does not reflect the value, raise SmartAILocatorError.
+        '''
+        self._safe_scroll()
         last_error = None
-        for attempt in range(1, max_retries + 1):
+
+        for attempt in range(1, retries + 1):
             try:
-                # Debug: capture screenshot of target before filling
-                try:
-                    import os, time, re
-                    logs_dir = _smartai_logs_dir()
-                    safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', (self._unique_name or 'unknown'))[:60]
-                    ts = int(time.time() * 1000)
-                    shot_path = os.path.join(logs_dir, f"debug_fill_{safe_name}_{ts}.png")
-                    try:
-                        # Prefer locator-level screenshot
-                        locator.screenshot(path=shot_path)
-                    except Exception:
-                        try:
-                            # full page screenshot fallback
-                            self._page.screenshot(path=shot_path)
-                        except Exception:
-                            pass
-                    print(f"[SmartAI][Debug] Saved fill target screenshot: {shot_path}")
-                except Exception:
-                    pass
-                # Ensure we have the actual input/textarea or contenteditable to write into
-                target = locator
-                try:
-                    tag = target.evaluate('el => el.tagName.toLowerCase()')
-                except Exception:
-                    tag = None
-                if tag not in ('input', 'textarea'):
-                    resolved = None
-                    # search direct descendants for an editable node
-                    try:
-                        descendants = target.locator('input, textarea, [contenteditable="true"], [role="combobox"] input, [role="textbox"]')
-                        if descendants and descendants.count() > 0:
-                            resolved = descendants.first
-                    except Exception:
-                        resolved = None
-                    # fallback: look within the nearest ancestor container that exposes an input
-                    if not resolved:
-                        try:
-                            ancestor = target.locator('xpath=ancestor::*[.//input or .//textarea or .//*[@contenteditable="true"] or .//*[@role="textbox"]][1]')
-                            if ancestor and ancestor.count() > 0:
-                                inner = ancestor.first.locator('input, textarea, [contenteditable="true"], [role="combobox"], [role="textbox"]')
-                                if inner and inner.count() > 0:
-                                    resolved = inner.first
-                        except Exception:
-                            resolved = None
-                    # fallback: use metadata label to locate a matching input elsewhere
-                    if not resolved and self._healer and self._unique_name:
-                        try:
-                            meta = self._healer._find_by_unique_name(self._unique_name)
-                        except Exception:
-                            meta = None
-                        label = ''
-                        if meta:
-                            label = (meta.get('get_by_text') or meta.get('label_text') or meta.get('placeholder') or '').strip()
-                        if label:
-                            variants = _label_variants(label) or [label]
-                            matchers = []
-                            for variant in variants:
-                                var = variant.strip()
-                                if not var:
-                                    continue
-                                low_var = var.lower()
-                                norm_var = _normalize_for_match(var)
-                                matchers.append((var, low_var, norm_var))
-                            if not matchers:
-                                matchers.append((label, label.lower(), _normalize_for_match(label)))
-                            for original, _, _ in matchers:
-                                try:
-                                    by_label = self._page.get_by_label(original)
-                                    if by_label and by_label.count() > 0:
-                                        resolved = by_label.first
-                                        break
-                                except Exception:
-                                    continue
-                            if not resolved:
-                                selectors = [
-                                    "input[aria-label]",
-                                    "input[placeholder]",
-                                    "[role='textbox']",
-                                    "textarea",
-                                ]
-                                for sel in selectors:
-                                    try:
-                                        candidates = self._page.locator(sel)
-                                        cnt = candidates.count()
-                                    except Exception:
-                                        cnt = 0
-                                    for idx in range(min(cnt, 10)):
-                                        try:
-                                            cand = candidates.nth(idx)
-                                            txt = ''
-                                            try:
-                                                txt = (cand.get_attribute('aria-label') or cand.get_attribute('placeholder') or '').strip()
-                                            except Exception:
-                                                txt = ''
-                                            if not txt:
-                                                try:
-                                                    txt = (cand.evaluate('el=>el.innerText||el.textContent') or '').strip()
-                                                except Exception:
-                                                    txt = ''
-                                            if not txt:
-                                                continue
-                                            txt_low = txt.lower()
-                                            txt_norm = _normalize_for_match(txt)
-                                            matched = False
-                                            for _, low_var, norm_var in matchers:
-                                                if low_var and (low_var in txt_low or txt_low in low_var):
-                                                    matched = True
-                                                    break
-                                                if norm_var and txt_norm and norm_var in txt_norm:
-                                                    matched = True
-                                                    break
-                                            if matched:
-                                                resolved = cand
-                                                break
-                                        except Exception:
-                                            continue
-                                    if resolved:
-                                        break
-                            if not resolved:
-                                try:
-                                    for _, low_var, _ in matchers:
-                                        if not low_var:
-                                            continue
-                                        escaped = low_var.replace("'", "'")
-                                        label_xpath = (
-                                            "xpath=//*[contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '"
-                                            + escaped +
-                                            "')]"
-                                        )
-                                        label_nodes = self._page.locator(label_xpath)
-                                        lcount = label_nodes.count()
-                                        for li in range(min(lcount, 5)):
-                                            try:
-                                                ln = label_nodes.nth(li)
-                                                neighbor = ln.locator("xpath=following::*[@role='textbox' or self::input or self::textarea or @contenteditable='true'][1]")
-                                                if neighbor and neighbor.count() > 0:
-                                                    resolved = neighbor.first
-                                                    break
-                                            except Exception:
-                                                continue
-                                        if resolved:
-                                            break
-                                except Exception:
-                                    pass
-                    if resolved:
-                        target = resolved
+                self._locator.first.fill(str(value), timeout=timeout, force=force)
+            except Exception as e:
+                last_error = e
+                time.sleep(0.25)
+                continue
 
-                # Scroll into view and focus
+            # Validate by reading it back
+            try:
+                current = None
                 try:
-                    target.scroll_into_view_if_needed(timeout=timeout)
+                    current = self._locator.first.input_value()
                 except Exception:
-                    pass
-                try:
-                    target.focus()
-                except Exception:
-                    try:
-                        target.click(timeout=timeout)
-                    except Exception:
-                        try:
-                            target.click(force=True, timeout=timeout)
-                        except Exception:
-                            pass
-
-                # Clear existing value
-                try:
-                    target.fill("")
-                except Exception:
-                    try:
-                        target.press("Control+A")
-                        target.press("Backspace")
-                    except Exception:
-                        # last resort: set value via JS
-                        try:
-                            h = target.element_handle()
-                            if h:
-                                h.evaluate("el => { if('value' in el) el.value=''; else el.innerText=''; el.dispatchEvent(new Event('input',{bubbles:true})); }")
-                        except Exception:
-                            pass
-
-                # Fill the value
-                try:
-                    target.fill(value, timeout=timeout)
-                except Exception:
-                    # fallback for contenteditable or stubborn inputs
-                    try:
-                        h = target.element_handle()
-                        if h:
-                            h.evaluate("(v) => { if('value' in this) { this.value = v; this.dispatchEvent(new Event('input',{bubbles:true})); } else { this.innerText = v; this.dispatchEvent(new Event('input',{bubbles:true})); } }", value)
-                    except Exception:
-                        pass
-                # Small wait for any suggestion/lookup popup to appear, then try to
-                # select a matching suggestion (Dynamics often shows a lookup list)
-                try:
-                    value_lower = (value or '').strip().lower()
-                    # give UI a short moment to render suggestions
-                    try:
-                        self._page.wait_for_timeout(200)
-                    except Exception:
-                        pass
-                    roots = [self._page]
-                    try:
-                        roots += list(getattr(self._page, 'frames', []))
-                    except Exception:
-                        pass
-                    suggestion_clicked = False
-                    for root in roots:
-                        try:
-                            # common suggestion/lookup containers and option roles
-                            cand_opts = root.locator("[role='option'], [role='listitem'], [role='menuitem'], [role='menuitemradio'], [role='treeitem'], [role='gridcell'], [data-id*='lookup'], .ms-lookup, .lookup, .suggestion, .suggestions")
-                            cnt = cand_opts.count() if cand_opts else 0
-                            for oi in range(cnt):
-                                try:
-                                    o = cand_opts.nth(oi)
-                                    if not o.is_visible(timeout=50):
-                                        continue
-                                    txt = ''
-                                    try:
-                                        txt = (o.get_attribute('aria-label') or o.get_attribute('title') or o.inner_text() or '').strip()
-                                    except Exception:
-                                        try:
-                                            txt = (o.evaluate('el=>el.textContent') or '').strip()
-                                        except Exception:
-                                            txt = ''
-                                    if not txt:
-                                        continue
-                                    tl = txt.lower()
-                                    if value_lower and (value_lower in tl or tl in value_lower):
-                                        try:
-                                            o.click()
-                                            suggestion_clicked = True
-                                            break
-                                        except Exception:
-                                            try:
-                                                h = o.element_handle()
-                                                if h:
-                                                    h.evaluate('el=>el.click()')
-                                                    suggestion_clicked = True
-                                                    break
-                                            except Exception:
-                                                pass
-                                except Exception:
-                                    continue
-                            if suggestion_clicked:
-                                break
-                        except Exception:
-                            continue
-                except Exception:
-                    pass
-                # Optionally, trigger blur/change events
-                try:
-                    locator.press("Tab")
-                except Exception:
-                    pass
-                # Verify the value
-                if verify:
-                    actual = ""
-                    try:
-                        actual = target.input_value(timeout=timeout)
-                    except Exception:
-                        # fallback: try JS property
-                        try:
-                            actual = target.evaluate('el => el.value || el.innerText || el.textContent')
-                        except Exception:
-                            pass
-                    if actual == value:
-                        return
-                    else:
-                        print(f"[SmartAI][Debug] Fill attempt {attempt}: value not retained (got '{actual}', expected '{value}'). Retrying...")
-                        time.sleep(0.3)
-                        continue
-                else:
+                    # fallback to DOM value
+                    current = self._locator.first.evaluate('el => el.value')
+                if current is None:
+                    current = ''
+                if str(current).strip() == str(value).strip():
                     return
             except Exception as e:
                 last_error = e
-                print(f"[SmartAI][Debug] Fill attempt {attempt} failed: {e}")
-                time.sleep(0.3)
-        raise Exception(f"Failed to fill textbox with value '{value}' after {max_retries} attempts. Last error: {last_error}")
-    def click(self, **kwargs):
-        locator = self._locator.first if hasattr(self._locator, 'first') else self._locator
-        # Debug: capture screenshot of target before clicking and highlight
+
+            time.sleep(0.25)
+
+        raise SmartAILocatorError(
+            f"SmartAIWrappedLocator.fill failed after {retries} attempts. "
+            f"Last error: {last_error}"
+        )
+
+    def select_option(
+        self,
+        value,
+        index: int | None = None,
+        timeout: int = 5000,
+        force: bool = False,
+    ):
+        '''
+        Robust select handler:
+        1) Try native select_option(label=...) then value=...
+        2) If native fails, treat it as a combobox & click an option with proper waits
+        3) As a last resort on real <select>, map label->value case-insensitively via DOM
+        '''
+        self._safe_scroll()
+
+        # --- Native fast-path for real <select> ---
         try:
-            import os, time, re
-            logs_dir = _smartai_logs_dir()
-            safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', (self._unique_name or 'unknown'))[:60]
-            ts = int(time.time() * 1000)
-            shot_path = os.path.join(logs_dir, f"debug_click_{safe_name}_{ts}.png")
-            try:
-                locator.screenshot(path=shot_path)
-            except Exception:
-                try:
-                    # highlight element briefly for full page screenshot
-                    try:
-                        locator.evaluate("el => el.style.outline='3px solid red'; setTimeout(()=>el.style.outline='',2000);")
-                    except Exception:
-                        pass
-                    self._page.screenshot(path=shot_path)
-                except Exception:
-                    pass
-            print(f"[SmartAI][Debug] Saved click target screenshot: {shot_path}")
+            return self._locator.first.select_option(label=value)
         except Exception:
-            pass
-        try:
-            # Ensure visible and in view
             try:
-                locator.scroll_into_view_if_needed()
+                return self._locator.first.select_option(value=value)
             except Exception:
-                pass
+                pass  # fall through to combobox flow
+
+        # --- Combobox / custom dropdown flow with waits ---
+        try:
+            trigger = self._page.get_by_role('combobox')
+            trigger = trigger.nth(index) if index is not None else trigger.first
+            trigger.scroll_into_view_if_needed(timeout=timeout)
+            trigger.click(timeout=timeout)
+
+            # Wait for options to show up
             try:
-                locator.click(**kwargs)
+                self._page.get_by_role('listbox').first.wait_for(
+                    state='visible', timeout=timeout
+                )
+            except Exception:
+                self._page.wait_for_selector('[role="option"]', timeout=timeout)
+
+            # Exact name first
+            try:
+                self._page.get_by_role(
+                    'option', name=str(value), exact=True
+                ).first.click(timeout=timeout, force=force)
                 return
             except Exception:
-                # try force click
+                pass
+
+            # Contains text
+            try:
+                self._page.get_by_role(
+                    'option', name=str(value)
+                ).first.click(timeout=timeout, force=force)
+                return
+            except Exception:
+                pass
+
+            # Case-insensitive attempts
+            candidates = [
+                str(value).strip(),
+                str(value).capitalize(),
+                str(value).title(),
+                str(value).lower(),
+                str(value).upper(),
+            ]
+            for v in candidates:
                 try:
-                    locator.click(force=True, **kwargs)
+                    self._page.get_by_role('option', name=v).first.click(
+                        timeout=timeout, force=force
+                    )
                     return
                 except Exception:
-                    pass
-            # try clicking a clickable descendant
+                    continue
+
+            # Final: iterate options and compare text
+            opts = self._page.locator('[role="option"]')
             try:
-                clickable = locator.locator('button,a,span,div')
-                if clickable.count() > 0:
-                    try:
-                        clickable.first.click(**kwargs)
+                n = opts.count()
+            except Exception:
+                n = 0
+            target_low = str(value).strip().lower()
+            for i in range(n):
+                try:
+                    txt = opts.nth(i).inner_text().strip()
+                    if txt.lower() == target_low:
+                        opts.nth(i).click(timeout=timeout, force=force)
                         return
-                    except Exception:
-                        try:
-                            clickable.first.click(force=True, **kwargs)
-                            return
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-            # try element handle JS click
-            try:
-                h = locator.element_handle()
-                if h:
-                    h.evaluate('el => el.click()')
-                    return
-            except Exception:
-                pass
-            # as a last resort try clicking ancestor clickable
-            try:
-                anc = locator.locator('xpath=ancestor::button[1] | xpath=ancestor::a[1] | xpath=ancestor::li[1]')
-                if anc and anc.count() > 0:
-                    try:
-                        anc.first.click(force=True)
-                        return
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                except Exception:
+                    continue
+
         except Exception as e:
-            print(f"[SmartAI][Debug] click failed: {e}")
-            raise
-    # Proxy any unknown attribute/method calls to the underlying Playwright locator
-    def __getattr__(self, name):
-        # Intercept a few common actions to add waits/fallbacks, otherwise proxy
-        # to the underlying Playwright locator.
-        # Helper to get the concrete locator (prefer .first when available)
-        def _get_concrete():
-            return self._locator.first if hasattr(self._locator, 'first') else self._locator
+            print(f"[SmartAI][select_option fallback] Combobox flow failed: {e}")
 
-        if name in ('_impl_obj', '_channel', '_sync'):
-            return getattr(self._locator, name)
-
-        if name == 'type':
-            def _type_wrapper(text, delay=0, timeout=None):
-                loc = _get_concrete()
-                try:
-                    loc.wait_for(state='visible', timeout=3000)
-                except Exception:
-                    pass
-                try:
-                    if timeout is not None:
-                        return loc.type(text, delay=delay, timeout=timeout)
-                    return loc.type(text, delay=delay)
-                except Exception:
-                    # fallback to fill when typing fails — use verify=True so
-                    # lookup/typeahead selection logic in fill runs.
-                    return self.fill(text, timeout=3000, verify=True)
-            return _type_wrapper
-
-        if name == 'press':
-            def _press_wrapper(key):
-                loc = _get_concrete()
-                try:
-                    loc.focus()
-                except Exception:
-                    try:
-                        loc.wait_for(state='visible', timeout=1000)
-                    except Exception:
-                        pass
-                try:
-                    return loc.press(key)
-                except Exception:
-                    try:
-                        # fallback to page keyboard
-                        return self._page.keyboard.press(key)
-                    except Exception:
-                        raise
-            return _press_wrapper
-
-        if name == 'focus':
-            def _focus_wrapper(timeout=None):
-                loc = _get_concrete()
-                try:
-                    loc.scroll_into_view_if_needed(timeout=timeout or 1000)
-                except Exception:
-                    pass
-                try:
-                    if timeout is not None:
-                        return loc.focus(timeout=timeout)
-                    return loc.focus()
-                except Exception:
-                    try:
-                        loc.click(timeout=timeout or 1000)
-                    except Exception:
-                        pass
-                    return None
-            return _focus_wrapper
-
-        # Default: proxy to underlying locator attribute/method. If the
-        # attribute we retrieve is itself a Locator-like object (for
-        # example `.first` or `.last`), wrap it so subsequent calls still
-        # go through SmartAIWrappedLocator and benefit from filling/
-        # suggestion-selection behavior.
+        # --- Last-resort: if this truly was a <select> with label/value mismatch, map by DOM ---
         try:
-            attr = getattr(self._locator, name)
-        except Exception:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        try:
-            # Heuristic: if the attribute exposes locator-like methods,
-            # return a wrapped locator rather than the raw Playwright one.
-            if not callable(attr) and (hasattr(attr, 'type') or hasattr(attr, 'fill') or hasattr(attr, 'click')):
-                return SmartAIWrappedLocator(attr, self._page, unique_name=self._unique_name, healer=self._healer)
-        except Exception:
-            pass
-        return attr
+            opts = self._locator.first.evaluate(
+                'el => Array.from(el.options || []).map(o => ({value:o.value, label:o.label || o.text}))'
+            )
+            if isinstance(opts, list) and opts:
+                target = str(value).strip().lower()
+                # try exact label match (case-insensitive)
+                for o in opts:
+                    if (o.get('label') or '').strip().lower() == target:
+                        return self._locator.first.select_option(value=o.get('value'))
+                # try value equals (case-insensitive)
+                for o in opts:
+                    if (o.get('value') or '').strip().lower() == target:
+                        return self._locator.first.select_option(value=o.get('value'))
+            print(
+                f"[SmartAI][select_option fallback] Could not map '{value}' to an option value on native <select>."
+            )
+        except Exception as e3:
+            print(f"[SmartAI][select_option fallback] Native <select> mapping failed: {e3}")
 
-    def select_option(self, value, timeout=2000):
-        import time
-        page = self._page
-
-        def _normalize(text):
-            return (text or '').strip().lower()
-
-        def _relaxed(text):
-            return ''.join(ch for ch in _normalize(text) if ch.isalnum())
-
-        value_norm = _normalize(value)
-        value_relaxed = _relaxed(value)
-
-        def _matches_option_text(option_text):
-            cand_norm = _normalize(option_text)
-            cand_relaxed = _relaxed(option_text)
-            if not cand_norm and not cand_relaxed:
-                return False
-            if value_norm and (cand_norm == value_norm or value_norm in cand_norm):
-                return True
-            if value_relaxed and cand_relaxed and (cand_relaxed == value_relaxed or value_relaxed in cand_relaxed):
-                return True
-            return False
-
-        # Try clicking the locator to open any overlay
-        try:
-            self._locator.first.click(timeout=timeout)
-        except Exception:
-            pass
-
-        # Try clicking an inner toggle if present (Dynamics pattern)
-        try:
-            inner_toggle = None
-            try:
-                inner_toggle = self._locator.first.locator('button, [role="button"], [data-id*="toggle"], .ms-Dropdown-toggle').first
-            except Exception:
-                inner_toggle = None
-            if inner_toggle:
-                try:
-                    inner_toggle.click(timeout=timeout)
-                except Exception:
-                    try:
-                        inner_toggle.click(force=True, timeout=timeout)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-
-        # If native select, try selecting by option text/value
-        try:
-            tag = self._locator.first.evaluate('el => el.tagName && el.tagName.toLowerCase()')
-            if tag == 'select':
-                try:
-                    opts = self._locator.first.locator('option')
-                    cnt = opts.count()
-                except Exception:
-                    cnt = 0
-                for i in range(cnt):
-                    try:
-                        o = opts.nth(i)
-                        txt = (o.inner_text() or '').strip()
-                        val = (o.get_attribute('value') or '').strip()
-                        if txt == value or val == value or txt.lower() == value.lower() or val.lower() == value.lower():
-                            try:
-                                self._locator.first.select_option(value=val if val else txt)
-                                return
-                            except Exception:
-                                pass
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-
-        # Search overlay roots (page + frames) but scope to the popup container when possible
-        roots = [page]
-        try:
-            roots += list(getattr(page, 'frames', []))
-        except Exception:
-            pass
-
-        # Try to identify a popup/container id referenced by the control (aria-controls/aria-owns)
-        popup_ids = []
-        try:
-            try:
-                ac = self._locator.first.get_attribute('aria-controls')
-            except Exception:
-                ac = None
-            try:
-                ao = self._locator.first.get_attribute('aria-owns')
-            except Exception:
-                ao = None
-            try:
-                # sometimes the interactive input/child has the aria attrs
-                child_inp = None
-                try:
-                    child_inp = self._locator.first.locator('input, [role="combobox"], [aria-controls], [aria-owns]').first
-                except Exception:
-                    child_inp = None
-                if child_inp:
-                    try:
-                        ac2 = child_inp.get_attribute('aria-controls')
-                    except Exception:
-                        ac2 = None
-                    try:
-                        ao2 = child_inp.get_attribute('aria-owns')
-                    except Exception:
-                        ao2 = None
-                else:
-                    ac2 = None; ao2 = None
-            except Exception:
-                ac2 = None; ao2 = None
-            for v in (ac, ao, ac2, ao2):
-                if v:
-                    # aria-controls may contain space-separated ids; split
-                    for pid in str(v).split():
-                        pid = pid.strip()
-                        if pid:
-                            popup_ids.append(pid)
-        except Exception:
-            pass
-
-        # Also consider any visible popup-like containers (aria-expanded=true) as candidates
-        popup_candidate_selectors = [
-            "[role='option']",
-            "[role='menuitem']",
-            "[role='menuitemradio']",
-            "[role='listitem']",
-            "[role='treeitem']",
-            "[role='gridcell']",
-            "[data-id*='lookup']",
-            '.lookupItem',
-            '.ms-ListItem',
-            '.suggestion',
-            '.suggestions',
-            '.dropdown',
-            '.ms-Dropdown-items'
-        ]
-
-        def _verify_after_click(control_locator):
-            # verify that the control shows the expected value after selection
-            try:
-                # try to read input value or element text
-                try:
-                    v = control_locator.input_value(timeout=500)
-                except Exception:
-                    try:
-                        v = control_locator.evaluate('el=>el.value || el.innerText || el.textContent')
-                    except Exception:
-                        v = None
-                if v and _matches_option_text(v):
-                    return True
-            except Exception:
-                pass
-            return False
-
-        # First, try scoping inside popup ids if we found any
-        for pid in popup_ids:
-            for root in roots:
-                try:
-                    try:
-                        popup = root.locator(f"#{pid}")
-                    except Exception:
-                        popup = None
-                    if not popup:
-                        continue
-                    # search for option candidates inside this popup only
-                    combined = ', '.join(popup_candidate_selectors)
-                    try:
-                        items = popup.locator(combined)
-                        total = items.count()
-                    except Exception:
-                        total = 0
-                    for idx in range(total):
-                        try:
-                            it = items.nth(idx)
-                            try:
-                                if not it.is_visible(timeout=50):
-                                    continue
-                            except Exception:
-                                pass
-                            txt = ''
-                            try:
-                                txt = (it.get_attribute('aria-label') or it.get_attribute('title') or it.inner_text() or '').strip()
-                            except Exception:
-                                try:
-                                    txt = (it.evaluate('el=>el.textContent') or '').strip()
-                                except Exception:
-                                    txt = ''
-                            if not txt:
-                                continue
-                            if _matches_option_text(txt):
-                                try:
-                                    it.click(timeout=timeout)
-                                except Exception:
-                                    try:
-                                        h = it.element_handle()
-                                        if h:
-                                            h.evaluate('el=>el.click()')
-                                    except Exception:
-                                        pass
-                                # verify selection applied to the original control
-                                try:
-                                    if _verify_after_click(self._locator.first):
-                                        return
-                                except Exception:
-                                    pass
-                        except Exception:
-                            continue
-                except Exception:
-                    continue
-
-        # Next, search visible popup-like roots (aria-expanded or visible containers) to avoid unrelated lists
-        for root in roots:
-            try:
-                # look for containers that are likely the open popup for this control
-                popup_containers = []
-                try:
-                    # containers with aria-expanded=true or role=listbox, dialog, menu
-                    popup_containers += list(root.locator("[aria-expanded='true']").all())
-                except Exception:
-                    pass
-                try:
-                    popup_containers += list(root.locator("[role='listbox']").all())
-                except Exception:
-                    pass
-                try:
-                    popup_containers += list(root.locator("[role='menu']").all())
-                except Exception:
-                    pass
-                # ensure unique list
-                seen = set()
-                uniq_containers = []
-                for c in popup_containers:
-                    try:
-                        outer = c.evaluate('el=>el.outerHTML')
-                        if outer and outer not in seen:
-                            seen.add(outer); uniq_containers.append(c)
-                    except Exception:
-                        continue
-
-                for popup in uniq_containers:
-                    try:
-                        # search for option candidates inside this popup only
-                        combined = ', '.join(popup_candidate_selectors)
-                        try:
-                            items = popup.locator(combined)
-                            total = items.count()
-                        except Exception:
-                            total = 0
-                        for idx in range(total):
-                            try:
-                                it = items.nth(idx)
-                                try:
-                                    if not it.is_visible(timeout=50):
-                                        continue
-                                except Exception:
-                                    pass
-                                txt = ''
-                                try:
-                                    txt = (it.get_attribute('aria-label') or it.get_attribute('title') or it.inner_text() or '').strip()
-                                except Exception:
-                                    try:
-                                        txt = (it.evaluate('el=>el.textContent') or '').strip()
-                                    except Exception:
-                                        txt = ''
-                                if not txt:
-                                    continue
-                                if _matches_option_text(txt):
-                                    try:
-                                        it.click(timeout=timeout)
-                                    except Exception:
-                                        try:
-                                            h = it.element_handle()
-                                            if h:
-                                                h.evaluate('el=>el.click()')
-                                        except Exception:
-                                            pass
-                                    try:
-                                        if _verify_after_click(self._locator.first):
-                                            return
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                continue
-                    except Exception:
-                        continue
-            except Exception:
-                continue
-
-        # Fallback: broad search across roots but verify after click to avoid picking unrelated items
-        selectors = [
-            "[role='option']",
-            "[role='menuitem']",
-            "[role='menuitemradio']",
-            "[role='listitem']",
-            "[role='treeitem']",
-            "[role='gridcell']",
-            'li',
-            'tr',
-            "div[role='option']",
-            '.pa-item',
-            '.fui-ListItem',
-            '.lookupItem',
-            '.ms-ListItem'
-        ]
-        for root in roots:
-            try:
-                combined = ', '.join(selectors)
-                try:
-                    items = root.locator(combined)
-                    total = items.count()
-                except Exception:
-                    total = 0
-                for idx in range(total):
-                    try:
-                        it = items.nth(idx)
-                        try:
-                            if not it.is_visible(timeout=50):
-                                continue
-                        except Exception:
-                            pass
-                        txt = ''
-                        try:
-                            txt = (it.get_attribute('aria-label') or it.get_attribute('title') or it.inner_text() or '').strip()
-                        except Exception:
-                            try:
-                                txt = (it.evaluate('el=>el.textContent') or '').strip()
-                            except Exception:
-                                txt = ''
-                        if not txt:
-                            continue
-                        if _matches_option_text(txt):
-                            try:
-                                it.click(timeout=timeout)
-                            except Exception:
-                                try:
-                                    h = it.element_handle()
-                                    if h:
-                                        h.evaluate('el=>el.click()')
-                                except Exception:
-                                    pass
-                            try:
-                                if _verify_after_click(self._locator.first):
-                                    return
-                            except Exception:
-                                pass
-                    except Exception:
-                        continue
-            except Exception:
-                continue
-
-        # As a last-resort, set select value via JS for native selects
-        try:
-            for root in roots:
-                try:
-                    res = root.evaluate("(val) => { const sels = Array.from(document.querySelectorAll('select')); for(const s of sels){ for(const o of s.options){ if(o.text.trim().toLowerCase()===val.toLowerCase()|| (o.value||'').trim().toLowerCase()===val.toLowerCase()){ s.value = o.value; s.dispatchEvent(new Event('change',{bubbles:true})); return true } } } return false }", value)
-                    if res:
-                        return
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-        # Final fallback: type the value directly and confirm with Enter for combo-box inputs
-        try:
-            target = self._locator.first
-            try:
-                typed_target = target.locator('input, [role="combobox"], [contenteditable="true"]').first
-                if typed_target:
-                    target = typed_target
-            except Exception:
-                pass
-            try:
-                target.click(timeout=timeout)
-            except Exception:
-                try:
-                    target.click(force=True, timeout=timeout)
-                except Exception:
-                    pass
-            try:
-                target.fill(value)
-            except Exception:
-                try:
-                    target.type(value, delay=30)
-                except Exception:
-                    try:
-                        h = target.element_handle()
-                        if h:
-                            h.evaluate('(val) => { if("value" in this) { this.value = val; this.dispatchEvent(new Event("input",{bubbles:true})); } else { this.textContent = val; this.dispatchEvent(new Event("input",{bubbles:true})); } }', value)
-                    except Exception:
-                        pass
-            try:
-                target.press('Enter')
-            except Exception:
-                try:
-                    self._page.keyboard.press('Enter')
-                except Exception:
-                    pass
-            if _verify_after_click(self._locator.first):
-                return
-        except Exception:
-            pass
-
-        raise Exception(f"Option '{value}' not found in any visible dropdown.")
+        raise SmartAILocatorError(
+            f"SmartAI: unable to select option '{value}' (index={index})"
+        )
 
 
-
+# ===========================================================
+# SELF HEALING CORE
+# ===========================================================
 class SmartAISelfHealing:
+    '''
+    Core self-healing engine.
+    Relies on:
+      - unique_name
+      - label_text / get_by_text / placeholder / text
+      - ocr_type / tag_name / intent
+      - optional dom_id / dom_class / class_list / data_attrs
+    '''
+
     def __init__(self, metadata):
         self.metadata = metadata or []
-        # Initialize ML model only if available; otherwise skip ML-based healing.
-        if HAS_SENTENCE_TRANSFORMERS and HAS_NUMPY:
-            try:
-                self.model = SentenceTransformer("all-MiniLM-L6-v2")
-                self.embeddings = [
-                    self.model.encode(self._element_to_string(e), convert_to_tensor=True, show_progress_bar=False)
-                    for e in self.metadata
-                ]
-            except Exception as e:
-                print(f"[SmartAI][Warn] Failed to initialize ML model: {e}")
-                self.model = None
-                self.embeddings = []
-        else:
-            self.model = None
-            self.embeddings = []
+        if not isinstance(self.metadata, list):
+            self.metadata = list(self.metadata)
+
+        # Semantic encoder (OpenAI + ST fallback)
+        self.encoder = SemanticEncoder()
+
+        # Lazy-computed embeddings for metadata elements
+        self.embeddings = None
+
+        # Track failures per-element
         self.locator_fail_count = {}
 
-    def _names_for_roles(self, element):
-        names = []
-        seen = set()
-        for key in ("get_by_text", "label_text", "placeholder"):
-            raw = (element.get(key) or "").strip()
-            if not raw:
+    # -------------------------------------------------------------
+    # SANITIZER FOR TAILWIND / INVALID CSS CLASS NAMES
+    # -------------------------------------------------------------
+    def _sanitize_class_list(self, classes):
+        '''
+        Remove Tailwind variant tokens and invalid CSS pieces from class list.
+        Example bad tokens: [&_svg]:size-4, peer-disabled:opacity-70, dark:bg-zinc-900
+        We keep only real, usable CSS class names.
+        '''
+        safe = []
+        for c in classes:
+            if not c or not isinstance(c, str):
                 continue
-            variants = _label_variants(raw) or []
-            for variant in variants:
-                val = variant.strip()
-                if val and val not in seen:
-                    names.append(val)
-                    seen.add(val)
-        return names
+            c = c.strip()
+            if not c:
+                continue
 
-    def _candidate_roles(self, element):
+            # Skip Tailwind JIT variant syntax like [&_svg]:size-4
+            if '[' in c or ']' in c:
+                continue
+
+            # Remove state prefixes: hover:, focus:, dark:, etc.
+            if ':' in c:
+                parts = c.split(':')
+                c = parts[-1].strip()
+                if not c:
+                    continue
+
+            # 🔥 Handle illegal characters: remove "/" (Tailwind group modifiers)
+            c = c.replace('/', '-')   # <-- FIX HERE (escape or replace)
+            
+            # Only allow alphanumeric, dash, underscore
+            import re
+            c = re.sub(r'[^A-Za-z0-9\-_]', '', c)
+
+            if c:
+                safe.append(c)
+
+        # Deduplicate
+        seen = set()
+        out = []
+        for cls in safe:
+            if cls not in seen:
+                seen.add(cls)
+                out.append(cls)
+        return out
+
+
+    # ------------------------------------------------------------------ utils
+    def _element_to_string(self, element: dict) -> str:
+        '''
+        Build a dense text representation from metadata fields for embedding.
+        '''
+        if not isinstance(element, dict):
+            return ""
+        data_attrs = element.get("data_attrs") or {}
+        if not isinstance(data_attrs, dict):
+            data_attrs = {}
+
+        fields = [
+            element.get("unique_name", ""),
+            element.get("label_text", ""),
+            element.get("intent", ""),
+            element.get("ocr_type", ""),
+            element.get("element_type", ""),
+            element.get("tag_name", ""),
+            element.get("placeholder", ""),
+            element.get("text", ""),
+            " ".join(element.get("class_list", []) or []),
+            " ".join(f"{k}:{v}" for k, v in data_attrs.items()),
+            element.get("sample_value", ""),
+        ]
+        base = " ".join(str(f) for f in fields if f)
+        enriched = SmartAISelfHealing.encoder.enrich_for_embedding(element) if hasattr(SmartAISelfHealing, "encoder") else ""
+        return f"{base} | {enriched}".strip()
+        return " ".join(str(f) for f in fields if f)
+
+    def _ensure_metadata_embeddings(self):
+        '''
+        Lazily compute embeddings for all metadata elements in one batch.
+        '''
+        if self.embeddings is not None:
+            return
+        texts = [self._element_to_string(e) or " " for e in self.metadata]
+        self.embeddings = self.encoder.encode_many(texts)
+
+    def _semantic_similarity(self, a: str, b: str) -> float:
+        '''
+        Compare two texts using the configured semantic encoder.
+        '''
+        return self.encoder.similarity_text(a, b)
+
+    # --- synonym-like text variants (no hardcoded domain words) ---------------
+    def _synonym_texts(self, txt: str):
+        '''
+        Generate neutral text variants without any domain-specific hardcoding.
+        This is light helper logic; true semantic matching is done via embeddings.
+        '''
+        if not txt:
+            return []
+
+        variants = set()
+        clean = " ".join(str(txt).split())  # normalize whitespace
+
+        # Basic variants
+        variants.add(clean)
+        variants.add(clean.lower())
+        variants.add(clean.title())
+        variants.add(clean.upper())
+
+        # Remove leading '+ ' if present, and also keep version without '+'
+        if clean.startswith("+ "):
+            variants.add(clean[2:].strip())
+        else:
+            variants.add("+ " + clean)
+
+        # Last word / last 2-3 words (helps if label is long)
+        parts = clean.split()
+        if len(parts) >= 2:
+            variants.add(" ".join(parts[-2:]))
+        if len(parts) >= 3:
+            variants.add(" ".join(parts[-3:]))
+
+        out = []
+        seen = set()
+        for v in variants:
+            v2 = v.strip()
+            if v2 and v2 not in seen:
+                seen.add(v2)
+                out.append(v2)
+        return out
+
+    def _names_for_roles(self, element: dict):
+        '''
+        Collect reasonable accessible names to try for role-based queries,
+        including neutral variants.
+        '''
+        names = []
+        for key in ("label_text", "get_by_text", "placeholder", "text"):
+            v = (element.get(key) or "").strip()
+            if v:
+                names.extend(self._synonym_texts(v))
+
+        uniq = (element.get("unique_name") or "").strip()
+        if uniq:
+            cleaned = re.sub(r"[^A-Za-z0-9]+", " ", uniq).strip()
+            if cleaned:
+                names.append(cleaned)
+                parts = cleaned.split()
+                # Focus on tail words
+                if len(parts) >= 2:
+                    names.append(" ".join(parts[-2:]))
+                if len(parts) >= 3:
+                    names.append(" ".join(parts[-3:]))
+
+        # Deduplicate while preserving order
+        seen = set()
+        out = []
+        for n in names:
+            n_stripped = n.strip()
+            if n_stripped and n_stripped not in seen:
+                seen.add(n_stripped)
+                out.append(n_stripped)
+        return out
+
+    def _candidate_roles(self, element: dict):
+        '''
+        Infer likely roles from ocr_type/tag_name + intent.
+        Uses intent to avoid picking textbox when we really want a button.
+        '''
         ocr = (element.get("ocr_type") or "").lower()
         tag = (element.get("tag_name") or "").lower()
+        intent = (element.get("intent") or "").lower()
+
         roles = []
+
+        # Heuristic: if intent is click-ish, strongly prefer button/link/combobox
+        clickish = any(
+            k in intent
+            for k in [
+                "click",
+                "submit",
+                "delete",
+                "remove",
+                "add",
+                "create",
+                "open",
+                "next",
+                "previous",
+                "save",
+                "confirm",
+                "ok",
+                "proceed",
+            ]
+        )
+        inputish = any(
+            k in intent for k in ["type", "enter", "fill", "search", "filter", "input"]
+        )
+
+        # Primary from ocr/tag
         if ocr in ("button", "submit", "iconbutton") or tag == "button":
             roles.append("button")
         if ocr in ("select", "dropdown", "combobox") or tag == "select":
             roles.append("combobox")
-        if ocr in ("textbox", "text", "input", "email", "password") or tag in ("input", "textarea"):
+        if ocr in ("textbox", "text", "input", "email", "password") or tag in (
+            "input",
+            "textarea",
+        ):
             roles.append("textbox")
         if ocr in ("link", "anchor") or tag == "a":
             roles.append("link")
+
+        # Adjust ordering based on intent
+        if clickish:
+            ordered = []
+            for r in ("button", "link", "combobox", "textbox"):
+                if r in roles and r not in ordered:
+                    ordered.append(r)
+            if "textbox" in ordered:
+                ordered.remove("textbox")
+                ordered.append("textbox")
+            roles = ordered
+        elif inputish:
+            ordered = []
+            for r in ("textbox", "combobox", "button", "link"):
+                if r in roles and r not in ordered:
+                    ordered.append(r)
+            roles = ordered
+
+        # Always add generic fallbacks (order respected)
         for r in ("button", "combobox", "textbox", "link"):
             if r not in roles:
                 roles.append(r)
         return roles
 
-    def _evaluate_locator(self, locator):
-        import time
-        if locator is None:
-            return False
-        # Prefer visible + enabled elements. Use short timeouts to avoid long blocking
+    def _map_tag_to_role(self, tag: str):
+        tag_role_map = {
+            "button": "button",
+            "input": "textbox",
+            "select": "combobox",
+            "textarea": "textbox",
+            "checkbox": "checkbox",
+        }
+        return tag_role_map.get((tag or "").lower(), None)
+
+    # ----------------------------------------------------------------- locators
+    def _try_all_locators(self, element: dict, page):
+        '''
+        Try a layered set of locator strategies from strongest → weakest.
+        Returns a *raw* Playwright Locator on success, or None.
+        '''
+
+        # Give the app some time to settle
         try:
-            try:
-                # check visible quickly
-                if locator.first.is_visible(timeout=200):
-                    try:
-                        if locator.first.is_enabled(timeout=200):
-                            return True
-                    except Exception:
-                        # if enabled check fails, assume visible is sufficient
-                        return True
-            except Exception:
-                # visibility check failed or timed out; fall back to count
-                pass
+            page.wait_for_load_state("networkidle", timeout=8000)
         except Exception:
-            # safety net: continue to count-based checks
             pass
 
-        # fallback: quick count checks with short timeouts
-        for _ in range(2):
-            try:
-                cnt = locator.count()
-                if cnt and cnt > 0:
-                    return True
-                break
-            except Exception:
-                time.sleep(0.05)
-        return False
-
-    def _try_all_locators(self, element, page):
         strategies = []
+
+        # Normalize dom-id / dom_class
+        dom_id = element.get("dom_id") or element.get("dom-id") or element.get("id")
+        dom_class = (
+            element.get("dom_class")
+            or element.get("dom-class")
+            or element.get("class_name")
+        )
+
+        label_text = (element.get("label_text") or "").strip()
+        get_by_text_v = (element.get("get_by_text") or "").strip()
+        placeholder = (element.get("placeholder") or "").strip()
+        xpath = (element.get("xpath") or "").strip()
+        raw_text = (element.get("text") or "").strip()
+
+        text_variants = []
+        for t in [label_text, get_by_text_v, raw_text]:
+            if t:
+                text_variants.extend(self._synonym_texts(t))
+
+        # ------- ROLE-BASED QUERIES (most robust when accessible names exist)
         names = self._names_for_roles(element)
         if names:
             roles = self._candidate_roles(element)
             for nm in names:
                 for role in roles:
-                    strategies.append((lambda scope, nm=nm, role=role: scope.get_by_role(role, name=nm), f"get_by_role({role}, name={nm})"))
-                # Attribute-based locator: prefer exact-match attributes rendered by Dynamics (data-text, id containing, data-lp-id, title, aria-label)
-                def _attribute_locator(scope, nm=nm, element=element):
+                    # Exact case-sensitive first
+                    def _role_exact(nm=nm, role=role):
+                        return page.get_by_role(role, name=nm)
+
+                    strategies.append(
+                        (_role_exact, f"get_by_role({role}, name='{nm}')")
+                    )
+
+                    # Case-insensitive regex
                     try:
-                        lbl = (nm or '').strip()
-                        if not lbl:
-                            return None
-                        low = lbl.lower()
-                        # Try several XPath tests that are case-insensitive using translate
-                        xpaths = [
-                            "xpath=//*[@data-text and translate(normalize-space(@data-text), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = '" + low.replace("'","'") + "']",
-                            "xpath=//*[contains(translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '" + low.replace("'","'") + "')]",
-                            "xpath=//*[contains(translate(@data-lp-id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '" + low.replace("'","'") + "')]",
-                            "xpath=//*[@title and translate(normalize-space(@title), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = '" + low.replace("'","'") + "']",
-                            "xpath=//*[@aria-label and translate(normalize-space(@aria-label), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = '" + low.replace("'","'") + "']",
-                            "xpath=//*[contains(translate(@data-id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '" + low.replace("'","'") + "')]",
-                        ]
-                        for xp in xpaths:
-                            try:
-                                loc = scope.locator(xp)
-                                if loc and self._evaluate_locator(loc):
-                                    return loc
-                            except Exception:
-                                continue
+                        regex = re.compile(re.escape(nm), re.IGNORECASE)
+
+                        def _role_regex(regex=regex, role=role):
+                            return page.get_by_role(role, name=regex)
+
+                        strategies.append(
+                            (_role_regex, f"get_by_role({role}, name=/{nm}/i)")
+                        )
                     except Exception:
                         pass
-                    return None
-                strategies.append((lambda scope, nm=nm: _attribute_locator(scope, nm), f"attribute_match({nm})"))
-                # Case-insensitive contains text search with clickable-ancestor resolution
-                def _ci_clickable(scope, nm=nm):
-                    low = nm.strip().lower()
-                    xpath = (
-                        "xpath=(//*[contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '"
-                        + low.replace("'","'")
-                        + "')][not(self::script) and not(self::style)])"
-                    )
-                    # Enhanced clickable: allow <li> and descendants
-                    clickable = "xpath=ancestor-or-self::*[(self::a or self::button or self::li or @role='link' or @role='button' or @role='menuitem' or @role='treeitem' or number(@tabindex) >= 0 or @data-id or @data-control-name or @data-lp-id)][1]"
-                    try:
-                        base = scope.locator(xpath)
-                        candidates = base.locator(clickable)
-                        # Filter for visible and clickable elements
-                        filtered = []
-                        count = candidates.count() if candidates else 0
-                        for i in range(count):
-                            try:
-                                cand = candidates.nth(i)
-                                if cand.is_visible(timeout=200):
-                                    # Try to check if clickable by attempting to get bounding box
-                                    if cand.bounding_box() is not None:
-                                        filtered.append(cand)
-                            except Exception:
-                                pass
-                        # Log outer HTML and attributes for all candidates
-                        print(f"[SmartAI][Debug] Candidates for label '{nm}': {count} found, {len(filtered)} visible/clickable")
-                        for i in range(count):
-                            try:
-                                cand = candidates.nth(i)
-                                outer = cand.evaluate('el => el.outerHTML')
-                                attrs = cand.evaluate('el => { let a={}; for(let attr of el.attributes){a[attr.name]=attr.value;} return a; }')
-                                print(f"[SmartAI][Debug] Candidate[{i}] outerHTML: {outer[:300]} attrs: {attrs}")
-                            except Exception:
-                                pass
-                        if filtered:
-                            # If <li>, try to click it directly; else, find first clickable descendant
-                            for cand in filtered:
-                                tag = cand.evaluate('el => el.tagName.toLowerCase()')
-                                if tag == 'li' or tag == 'button' or tag == 'a':
-                                    return cand
-                                # Try to find a clickable descendant
-                                try:
-                                    desc = cand.locator("button,a,span,div")
-                                    if desc.count() > 0 and desc.is_visible(timeout=200):
-                                        return desc
-                                except Exception:
-                                    pass
-                            return filtered[0]
-                        return candidates if count > 0 else scope.locator(xpath)
-                    except Exception:
-                        return scope.locator(xpath)
-                strategies.append((lambda scope, nm=nm: _ci_clickable(scope, nm), f"clickable_text_ci({nm})"))
-        if element.get("label_text"):
-            strategies.append((lambda scope, label=element["label_text"]: scope.get_by_text(label, exact=True), f"get_by_text({element['label_text']}, exact=True)"))
-            strategies.append((lambda scope, label=element["label_text"]: scope.get_by_text(label, exact=False), f"get_by_text({element['label_text']}, exact=False)"))
-        data_attrs = element.get("data_attrs", {})
-        for k, v in data_attrs.items():
-            if "test" in k.lower() or "qa" in k.lower():
-                strategies.append((lambda scope, v=v: scope.get_by_test_id(v), f"get_by_test_id({v}) for {k}"))
-        if element.get("dom_id"):
-            id_value = element["dom_id"]
-            strategies.append((lambda scope, id_value=id_value: scope.locator(f'#{id_value}'), f"locator(#{id_value}) [ID exact]"))
-            strategies.append((lambda scope, id_value=id_value: scope.locator(f'[id*="{id_value}"]'), f'locator([id*="{id_value}"]) [ID partial]'))
-        if element.get("dom_class"):
-            class_value = element["dom_class"]
-            class_sel = "." + ".".join(class_value.split())
-            strategies.append((lambda scope, class_sel=class_sel: scope.locator(class_sel), f"locator({class_sel}) [class exact]"))
-        if element.get("class_list"):
-            sel = "." + ".".join(element["class_list"])
-            strategies.append((lambda scope, sel=sel: scope.locator(sel), f"locator({sel}) [class_list]"))
-        if element.get("locator") and element["locator"].get("type") == "css":
-            strategies.append((lambda scope, css=element["locator"]["value"]: scope.locator(css), f"locator({element['locator']['value']}) [custom css]"))
 
-        for func, desc in strategies:
+        # ------- tag-to-role mapping with label_text
+        tag = element.get("tag_name")
+        if tag and label_text:
+            role = self._map_tag_to_role(tag)
+            if role:
+                def _mapped_role(role=role, label_text=label_text):
+                    return page.get_by_role(role, name=label_text)
+
+                strategies.append(
+                    (
+                        _mapped_role,
+                        f"get_by_role({role}, name='{label_text}') [tag-map]",
+                    )
+                )
+
+        # ------- get_by_label (best for inputs/selects with associated <label>)
+        if label_text:
+            def _by_label(label_text=label_text):
+                return page.get_by_label(label_text)
+
+            strategies.append((_by_label, f"get_by_label('{label_text}')"))
+
+        # ------- Exact visible text
+        if label_text:
+            def _by_text_exact(label_text=label_text):
+                return page.get_by_text(label_text, exact=True)
+
+            strategies.append(
+                (_by_text_exact, f"get_by_text('{label_text}', exact=True)")
+            )
+
+        # ------- Loose text / substring / case-insensitive
+        for txt in text_variants:
+            def _by_text_contains(txt=txt):
+                return page.get_by_text(txt)
+
+            strategies.append((_by_text_contains, f"get_by_text('{txt}') [contains]"))
+
             try:
-                candidate = func(page)
-            except Exception:
-                candidate = None
-            if self._evaluate_locator(candidate):
-                print(f"[SmartAI][Return] {desc} succeeded.")
-                self.locator_fail_count[element.get("unique_name")] = 0
-                return candidate.first
-            # short wait and retry
-            try:
-                page.wait_for_timeout(100)
-                candidate = func(page)
-                if self._evaluate_locator(candidate):
-                    print(f"[SmartAI][Return] {desc} succeeded after short wait.")
-                    self.locator_fail_count[element.get("unique_name")] = 0
-                    return candidate.first
+                regex = re.compile(re.escape(txt), re.IGNORECASE)
+
+                def _by_text_regex(regex=regex):
+                    return page.get_by_text(regex)
+
+                strategies.append((_by_text_regex, f"get_by_text(/{txt}/i)"))
             except Exception:
                 pass
-            for frame in getattr(page, 'frames', []):
+
+        # ------- Placeholder
+        if placeholder:
+            for ph in self._synonym_texts(placeholder):
+                def _by_placeholder(ph=ph):
+                    return page.get_by_placeholder(ph)
+
+                strategies.append((_by_placeholder, f"get_by_placeholder('{ph}')"))
+
+        # ------- Sample value
+        sample_value = (element.get("sample_value") or "").strip()
+        if sample_value:
+            def _by_display_value(sample_value=sample_value):
+                return page.get_by_display_value(sample_value)
+
+            strategies.append(
+                (_by_display_value, f"get_by_display_value('{sample_value}')")
+            )
+
+        # ------- Data attributes (test-id / qa)
+        data_attrs = element.get("data_attrs") or {}
+        if isinstance(data_attrs, dict):
+            for k, v in data_attrs.items():
+                if not v:
+                    continue
+                if "test" in k.lower() or "qa" in k.lower():
+                    def _by_test_id(v=v):
+                        return page.get_by_test_id(v)
+
+                    strategies.append((_by_test_id, f"get_by_test_id('{v}') for {k}"))
+
+        # ------- By ID (exact and partial)
+        if dom_id:
+            def _id_exact(dom_id=dom_id):
+                return page.locator(f"#{dom_id}")
+
+            strategies.append((_id_exact, f"locator(#{dom_id}) [ID exact]"))
+
+            def _id_partial(dom_id=dom_id):
+                return page.locator(f'[id="{dom_id}"], [id*="{dom_id}"]')
+
+            strategies.append(
+                (_id_partial, f'locator([id="{dom_id}"], [id*="{dom_id}"]) [ID partial]')
+            )
+
+        # ------- By dom_class (sanitized)
+        if dom_class:
+            tokens = str(dom_class).split()
+            safe_tokens = self._sanitize_class_list(tokens)
+            if safe_tokens:
+                class_sel = "." + ".".join(safe_tokens)
+
+                def _class_exact(class_sel=class_sel):
+                    return page.locator(class_sel)
+
+                strategies.append(
+                    (_class_exact, f"locator({class_sel}) [class exact sanitized]")
+                )
+
+                def _class_partial(class_value=" ".join(safe_tokens)):
+                    return page.locator(f'[class*="{class_value}"]')
+
+                strategies.append(
+                    (
+                        _class_partial,
+                        f'locator([class*="{ " ".join(safe_tokens) }"]) [class partial sanitized]',
+                    )
+                )
+
+        # ------- By class_list (sanitized)
+        class_list = element.get("class_list") or []
+        if isinstance(class_list, list) and class_list:
+            safe_classes = self._sanitize_class_list(class_list)
+            if safe_classes:
+                sel = "." + ".".join(safe_classes)
+
+                def _class_list(sel=sel):
+                    return page.locator(sel)
+
+                strategies.append(
+                    (_class_list, f"locator({sel}) [class_list sanitized]")
+                )
+
+        # ------- CSS / XPath from metadata
+        locator_info = element.get("locator") or {}
+        if isinstance(locator_info, dict):
+            if locator_info.get("type") == "css" and locator_info.get("value"):
+                css = locator_info["value"]
+
+                def _css(css=css):
+                    return page.locator(css)
+
+                strategies.append((_css, f"locator({css}) [custom css]"))
+
+            if locator_info.get("type") == "xpath" and locator_info.get("value"):
+                xp = locator_info["value"]
+
+                def _xp(xp=xp):
+                    return page.locator(f"xpath={xp}")
+
+                strategies.append((_xp, f"locator(xpath={xp}) [custom xpath]"))
+
+        # If plain xpath field available
+        if xpath:
+            def _xp_field(xpath=xpath):
+                return page.locator(f"xpath={xpath}")
+
+            strategies.append((_xp_field, f"locator(xpath={xpath}) [xpath field]"))
+
+        # ------- Execute in order
+        for func, desc in strategies:
+            try:
+                locator = func()
+                if not locator:
+                    continue
                 try:
-                    candidate = func(frame)
+                    count = locator.count()
                 except Exception:
-                    candidate = None
-                if self._evaluate_locator(candidate):
-                    print(f"[SmartAI][Return] {desc} succeeded inside frame.")
+                    count = 1
+
+                if count > 0:
+                    print(f"[SmartAI][Return] {desc} succeeded (count={count}).")
                     self.locator_fail_count[element.get("unique_name")] = 0
-                    return candidate.first
-            unique_name = element.get("unique_name", "")
-            self.locator_fail_count[unique_name] = self.locator_fail_count.get(unique_name, 0) + 1
-            print(f"[SmartAI][Skip] {desc} found no matching nodes.")
+                    return locator.first
+            except Exception as e:
+                unique_name = element.get("unique_name", "")
+                self.locator_fail_count[unique_name] = (
+                    self.locator_fail_count.get(unique_name, 0) + 1
+                )
+                print(f"[SmartAI][Skip] {desc} failed: {e}")
+
+        # -------------------------------------------------------------
+        # Semantic Text Healing Layer (matches text drift)
+        # -------------------------------------------------------------
+        semantic_candidates = []
+        try:
+            orig_label = (element.get("label_text") or "").strip()
+            if orig_label:
+                # search similar visible buttons/links
+                candidates_loc = page.locator('button, [role="button"], a')
+
+                try:
+                    total = candidates_loc.count()
+                except Exception:
+                    total = 0
+
+                total = min(total, 80)  # cap for performance
+
+                for i in range(total):
+                    loc = candidates_loc.nth(i)
+                    try:
+                        txt = loc.inner_text().strip()
+                        if not txt:
+                            continue
+
+                        # --- Parent / Sibling boosting logic ---
+                        parent = (element.get("parent_block_text") or "").lower()
+                        sibling_list = element.get("sibling_text") or []
+                        siblings = sibling_list if isinstance(sibling_list, list) else [sibling_list]
+
+                        base_score = self._semantic_similarity(orig_label, txt)
+
+                        parent_bonus = 0.15 if parent and parent in txt.lower() else 0
+                        sibling_bonus = 0.10 if any(s.lower() in txt.lower() for s in siblings) else 0
+
+                        score = base_score + parent_bonus + sibling_bonus
+
+                        if score >= 0.45:   # threshold after boosting
+                            semantic_candidates.append((score, loc))
+
+                    except Exception:
+                        continue
+
+
+            if semantic_candidates:
+                # If the boosted score includes parent/sibling matches,
+                # prefer those above plain semantic similarity
+                semantic_candidates = sorted(semantic_candidates, key=lambda x: x[0], reverse=True)
+                best_score, best_loc = semantic_candidates[0]
+                try:
+                    healed_text = best_loc.inner_text().strip()
+                except Exception:
+                    healed_text = "<unreadable>"
+                print(
+                    f"[SmartAI][Semantic] '{orig_label}' healed to '{healed_text}' score={best_score:.2f}"
+                )
+                return best_loc.first
+
+        except Exception as e:
+            print(f"[SmartAI][Semantic search failed] {e}")
+
         print("[SmartAI][Return] No locator found for element.")
         return None
 
+    # ----------------------------------------------------------------- ML heal
+    def _ml_self_heal(self, unique_name: str):
+        '''
+        ML healing based on:
+          - unique_name
+          - label_text
+          - get_by_text
+          - placeholder
+        '''
+        queries = []
+        if unique_name:
+            queries.append(unique_name)
 
-    def find_element(self, unique_name, page):
-        import time
-        element = self._find_by_unique_name(unique_name)
-        # Try primary metadata and ML healing with retries for up to 15 seconds
-        start = time.time()
-        last_error = None
-        attempt = 0
-        while time.time() - start < 15.0:
-            attempt += 1
-            print(f"[SmartAI][Debug] Attempt {attempt} to find '{unique_name}'")
-            if element:
-                for _ in range(2):
-                    locator = self._try_all_locators(element, page)
-                    if locator:
-                        # Validate locator against expected roles. If the element is
-                        # expected to be a combobox but the found locator does not
-                        # appear to be a select/combobox/listbox, skip it so that
-                        # combobox-specific fallback will run.
-                        try:
-                            expected_roles = self._candidate_roles(element)
-                        except Exception:
-                            expected_roles = []
-                        tag = None
-                        role_attr = None
-                        aria_haspopup = None
-                        try:
-                            tag = locator.evaluate('el => el.tagName && el.tagName.toLowerCase()')
-                        except Exception:
-                            tag = None
-                        try:
-                            role_attr = locator.get_attribute('role')
-                        except Exception:
-                            role_attr = None
-                        try:
-                            aria_haspopup = locator.get_attribute('aria-haspopup')
-                        except Exception:
-                            aria_haspopup = None
+        # include OCR and DOM visible text for ML search
+        base_el = next(
+            (el for el in self.metadata if el.get("unique_name") == unique_name), None
+        )
+        if base_el:
+            for key in ("label_text", "get_by_text", "placeholder", "text"):
+                v = (base_el.get(key) or "").strip()
+                if v:
+                    queries.append(v)
 
-                        is_combobox_expected = 'combobox' in expected_roles
-                        if is_combobox_expected:
-                            try:
-                                # quick checks for combobox-like elements
-                                looks_like_combobox = False
-                                if tag == 'select':
-                                    looks_like_combobox = True
-                                if role_attr and role_attr.lower() in ('combobox', 'listbox'):
-                                    looks_like_combobox = True
-                                if aria_haspopup and aria_haspopup.lower() in ('listbox', 'true'):
-                                    looks_like_combobox = True
-                                # also look for descendant options or inputs
-                                try:
-                                    if locator.locator("[role='option']").count() > 0:
-                                        looks_like_combobox = True
-                                except Exception:
-                                    pass
-                                try:
-                                    if locator.locator('select, input, [role="combobox"]').count() > 0:
-                                        looks_like_combobox = True
-                                except Exception:
-                                    pass
-                                if not looks_like_combobox:
-                                    print(f"[SmartAI][Debug] Candidate for '{unique_name}' found but does not look like combobox (tag={tag} role={role_attr} aria-haspopup={aria_haspopup}). Skipping this candidate to try combobox-specific fallback.")
-                                    locator = None
-                            except Exception:
-                                # If validation errors occur, proceed to return the locator
-                                pass
+        if not queries:
+            return None, 0.0
 
-                        if locator:
-                            is_textbox_expected = 'textbox' in expected_roles
-                            if is_textbox_expected:
-                                try:
-                                    looks_like_textbox = False
-                                    if tag in ('input', 'textarea'):
-                                        looks_like_textbox = True
-                                    if role_attr and role_attr.lower() in ('textbox', 'combobox'):
-                                        looks_like_textbox = True
-                                    try:
-                                        if locator.locator('input, textarea, [contenteditable="true"], [role="textbox"]').count() > 0:
-                                            looks_like_textbox = True
-                                    except Exception:
-                                        pass
-                                    if not looks_like_textbox:
-                                        print(f"[SmartAI][Debug] Candidate for '{unique_name}' found but does not look like textbox (tag={tag} role={role_attr}). Skipping this candidate to try textbox-specific fallback.")
-                                        locator = None
-                                except Exception:
-                                    pass
+        self._ensure_metadata_embeddings()
+        if not self.embeddings:
+            return None, 0.0
 
-                        if locator:
-                            print(f"[SmartAI] Element '{unique_name}' found using primary metadata.")
-                            return SmartAIWrappedLocator(locator, page, unique_name, healer=self)
-            element_ml, ml_score = self._ml_self_heal(unique_name)
-            if element_ml:
-                locator_ml = self._try_all_locators(element_ml, page)
-                if locator_ml:
-                    print(f"[SmartAI] Healed element via ML ({ml_score:.2f}): '{element_ml.get('unique_name')}'")
-                    return SmartAIWrappedLocator(locator_ml, page, element_ml.get('unique_name'), healer=self)
-            target_intent = element_ml.get("intent") if element_ml else None
-            if target_intent:
-                for e in self.metadata:
-                    if e.get("intent") == target_intent and e.get("unique_name") != unique_name:
-                        locator = self._try_all_locators(e, page)
-                        if locator:
-                                    print(f"[SmartAI] Healed element by intent ('{target_intent}'): '{e.get('unique_name')}'")
-                                    return SmartAIWrappedLocator(locator, page, e.get('unique_name'), healer=self)
-            # Combobox-specific fallback: search frames for combobox widgets near the label
+        query_vecs = [self.encoder.encode(q) for q in queries]
+
+        scores = []
+        for emb in self.embeddings:
             try:
-                for candidate in (element, element_ml):
-                    try:
-                        if not candidate:
-                            continue
-                        roles = self._candidate_roles(candidate)
-                        lbl = (candidate.get('label_text') or candidate.get('get_by_text') or '').strip()
-                        if lbl:
-                            cb_loc = self._find_combobox_by_label_across_roots(lbl, page)
-                            if cb_loc:
-                                print(f"[SmartAI] Found combobox for label '{lbl}' via combobox-specific fallback.")
-                                # pass the candidate's unique_name when available
-                                cand_name = candidate.get('unique_name') if candidate else None
-                                return SmartAIWrappedLocator(cb_loc, page, cand_name, healer=self)
-                    except Exception as e:
-                        last_error = e
-                        continue
-            except Exception as e:
-                last_error = e
-            # Re-check all frames/roots for the element
-            try:
-                frames = [page] + list(getattr(page, 'frames', []))
-                for frame in frames:
-                    try:
-                        locator = self._try_all_locators(element, frame)
-                        if locator:
-                            print(f"[SmartAI][Debug] Found in frame/root on attempt {attempt}.")
-                            return SmartAIWrappedLocator(locator, frame, element.get('unique_name') if element else None, healer=self)
-                    except Exception as e:
-                        print(f"[SmartAI][Debug] Frame/root search error: {e}")
-            except Exception as e:
-                print(f"[SmartAI][Debug] Error re-checking frames/roots: {e}")
-            time.sleep(1)
-        # Debug dump to help investigate why the element cannot be found
-        print(f"[SmartAI][Debug] Failed to find '{unique_name}' after {attempt} attempts and {time.time()-start:.1f}s")
-        self._debug_dump_context(unique_name, page)
-        raise SmartAILocatorError(f"Element '{unique_name}' not found and cannot self-heal.")
-
-    def _debug_dump_context(self, unique_name, page):
-        try:
-            print(f"[SmartAI][Debug] Dumping context for '{unique_name}'")
-            try:
-                roots = [page] + [f for f in page.frames]
-            except Exception:
-                roots = [page]
-
-            for r in roots:
-                try:
-                    url = getattr(r, 'url', '<url-unavailable>')
-                except Exception:
-                    url = '<url-unavailable>'
-                print(f"[SmartAI][Debug] Root: {url}")
-                try:
-                    # case-insensitive search for label text in this frame
-                    elem = next((e for e in self.metadata if e.get('unique_name')==unique_name), None)
-                    label = (elem.get('label_text') or elem.get('get_by_text') or '') if elem else ''
-                    if label:
-                        low = label.strip().lower()
-                        xpath = ("xpath=//*[contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '"+low.replace("'","'")+"')]")
-                        nodes = r.locator(xpath)
-                        cnt = nodes.count()
-                        print(f"[SmartAI][Debug] found {cnt} matching DOM nodes with label '{label}' in root {url}")
-                        for i in range(min(5, cnt)):
-                            try:
-                                node = nodes.nth(i)
-                                try:
-                                    oh = node.evaluate('n=>n.outerHTML')
-                                except Exception:
-                                    oh = '<outerHTML-unavailable>'
-                                try:
-                                    bb = node.bounding_box()
-                                except Exception:
-                                    bb = None
-                                print(f"[SmartAI][Debug] node[{i}] bbox={bb} html_snippet={oh[:300]}")
-                            except Exception:
-                                continue
-                    # capture a screenshot and small HTML snippet for this root to help post-mortem
-                    try:
-                        import os, time, re
-                        debug_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'debug')
-                        try:
-                            os.makedirs(debug_dir, exist_ok=True)
-                        except Exception:
-                            pass
-                        ts = int(time.time() * 1000)
-                        # sanitize url to a safe filename fragment
-                        safe_url = (url or '').strip()
-                        safe = re.sub(r'[^A-Za-z0-9._-]', '_', safe_url)[:80]
-                        # sanitize unique_name too
-                        safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', unique_name)[:60]
-                        screenshot_path = os.path.join(debug_dir, f"smartai_{safe_name}_{safe}_{ts}.png")
-                        html_path = os.path.join(debug_dir, f"smartai_{safe_name}_{safe}_{ts}.html")
-                        wrote_screenshot = False
-                        wrote_html = False
-                        try:
-                            # For frame-like roots, use frame.screenshot when available
-                            if hasattr(r, 'screenshot'):
-                                r.screenshot(path=screenshot_path)
-                            else:
-                                page.screenshot(path=screenshot_path)
-                            wrote_screenshot = os.path.exists(screenshot_path)
-                        except Exception as e:
-                            print(f"[SmartAI][Debug] screenshot failed for root {url}: {e}")
-                        try:
-                            # grab outerHTML up to a reasonable limit
-                            html = None
-                            try:
-                                html = r.evaluate('() => document.documentElement.outerHTML')
-                            except Exception:
-                                try:
-                                    html = page.evaluate('() => document.documentElement.outerHTML')
-                                except Exception:
-                                    html = '<outerHTML-unavailable>'
-                            with open(html_path, 'w', encoding='utf-8') as fh:
-                                fh.write((html or '')[:20000])
-                            wrote_html = os.path.exists(html_path)
-                        except Exception as e:
-                            print(f"[SmartAI][Debug] html dump failed for root {url}: {e}")
-                        try:
-                            if wrote_screenshot:
-                                print(f"[SmartAI][Debug] saved screenshot: {screenshot_path}")
-                            if wrote_html:
-                                print(f"[SmartAI][Debug] saved html snippet: {html_path}")
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-                except Exception as e:
-                    print(f"[SmartAI][Debug] error while dumping root {url}: {e}")
-        except Exception:
-            pass
-
-    def _find_combobox_by_label_across_roots(self, label, page):
-        roots = [page]
-        try:
-            for f in page.frames:
-                if f not in roots:
-                    roots.append(f)
-        except Exception:
-            pass
-
-        low = label.strip().lower()
-        for root in roots:
-            # find comboboxes
-            try:
-                combs = root.get_by_role('combobox')
-            except Exception:
-                try:
-                    combs = root.locator("[role='combobox']")
-                except Exception:
-                    combs = None
-
-            if not combs:
-                continue
-
-            try:
-                ccount = combs.count()
-            except Exception:
-                ccount = 0
-
-            for i in range(ccount):
-                try:
-                    c = combs.nth(i)
-                    # check nearest label/ancestor text
-                    try:
-                        txt = (c.inner_text() or '').strip().lower()
-                    except Exception:
-                        txt = ''
-                    if low in txt:
-                        return c.first
-                    # check preceding label/sibling
-                    try:
-                        sib = c.locator('xpath=preceding::label[1] | xpath=ancestor::label[1]')
-                        if sib and sib.count() > 0:
-                            try:
-                                stext = (sib.first.inner_text() or '').strip().lower()
-                            except Exception:
-                                stext = ''
-                            if low in stext:
-                                return c.first
-                    except Exception:
-                        pass
-                except Exception:
-                    continue
-
-                # If direct combobox search failed, try locating by label node then finding nearby control
-                # any element whose text contains the label (case-insensitive)
-                label_xpath = (
-                    "xpath=//*[contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '"
-                    + low.replace("'", "'")
-                    + ")]"
+                element_best = max(
+                    self.encoder.similarity_vec(qv, emb) for qv in query_vecs
                 )
-                lbl_nodes = root.locator(label_xpath)
-                lcount = 0
-                try:
-                    lcount = lbl_nodes.count()
-                except Exception:
-                    lcount = 0
-                for j in range(min(10, lcount)):
-                    try:
-                        ln = lbl_nodes.nth(j)
-                        # search following siblings/descendants for a likely control
-                        candidates_sel = (
-                            "xpath=following::*[@role='combobox' or @aria-haspopup or @aria-controls or @aria-owns or self::select or self::input][1]"
-                        )
-                        try:
-                            cand = ln.locator(candidates_sel)
-                            if cand and cand.count() > 0:
-                                return cand.first
-                        except Exception:
-                            pass
-                        # try ancestor container then descendants
-                        try:
-                            container = ln.locator('xpath=ancestor::*[self::div or self::section or self::td or self::li][1]')
-                            if container and container.count() > 0:
-                                inner = container.first.locator("[role='combobox'], button[aria-haspopup], [aria-controls], [aria-owns], select, input")
-                                try:
-                                    if inner and inner.count() > 0:
-                                        return inner.first
-                                except Exception:
-                                    pass
-                        except Exception:
-                            pass
-                    except Exception:
-                        continue
+            except Exception:
+                element_best = 0.0
+            scores.append(element_best)
+
+        best_idx = int(np.argmax(scores))
+        best_score = scores[best_idx]
+
+        print(f"[SmartAI] ML healed best match score: {best_score:.2f}")
+        if best_score < 0.50:
+            return None, best_score
+
+        return self.metadata[best_idx], best_score
+
+    # ---------------------------------------------------------------- brute
+    def _brute_force_locator(self, element: dict, page):
+        '''
+        Last-resort text-based sweep when ML score is high but structured locators failed.
+        Uses neutral text variants only (no domain-specific hardcoding).
+        '''
+        texts = []
+        for k in ("label_text", "get_by_text", "placeholder", "text"):
+            v = (element.get(k) or "").strip()
+            if v:
+                texts.extend(self._synonym_texts(v))
+
+        uniq = (element.get("unique_name") or "").strip()
+        if uniq:
+            cleaned = re.sub(r"[^A-Za-z0-9]+", " ", uniq).strip()
+            if cleaned:
+                texts.append(cleaned)
+                parts = cleaned.split()
+                if len(parts) > 3:
+                    texts.append(" ".join(parts[-3:]))
+                if len(parts) >= 2:
+                    texts.append(" ".join(parts[-2:]))
+
+        tried = set()
+        for txt in texts:
+            if not txt or txt in tried:
+                continue
+            tried.add(txt)
+
+            try:
+                loc = page.get_by_text(txt)
+                if loc.count() > 0:
+                    print(f"[SmartAI][Brute] get_by_text('{txt}') succeeded.")
+                    return loc.first
+            except Exception:
+                pass
+
+            try:
+                regex = re.compile(re.escape(txt), re.IGNORECASE)
+                loc = page.get_by_role("button", name=regex)
+                if loc.count() > 0:
+                    print(f"[SmartAI][Brute] role=button regex '{txt}' succeeded.")
+                    return loc.first
+            except Exception:
+                pass
+
+            try:
+                loc = page.get_by_role("link", name=txt)
+                if loc.count() > 0:
+                    print(f"[SmartAI][Brute] link name='{txt}' succeeded.")
+                    return loc.first
+            except Exception:
+                pass
+
+            try:
+                regex = re.compile(re.escape(txt), re.IGNORECASE)
+                loc = page.get_by_role("link", name=regex)
+                if loc.count() > 0:
+                    print(f"[SmartAI][Brute] link regex '{txt}' succeeded.")
+                    return loc.first
+            except Exception:
+                pass
+
         return None
 
-    def _find_by_unique_name(self, unique_name):
-        return next((e for e in self.metadata if e.get("unique_name") == unique_name), None)
+    # ----------------------------------------------------------------- entry
+    def _find_by_unique_name(self, unique_name: str):
+        return next(
+            (e for e in self.metadata if e.get("unique_name") == unique_name), None
+        )
 
-    def _map_tag_to_role(self, tag):
-        tag_role_map = {
-            'button': 'button',
-            'input': 'textbox',
-            'select': 'combobox',
-            'textarea': 'textbox',
-            'checkbox': 'checkbox'
-        }
-        return tag_role_map.get(tag.lower(), None)
+    def find_element(self, unique_name: str, page):
+        '''
+        Main entry for SmartAI from tests:
+            page.smartAI("<unique_name>").click()
+        '''
+        element = self._find_by_unique_name(unique_name)
 
-    def _ml_self_heal(self, unique_name):
-        # If ML model isn't available, skip ML healing.
-        if not self.model or not self.embeddings:
-            return (None, 0.0)
-        try:
-            query_embedding = self.model.encode(unique_name, convert_to_tensor=True, show_progress_bar=False)
-            scores = [util.cos_sim(query_embedding, emb).item() for emb in self.embeddings]
-            best_idx = int(np.argmax(scores)) if scores else -1
-            best_score = scores[best_idx] if best_idx >= 0 else 0.0
-            print(f"[SmartAI] ML healed best match score: {best_score:.2f}")
-            return (self.metadata[best_idx], best_score) if best_idx >= 0 and best_score > 0.6 else (None, best_score)
-        except Exception as e:
-            print(f"[SmartAI][Warn] ML healing failed: {e}")
-            return (None, 0.0)
+        # 1) Try exact metadata-driven strategies
+        if element:
+            locator = self._try_all_locators(element, page)
+            if locator:
+                print(
+                    f"[SmartAI] Element '{unique_name}' found using primary metadata."
+                )
+                return SmartAIWrappedLocator(locator, page)
 
-    def _element_to_string(self, element):
-        fields = [
-            element.get('unique_name', ''),
-            element.get('label_text', ''),
-            element.get('intent', ''),
-            element.get('ocr_type', ''),
-            element.get('element_type', ''),
-            element.get('tag_name', ''),
-            element.get('placeholder', ''),
-            ' '.join(element.get('class_list', []) or []),
-            ' '.join(f"{k}:{v}" for k, v in (element.get('data_attrs', {}) or {}).items()),
-            element.get('sample_value', ''),
-        ]
-        return ' '.join([str(f) for f in fields if f])
+            print(
+                f"[SmartAI] Primary methods failed for '{unique_name}', trying ML self-healing..."
+            )
+
+        # 2) ML-based fallback
+        element_ml, ml_score = self._ml_self_heal(unique_name)
+        if element_ml:
+            locator_ml = self._try_all_locators(element_ml, page)
+            if locator_ml:
+                print(
+                    f"[SmartAI] Healed element via ML ({ml_score:.2f}): '{element_ml.get('unique_name')}'"
+                )
+                return SmartAIWrappedLocator(locator_ml, page)
+
+            # If structured locators failed but score is still strong, brute-force text sweep
+            if ml_score >= 0.50:
+                locator_generic = self._brute_force_locator(element_ml, page)
+                if locator_generic:
+                    print(
+                        f"[SmartAI] Healed element via generic text sweep ({ml_score:.2f}): '{element_ml.get('unique_name')}'"
+                    )
+                    return SmartAIWrappedLocator(locator_generic, page)
+
+        # 3) Intent-based fallback (nearest neighbor by intent)
+        target_intent = (
+            (element_ml or element or {}).get("intent") if (element_ml or element) else None
+        )
+        if target_intent:
+            for e in self.metadata:
+                if e.get("intent") == target_intent and e.get("unique_name") != unique_name:
+                    locator = self._try_all_locators(e, page)
+                    if locator:
+                        print(
+                            f"[SmartAI] Healed element by intent ('{target_intent}'): '{e.get('unique_name')}'"
+                        )
+                        return SmartAIWrappedLocator(locator, page)
+
+        raise SmartAILocatorError(
+            f"Element '{unique_name}' not found and cannot self-heal."
+        )
+
+
+# ====== PAGE PATCH (FULL SMARTAI WRAPPER INJECTION) ======
 
 
 def patch_page_with_smartai(page, metadata):
-    ai_healer = SmartAISelfHealing(metadata or [])
-    def smartAI(unique_name):
-        return ai_healer.find_element(unique_name, page)
-    page.smartAI = smartAI
-    return page 
+    '''
+    Patch a Playwright Page so that:
+      - page.locator(...) and all get_by_* methods return SmartAIWrappedLocator
+      - page.smartAI(<unique_name>) does metadata-driven self-healing lookup
+    '''
+    healer = SmartAISelfHealing(metadata or [])
 
+    # 1️⃣ ---- WRAP ANY LOCATOR WITH SmartAIWrappedLocator ----
+    def wrap_locator(original_func):
+        @wraps(original_func)
+        def wrapper(*args, **kwargs):
+            locator = original_func(*args, **kwargs)
+            return SmartAIWrappedLocator(locator, page)
+
+        return wrapper
+
+    # 2️⃣ ---- OVERRIDE page.locator ----
+    if hasattr(page, "locator"):
+        page.locator = wrap_locator(page.locator)
+
+    # 3️⃣ ---- OVERRIDE every get_by_* ----
+    get_by_methods = [
+        "get_by_role",
+        "get_by_text",
+        "get_by_label",
+        "get_by_placeholder",
+        "get_by_alt_text",
+        "get_by_title",
+        "get_by_test_id",
+        "get_by_display_value",
+    ]
+
+    for method_name in get_by_methods:
+        if hasattr(page, method_name):
+            setattr(page, method_name, wrap_locator(getattr(page, method_name)))
+
+    # 4️⃣ ---- expose SmartAI direct lookup (unique_name-based healing) ----
+    def smartAI(unique_name: str):
+        return healer.find_element(unique_name, page)
+
+    page.smartAI = smartAI
+
+    print("[SmartAI] Page successfully patched with locator wrappers.")
+    return page
 """
 
+ 
 def get_smartai_src_dir() -> Path:
     """
     Resolve the base src directory where generated SmartAI artifacts (lib/pages/tests)
@@ -1642,7 +1259,6 @@ def _persist_storage_file(storage: Optional["DatabaseBackedProjectStorage"], pat
     except ValueError:
         return
     storage.write_file(relative.as_posix(), content, "utf-8")
-
 
 def ensure_smart_ai_module(storage: Optional["DatabaseBackedProjectStorage"] = None):
     src_dir = get_smartai_src_dir()

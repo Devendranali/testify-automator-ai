@@ -1223,8 +1223,6 @@ async def _enrich_ocr_pages() -> Dict[str, Any]:
     for pn in pages:
         try:
             _safe_log(f"[auto] OCR page -> {pn}")
-            # >>> NEW: navigate to that page before enriching
-            await _ensure_on_page(pn)
             res = await _run_enrichment_for(pn)
             results.append({"page_name": pn, "count": res.get("count", 0), "file": res.get("output_path")})
         except Exception as e:
@@ -1526,9 +1524,6 @@ async def capture_from_keyboard(_: CaptureRequest, db: Session = Depends(get_db)
 
         page_name = CURRENT_PAGE_NAME
         _safe_log(f"[INFO] Enrichment triggered for: {page_name}")
-
-        # >>> NEW: ensure we're on that page first
-        await _ensure_on_page(page_name)
 
         await _refresh_target("capture-start")
         await __snapshot_if_blank(PAGE, "before-capture")
