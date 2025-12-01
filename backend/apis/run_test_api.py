@@ -184,22 +184,32 @@ def open_existing_report(request: Request, test: str = "tests/test_1.py"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/run")
-def run_tests(request: Request):
-    """
-    Runs pytest and ALWAYS writes report into allure-report folder.
-    Falls back to pytest-html but still serves from allure-report/index.html
+
+@router.get("/report")
+def run_single_test(request: Request, test: str = "tests/test_1.py"):
+    """Run pytest for a single test file and generate an Allure (or fallback) report.
+    Returns a URL to view the generated report via the `/reports/latest` endpoint.
     """
     try:
-        src_dir = _resolve_latest_src_dir()
+        # Find a candidate src dir that contains the requested test file
+        candidates = _candidate_src_dirs()
+        src_dir = None
+        for c in candidates:
+            if (c / test).exists():
+                src_dir = c
+                break
+        if src_dir is None:
+            # fallback to latest-resolved src (may raise HTTPException)
+            src_dir = _resolve_latest_src_dir()
+
         allure_results = src_dir / "allure-results"
         allure_report = src_dir / "allure-report"
+        html_fallback = src_dir / "index.html"
 
-        # Clean previous
+        # clean previous results
         if allure_results.exists():
             shutil.rmtree(allure_results)
         allure_results.mkdir(parents=True, exist_ok=True)
-
         if allure_report.exists():
             shutil.rmtree(allure_report)
         allure_report.mkdir(parents=True, exist_ok=True)
@@ -207,8 +217,8 @@ def run_tests(request: Request):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(src_dir)
 
-        # 1️⃣ Run pytest — ALWAYS generate allure-results
-        pytest_cmd = ["pytest", "tests", f"--alluredir={allure_results}"]
+        # Run pytest for the specific test
+        pytest_cmd = ["pytest", test, f"--alluredir={allure_results}"]
         pytest_result = subprocess.run(
             pytest_cmd,
             cwd=src_dir,
@@ -220,42 +230,69 @@ def run_tests(request: Request):
         )
         status = "PASS" if pytest_result.returncode == 0 else "FAIL"
 
-        # 2️⃣ Prefer Allure CLI HTML
+        # Try to build Allure HTML (preferred)
         allure_exe = shutil.which("allure")
-        report_path = allure_report / "index.html"
-
+        report_path = None
         if allure_exe:
             try:
-                subprocess.run(
-                    [allure_exe, "generate", str(allure_results), "-o", str(allure_report), "--clean"],
-                    cwd=src_dir,
-                    check=True,
-                )
-            except Exception:
-                # If CLI fails → fallback below
-                pass
+                allure_cmd = [allure_exe, "generate", str(allure_results), "-o", str(allure_report), "--clean"]
+                subprocess.run(allure_cmd, check=True, cwd=src_dir)
+                report_path = allure_report / "index.html"
+                if not report_path.exists():
+                    raise HTTPException(status_code=500, detail="Allure report generation did not produce index.html")
+            except subprocess.CalledProcessError:
+                report_path = None
 
-        # 3️⃣ Fallback → pytest-html but keep SAME target path for viewer compatibility
-        if not report_path.exists():
-            fallback_html = allure_report / "index.html"
+        if report_path is None:
+            # Fallback to pytest-html single file
             html_cmd = [
                 "pytest",
-                "tests",
-                f"--html={fallback_html}",
+                test,
+                f"--html={html_fallback}",
                 "--self-contained-html",
             ]
             subprocess.run(html_cmd, check=False, cwd=src_dir, env=env)
+            report_path = html_fallback
 
         if not report_path.exists():
-            raise HTTPException(status_code=500, detail="Report generation failed")
+            raise HTTPException(status_code=500, detail="Report was not generated")
 
-        # Final viewer URL
+        # Return a file:// URI pointing to the generated report index.html (or single-file fallback).
+        # If report_path is a directory, point to its index.html; if it's a file, return its file URI.
+        if report_path.is_dir():
+            index = report_path / "index.html"
+        else:
+            # If report_path is an index.html inside a folder, use it; otherwise use the file itself
+            if report_path.name == "index.html":
+                index = report_path
+            else:
+                index = report_path
+
+        if not index.exists():
+            raise HTTPException(status_code=500, detail="Report index file not found")
+
+        # Also include the filesystem location of the generated report when available
         base = str(request.base_url).rstrip("/")
         report_url = f"{base}/reports/view"
+        file_uri = None
+        file_path = None
+        # If we generated an Allure report folder, point to its index
+        index_candidate = None
+        if (allure_report / "index.html").exists():
+            index_candidate = allure_report / "index.html"
+        elif html_fallback.exists():
+            index_candidate = html_fallback
+
+        if index_candidate is not None and index_candidate.exists():
+            file_uri = index_candidate.resolve().as_uri()
+            file_path = str(index_candidate.resolve())
 
         return {
             "status": status,
             "report_url": report_url,
+            "report_uri": report_url,
+            "file_uri": file_uri,
+            "path": file_path,
             "stdout": pytest_result.stdout,
             "stderr": pytest_result.stderr,
         }
