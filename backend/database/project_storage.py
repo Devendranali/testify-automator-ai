@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database.models import Project, ProjectFile
@@ -49,16 +50,72 @@ class DatabaseBackedProjectStorage:
         if record:
             record.content = content
             record.encoding = encoding
-        else:
-            record = ProjectFile(
-                project_id=self.project.id,
-                path=normalized_path,
-                encoding=encoding,
-                content=content,
-            )
-            self.db.add(record)
-        # Session will flush/commit via dependency outside this storage.
+            return record
+
+        stmt = self._build_upsert_statement(normalized_path, content, encoding)
+        if stmt is not None:
+            self.db.execute(stmt)
+            self.db.flush()
+            # Query again to return a managed ProjectFile instance.
+            return self._get_record(normalized_path)
+
+        record = ProjectFile(
+            project_id=self.project.id,
+            path=normalized_path,
+            encoding=encoding,
+            content=content,
+        )
+        self.db.add(record)
+        try:
+            self.db.flush()
+        except IntegrityError:
+            self.db.rollback()
+            record = self._get_record(normalized_path)
+            if not record:
+                raise
+            record.content = content
+            record.encoding = encoding
         return record
+
+    def _build_upsert_statement(
+        self,
+        normalized_path: str,
+        content: str,
+        encoding: str,
+    ):
+        bind = self.db.get_bind()
+        if bind is None:
+            return None
+        values = {
+            "project_id": self.project.id,
+            "path": normalized_path,
+            "encoding": encoding,
+            "content": content,
+        }
+        dialect_name = (bind.dialect.name or "").lower()
+        if dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(ProjectFile).values(**values)
+            return stmt.on_conflict_do_update(
+                constraint="uq_project_files_project_path",
+                set_={
+                    "content": stmt.excluded.content,
+                    "encoding": stmt.excluded.encoding,
+                },
+            )
+        if dialect_name == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(ProjectFile).values(**values)
+            return stmt.on_conflict_do_update(
+                index_elements=["project_id", "path"],
+                set_={
+                    "content": stmt.excluded.content,
+                    "encoding": stmt.excluded.encoding,
+                },
+            )
+        return None
 
     def _read_disk(self, abs_path: Path) -> Tuple[str, str]:
         try:

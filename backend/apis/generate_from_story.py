@@ -17,6 +17,9 @@ from utils.prompt_utils import build_prompt
 from utils.chroma_client import get_collection
 from utils.file_utils import generate_unique_name
 from utils.match_utils import normalize_page_name
+from database.models import Project
+from database.project_storage import DatabaseBackedProjectStorage
+from database.session import session_scope
 
 
 router = APIRouter()
@@ -188,6 +191,36 @@ def create_default_test_data(
     (data_dir / "__init__.py").touch()
     with open(data_dir / "test_data.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+def _persist_directory_to_db(src_dir: Path, target_dir: Path) -> None:
+    if not target_dir.exists() or not target_dir.is_dir():
+        return
+    project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
+    if not project_id_value:
+        return
+    try:
+        project_id = int(project_id_value)
+    except ValueError:
+        return
+
+    with session_scope() as db:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            return
+        storage = DatabaseBackedProjectStorage(project, src_dir, db)
+        for path in sorted(target_dir.rglob("*.py")):
+            if not path.is_file():
+                continue
+            try:
+                relative = path.relative_to(src_dir).as_posix()
+            except ValueError:
+                continue
+            try:
+                content = path.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            storage.write_file(relative, content, "utf-8")
 
 
 def extract_method_names_from_file(file_path: Path) -> List[str]:
@@ -664,6 +697,8 @@ from lib.smart_ai import patch_page_with_smartai
             f.write(main_block)
         print(f"{ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
     # ================== End ui_script.py generation block ===================
+
+    _persist_directory_to_db(run_folder, tests_dir)
 
     return {
         "results": results,
