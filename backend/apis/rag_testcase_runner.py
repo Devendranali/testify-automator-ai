@@ -69,6 +69,18 @@ def _ensure_project_dirs(project: Project) -> dict[str, Path]:
     }
 
 
+def _activate_project_env(project: Project, dirs: dict[str, Path]) -> None:
+    os.environ["SMARTAI_PROJECT_DIR"] = str(dirs["project_root"])
+    os.environ["SMARTAI_SRC_DIR"] = str(dirs["src_dir"])
+    os.environ["SMARTAI_CHROMA_PATH"] = str(dirs["chroma_path"])
+    if project.id:
+        os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
+
+
+def _project_src_dir(project: Project) -> Path:
+    return _project_root_dir(project) / "generated_runs" / "src"
+
+
 def _candidate_src_dirs(project: Optional[Project] = None) -> list[Path]:
     dirs: list[Path] = []
     if project:
@@ -122,10 +134,7 @@ def _get_active_project(db: Session, requested_project_id: Optional[int] = None)
         if not project:
             raise HTTPException(status_code=404, detail=f"Project id {requested_project_id} not found")
         dirs = _ensure_project_dirs(project)
-        os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
-        os.environ["SMARTAI_PROJECT_DIR"] = str(dirs["project_root"])
-        os.environ["SMARTAI_SRC_DIR"] = str(dirs["src_dir"])
-        os.environ["SMARTAI_CHROMA_PATH"] = str(dirs["chroma_path"])
+        _activate_project_env(project, dirs)
         return project
 
     project_id_value = os.environ.get("SMARTAI_PROJECT_ID")
@@ -138,9 +147,7 @@ def _get_active_project(db: Session, requested_project_id: Optional[int] = None)
             )
             if project:
                 dirs = _ensure_project_dirs(project)
-                os.environ["SMARTAI_PROJECT_DIR"] = str(dirs["project_root"])
-                os.environ["SMARTAI_SRC_DIR"] = str(dirs["src_dir"])
-                os.environ["SMARTAI_CHROMA_PATH"] = str(dirs["chroma_path"])
+                _activate_project_env(project, dirs)
                 return project
         except ValueError:
             pass
@@ -158,10 +165,7 @@ def _get_active_project(db: Session, requested_project_id: Optional[int] = None)
                 )
                 if project:
                     dirs = _ensure_project_dirs(project)
-                    os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
-                    os.environ["SMARTAI_PROJECT_DIR"] = str(dirs["project_root"])
-                    os.environ["SMARTAI_SRC_DIR"] = str(dirs["src_dir"])
-                    os.environ["SMARTAI_CHROMA_PATH"] = str(dirs["chroma_path"])
+                    _activate_project_env(project, dirs)
                     return project
 
         normalized_slug = Project.normalized_key(segment.replace("-", " ").replace("_", " "))
@@ -173,13 +177,45 @@ def _get_active_project(db: Session, requested_project_id: Optional[int] = None)
         )
         if project:
             dirs = _ensure_project_dirs(project)
-            os.environ["SMARTAI_PROJECT_ID"] = str(project.id)
-            os.environ["SMARTAI_PROJECT_DIR"] = str(dirs["project_root"])
-            os.environ["SMARTAI_SRC_DIR"] = str(dirs["src_dir"])
-            os.environ["SMARTAI_CHROMA_PATH"] = str(dirs["chroma_path"])
+            _activate_project_env(project, dirs)
             return project
 
+    project_src_map: dict[Path, Project] = _build_project_src_map(db)
+    if project_src_map:
+        candidates = _candidate_src_dirs()
+        for src_dir in candidates:
+            try:
+                resolved_src = src_dir.resolve()
+            except Exception:
+                continue
+            matched_project = project_src_map.get(resolved_src)
+            if not matched_project:
+                continue
+            dirs = _ensure_project_dirs(matched_project)
+            _activate_project_env(matched_project, dirs)
+            return matched_project
+
     raise HTTPException(status_code=400, detail="Active project not found. Activate a project before running tests.")
+
+
+def _build_project_src_map(db: Session) -> dict[Path, Project]:
+    mapping: dict[Path, Project] = {}
+    projects = (
+        db.query(Project)
+        .order_by(Project.created_at.desc())
+        .all()
+    )
+    for project in projects:
+        candidate = _project_src_dir(project)
+        if not candidate.exists():
+            continue
+        try:
+            resolved = candidate.resolve()
+        except Exception:
+            continue
+        if resolved not in mapping:
+            mapping[resolved] = project
+    return mapping
 
 
 def _write_with_storage(path: Path, content: str, storage: Optional[DatabaseBackedProjectStorage], encoding: str = "utf-8") -> None:
@@ -208,12 +244,21 @@ def run_latest_generated_story_test(
             tdir = src / "tests"
             if not tdir.exists():
                 continue
-            for f in tdir.glob("ui_script_*.py"):
-                if f.is_file():
-                    found.append((src, f))
+            for pattern in ("ui_script_*.py", "ui_script.py", "ui_script*.py"):
+                for f in tdir.glob(pattern):
+                    if f.is_file():
+                        found.append((src, f))
         if not found:
-            searched = ", ".join(str((d / "tests").resolve()) for d in candidates) or "(no candidates)"
-            raise HTTPException(status_code=404, detail=f"No generated ui_script_*.py files found. Searched: {searched}")
+            for src in candidates:
+                tdir = src / "tests"
+                if not tdir.exists():
+                    continue
+                for f in sorted(tdir.glob("test_*.py")):
+                    if f.is_file():
+                        found.append((src, f))
+            if not found:
+                searched = ", ".join(str((d / "tests").resolve()) for d in candidates) or "(no candidates)"
+                raise HTTPException(status_code=404, detail=f"No generated ui_script_*.py or test_*.py files found. Searched: {searched}")
 
         src_dir, latest_ui_script = sorted(found, key=lambda p: p[1].stat().st_mtime, reverse=True)[0]
 
