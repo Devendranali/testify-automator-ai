@@ -2,10 +2,15 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 
+from metrics.collector import collect_run_summary
+from metrics.store import MetricsStore
+
 router = APIRouter()
+metrics_store = MetricsStore()
 
 def _candidate_src_dirs() -> list[Path]:
     """
@@ -55,6 +60,42 @@ def _resolve_latest_src_dir() -> Path:
     src_dir, _ = sorted(found, key=lambda item: item[1].stat().st_mtime, reverse=True)[0]
     return src_dir
 
+
+def _generate_allure_visualizations(allure_results: Path):
+    """Run the Allure visualizer script to populate `allure_reports/` after new JSON files land."""
+    repo_root = Path(__file__).resolve().parents[2]
+    visualizer_script = repo_root / "allure_reports" / "allure_visualizer.py"
+    if not visualizer_script.exists():
+        print(f"Allure visualizer script missing at {visualizer_script}")
+        return
+
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                str(visualizer_script),
+                "--results-dir",
+                str(allure_results),
+                "--interactive",
+            ],
+            cwd=str(repo_root),
+            check=True,
+        )
+        print("Allure visualizer completed successfully.")
+    except subprocess.CalledProcessError as exc:
+        print("Allure visualizer failed:", exc)
+    except Exception as exc:
+        print("Unexpected error running Allure visualizer:", exc)
+
+
+def _record_run_metrics(allure_results: Path):
+    try:
+        summary = collect_run_summary(allure_results)
+        if summary:
+            metrics_store.record_run(summary)
+    except Exception as exc:
+        print("Failed to record metrics:", exc)
+
 @router.get("/run")
 def run_tests(request: Request):
     """
@@ -68,6 +109,14 @@ def run_tests(request: Request):
         allure_report = src_dir / "allure-report"
         html_fallback = src_dir / "report.html"
 
+        # Clean old artifacts so each run starts with a fresh set of Allure JSON files
+        if allure_results.exists():
+            shutil.rmtree(allure_results)
+        if allure_report.exists():
+            shutil.rmtree(allure_report)
+        if html_fallback.exists():
+            html_fallback.unlink()
+
         allure_results.mkdir(parents=True, exist_ok=True)
         allure_report.mkdir(parents=True, exist_ok=True)
 
@@ -75,7 +124,12 @@ def run_tests(request: Request):
         env["PYTHONPATH"] = str(src_dir)
 
         # 1) Run pytest to produce allure-results (allow failures to fall through)
-        pytest_cmd = ["pytest", "tests", f"--alluredir={allure_results}"]
+        pytest_cmd = [
+            "pytest",
+            "tests",
+            f"--alluredir={allure_results}",
+            "--clean-alluredir",
+        ]
         pytest_result = subprocess.run(
             pytest_cmd,
             cwd=src_dir,
@@ -86,6 +140,9 @@ def run_tests(request: Request):
             check=False,
         )
         status = "PASS" if pytest_result.returncode == 0 else "FAIL"
+
+        _generate_allure_visualizations(allure_results)
+        _record_run_metrics(allure_results)
 
         # 2) Try to build Allure HTML (preferred)
         allure_exe = shutil.which("allure")
@@ -229,6 +286,9 @@ def run_single_test(request: Request, test: str = "tests/test_1.py"):
             check=False,
         )
         status = "PASS" if pytest_result.returncode == 0 else "FAIL"
+
+        _generate_allure_visualizations(allure_results)
+        _record_run_metrics(allure_results)
 
         # Try to build Allure HTML (preferred)
         allure_exe = shutil.which("allure")
