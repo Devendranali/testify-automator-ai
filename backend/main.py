@@ -17,7 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
 from apis.image_text_api import router as image_router
 from apis.chroma_debug_api import router as debug_chroma_export_router
 from apis.enrichment_api import router as enrichment_router
@@ -30,7 +29,9 @@ from apis.manual_add_metadata import router as manual_add_metadata
 # from apis.manual_enrichment_api import router as manual_enrichment_router
 from apis.projects_api import router as projects_router
 from apis.run_test_api import router as run_tests_router
+from apis.metrics_api import router as metrics_router
 from apis.report_api import router as report_router
+from apis.visualizer_api import router as visualizer_router
 import auth
 from db.models import User
 from db.session import Base, engine, get_db
@@ -207,6 +208,8 @@ app.include_router(manual_add_metadata)
 app.include_router(projects_router)
 app.include_router(run_tests_router, prefix="/tests")
 app.include_router(report_router, prefix="/reports")
+app.include_router(visualizer_router, prefix="/visualizer")
+app.include_router(metrics_router, prefix="/metrics")
 
 
 
