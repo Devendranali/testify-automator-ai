@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chroma_db
+  label: chroma_db
+  namespace: Testify-Application
+spec:
+  selector:
+    app: chroma_db
+    label: chroma_db
+  ports:
+    - protocol: TCP
+  type: NodePort    

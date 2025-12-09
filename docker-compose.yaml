@@ -36,7 +36,7 @@ services:
         awslogs-create-group: "true"
 
   chromadb:
-    image: chromadb/chroma
+    image: chromadb/chroma:1.0.12
     volumes:
       - chroma_data:/chroma/.chroma/index
     networks:

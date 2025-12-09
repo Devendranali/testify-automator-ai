@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  label: backend
+  namespace: Testify-Application
+spec:
+  selector:
+    app: backend
+    label: backend
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetport: 8001
+  type: ClusterIP
