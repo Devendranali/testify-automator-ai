@@ -225,29 +225,6 @@ const Execute = ({ onBack, fullTestData }) => {
           </p>
         </div>
 
-        {/* Two-Column Responsive Layout */}
-        <div className={styles.summaryCardsContainer}>
-          {/* Project Summary Card */}
-          <div className={styles.summaryCard}>
-            <h3 className={styles.summaryCardTitle}>Project Summary</h3>
-
-            <div className={styles.summaryItem}>
-              <span>Design Files:</span>
-              <strong className={styles.summaryItemValue}>0</strong>
-            </div>
-
-            <div className={styles.summaryItem}>
-              <span>User Stories:</span>
-              <strong className={styles.summaryItemValue}>0</strong>
-            </div>
-
-            <div className={styles.summaryItem}>
-              <span>Selected Framework:</span>
-              <strong className={styles.summaryItemValue}>Selenium (Web)</strong>
-            </div>
-          </div>
-        </div>
-
         <div className={styles.metricsWrapper}>
           <div className={styles.metricsHeader}>
             <div>
@@ -277,16 +254,17 @@ const Execute = ({ onBack, fullTestData }) => {
                 <div className={styles.metricCard}>
                   <span className={styles.metricLabel}>Last run status</span>
                   <strong>
-                    {formatCount(latestStatus.passed)} pass · {formatCount(latestStatus.failed)} fail ·{" "}
-                    {formatCount(latestStatus.broken)} broken
+                    {formatCount(latestStatus.passed)} - pass  
+                    <br/>{formatCount(latestStatus.failed)} - fail {" "}
+                    <br/>{formatCount(latestStatus.broken)} - broken
                   </strong>
                   <p>{summary.total ?? 0} tests executed</p>
                 </div>
                 <div className={styles.metricCard}>
                   <span className={styles.metricLabel}>Trend window</span>
                   <strong>
-                    {formatCount(periods?.["7_days"]?.passed)} passed this week ·{" "}
-                    {formatCount(periods?.["7_days"]?.failed)} failed
+                    {formatCount(periods?.["7_days"]?.passed)} - passed this week {" "}
+                    <br/>{formatCount(periods?.["7_days"]?.failed)} - failed
                   </strong>
                   <p>{formatCount(periods?.["30_days"]?.total)} tests last 30 days</p>
                 </div>
@@ -438,7 +416,7 @@ const Execute = ({ onBack, fullTestData }) => {
         {/* Action Buttons: Report + Execute + Visualize */}
         <div className={styles.executeButtonContainer}>
           <div className={styles.actionButtons}>
-            <button onClick={viewReport} disabled={reportLoading} className={styles.reportButton}>
+            <button onClick={viewReport} disabled={true} className={styles.reportButton}>
               {reportLoading ? "Opening report..." : "Report"}
             </button>
 

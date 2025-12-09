@@ -28,8 +28,6 @@ except ImportError:  # pragma: no cover - optional dependency
     PLOTLY_AVAILABLE = False
 
 # --- Configuration ---
-# Default path (kept for backward compatibility)
-ALLURE_RESULTS_DIR = 'backend/organizations/hello/39-nk/generated_runs/src/allure-results'
 # By default write charts to the directory where this script lives to avoid creating
 # a nested `allure_reports` folder when running from inside the `allure_reports` dir.
 DEFAULT_OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1255,11 +1253,6 @@ def main():
                 return env_dir
             else:
                 print(f"Environment ALLURE_RESULTS_DIR does not exist: '{env_dir}'")
-
-        # Default path from config
-        if os.path.isdir(ALLURE_RESULTS_DIR):
-            print(f"Using configured default Allure results directory: '{ALLURE_RESULTS_DIR}'")
-            return ALLURE_RESULTS_DIR
 
         repo_root_path = Path(__file__).resolve().parent.parent
 

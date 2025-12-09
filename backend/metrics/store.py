@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -17,10 +18,22 @@ def _default_history() -> Dict[str, Any]:
     }
 
 
+def get_project_history_path() -> Path:
+    """
+    Return the path to history.json inside the active project's generated_runs
+    directory, with a fallback to the old location if no project is active.
+    """
+    project_dir = os.environ.get("SMARTAI_PROJECT_DIR")
+    if project_dir:
+        return Path(project_dir) / "generated_runs" / "src" / "history.json"
+
+    # Fallback for when no project is active
+    return Path(__file__).resolve().parent / "history.json"
+
+
 class MetricsStore:
     def __init__(self, history_path: Optional[Path] = None):
-        base_dir = Path(__file__).resolve().parent
-        self.path = history_path or (base_dir / "history.json")
+        self.path = history_path or get_project_history_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self._write(_default_history())

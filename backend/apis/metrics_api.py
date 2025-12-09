@@ -1,13 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from metrics.collector import collect_run_summary
 from metrics.store import MetricsStore
 
 router = APIRouter()
-metrics_store = MetricsStore()
+
+
+def get_metrics_store() -> MetricsStore:
+    return MetricsStore()
 
 
 def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
@@ -189,8 +192,8 @@ def _build_flaky_density(tests: Dict) -> List[Dict]:
 
 
 @router.get("/dashboard")
-def dashboard():
-    data = metrics_store.read()
+def dashboard(store: MetricsStore = Depends(get_metrics_store)):
+    data = store.read()
     runs = data.get("runs", [])
     latest_run = runs[-1] if runs else None
     periods = {

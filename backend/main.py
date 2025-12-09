@@ -39,10 +39,15 @@ from utils.security import hash_password, verify_password
 
 # Ensure schema exists before handling traffic (Alembic should manage in production).
 if os.getenv("SQLALCHEMY_SKIP_AUTO_INIT", "0") not in {"1", "true", "True"}:
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as db_init_err:
-        print("Database initialization failed:", db_init_err)
+    # Only auto-create tables for SQLite (Postgres should rely on Alembic/migrations).
+    backend_name = getattr(getattr(engine, "url", None), "get_backend_name", lambda: None)()
+    if backend_name == "sqlite":
+        try:
+            Base.metadata.create_all(bind=engine)
+        except Exception as db_init_err:
+            print("Database initialization failed:", db_init_err)
+    else:
+        print("Skipping SQLAlchemy auto-creation for non-SQLite database; run Alembic migrations instead.")
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
