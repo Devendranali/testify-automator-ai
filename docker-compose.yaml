@@ -31,8 +31,8 @@ services:
       driver: awslogs
       options:
         awslogs-region: us-east-1
-        awslogs-group: Testify-backend-logs
-        awslogs-stream: Backend-Container
+        awslogs-group: Testify-Application-Logs-Grp
+        awslogs-stream: backend-logs
         awslogs-create-group: "true"
 
   chromadb:
