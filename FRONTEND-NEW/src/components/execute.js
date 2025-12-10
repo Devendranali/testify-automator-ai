@@ -4,14 +4,12 @@ import API_BASE_URL from "../config";
 import { toast } from "react-toastify";
 import styles from "../css/Execute.module.css";
 
-const Execute = ({ onBack, fullTestData }) => {
+const Execute = ({ onBack, fullTestData, projectId }) => {
   const [loadingExecution, setLoadingExecution] = useState(false);
   const [executionSuccess, setExecutionSuccess] = useState(false);
   const [executionError, setExecutionError] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
   const [error, setError] = useState("");
-
-  const [reportLoading, setReportLoading] = useState(false);
 
   const executeStoryTest = async () => {
     setLoadingExecution(true);
@@ -19,41 +17,17 @@ const Execute = ({ onBack, fullTestData }) => {
     setExecutionResult(null);
 
     try {
-      // Generate Allure report for test_1.py and open it
-      const res = await axios.get(`${API_BASE_URL}/tests/report`, { params: { test: "tests/test_1.py" } });
-      const data = res.data;
-      if (!data) throw new Error("No response data returned from server");
-      // Accept multiple possible keys from the backend for compatibility
-      const uri = data.report_url || data.report_uri || data.file_uri || data.path;
-      if (!uri) throw new Error("No report URL/URI returned");
-      window.open(uri, "_blank", "noopener,noreferrer");
-      setExecutionResult(data);
-      toast.success("✅ Execution & report generated.");
+      const body = projectId ? { project_id: projectId } : {};
+      const response = await axios.post(`${API_BASE_URL}/rag/run-generated-story-test`, body);
+
+      setExecutionResult(response.data);
+      toast.success("✅ Execution successful.");
       setExecutionSuccess(true);
     } catch (err) {
-      setError(err.response?.data || err.message || "Error executing and generating report.");
+      setError(err.response?.data?.message || "Error executing story test.");
       setExecutionError(true);
     } finally {
       setLoadingExecution(false);
-    }
-  };
-
-  const viewReport = async () => {
-    setReportLoading(true);
-    setError("");
-    try {
-      // Ask backend for an existing report file URI inside generated_runs (will return file:// URI)
-      const res = await axios.get(`${API_BASE_URL}/tests/open`, { params: { test: "tests/test_1.py" } });
-      const data = res.data;
-      if (!data) throw new Error("No response data returned from server");
-      const uri = data.report_url || data.report_uri || data.file_uri || data.path;
-      if (!uri) throw new Error("No report URL/URI returned from server");
-      // Open whichever URI is provided (HTTP viewer or file://)
-      window.open(uri, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setError(err.response?.data || err.message || "Failed to open report");
-    } finally {
-      setReportLoading(false);
     }
   };
 
@@ -103,26 +77,15 @@ const Execute = ({ onBack, fullTestData }) => {
           </div>
         </div>
 
-        {/* Action Buttons: Report (left) + Execute (right) */}
+        {/* Execute Button */}
         <div className={styles.executeButtonContainer}>
-          <div className={styles.actionButtons}>
-            <button
-              onClick={viewReport}
-              disabled={reportLoading}
-              className={styles.reportButton}
-            >
-              {reportLoading ? "Opening report..." : "Report"}
-            </button>
-
-            <button
-              onClick={executeStoryTest}
-              disabled={loadingExecution}
-              className={styles.executeButton}
-            >
-              {loadingExecution ? "Executing..." : "Execute"}
-            </button>
-          </div>
-          {error && <div style={{ color: "red", marginTop: "0.5rem" }}>{error}</div>}
+          <button
+            onClick={executeStoryTest}
+            disabled={loadingExecution}
+            className={styles.executeButton}
+          >
+            {loadingExecution ? "Executing..." : "Execute"}
+          </button>
         </div>
       </div>
 

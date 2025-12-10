@@ -31,4 +31,3 @@ EXPOSE 3000
 
 # Start static file server
 CMD ["serve", "-s", "build", "-l", "3000"]
-
