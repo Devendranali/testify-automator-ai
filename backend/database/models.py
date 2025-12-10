@@ -2,7 +2,7 @@ from datetime import datetime
 import re
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Integer, String, UniqueConstraint, func, ForeignKey, Text, Index, JSON
+from sqlalchemy import Column, DateTime, Float, Integer, String, UniqueConstraint, func, ForeignKey, Text, Index, JSON
 from sqlalchemy.orm import validates, Session
 
 from .session import Base
@@ -232,6 +232,82 @@ class ImageUploadRun(Base):
             "project_id": self.project_id,
             "results": self.results,
             "image_count": self.image_count,
+            "created_at": self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            "updated_at": self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
+        }
+
+
+class ProjectAllureChart(Base):
+    __tablename__ = "project_allure_charts"
+    __table_args__ = (
+        UniqueConstraint("project_id", "chart_key", "asset_type", name="uq_project_allure_charts_project_key_type"),
+        Index("ix_project_allure_charts_project_id", "project_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    chart_key = Column(String(255), nullable=False)
+    label = Column(String(255), nullable=True)
+    asset_type = Column(String(50), nullable=False)
+    relative_path = Column(String(1024), nullable=False)
+    media_type = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "chart_key": self.chart_key,
+            "label": self.label,
+            "asset_type": self.asset_type,
+            "relative_path": self.relative_path,
+            "media_type": self.media_type,
+            "created_at": self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+        "updated_at": self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
+        }
+
+
+class ProjectAllureResult(Base):
+    __tablename__ = "project_allure_results"
+    __table_args__ = (
+        Index("ix_project_allure_results_project_id", "project_id"),
+        Index("ix_project_allure_results_run_id", "run_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(String(64), nullable=False, index=True)
+    file_name = Column(String(255), nullable=False)
+    relative_path = Column(String(1024), nullable=False)
+    test_name = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=True)
+    duration = Column(Float, nullable=True)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "run_id": self.run_id,
+            "file_name": self.file_name,
+            "relative_path": self.relative_path,
+            "test_name": self.test_name,
+            "status": self.status,
+            "duration": self.duration,
+            "payload": self.payload,
             "created_at": self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             "updated_at": self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
         }

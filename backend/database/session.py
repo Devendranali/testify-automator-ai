@@ -171,3 +171,12 @@ def session_scope(expire_on_commit: Optional[bool] = None) -> Generator[Session,
         raise
     finally:
         session.close()
+
+
+def get_db_optional() -> Generator[Optional[Session], None, None]:
+    """Yield a database session when the connection is available; otherwise, yield None."""
+    try:
+        for session in get_db():
+            yield session
+    except RuntimeError:
+        yield None
