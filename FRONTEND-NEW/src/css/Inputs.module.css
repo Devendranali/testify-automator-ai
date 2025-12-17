@@ -47,7 +47,7 @@
 
 /* ---------- BACK BUTTON ---------- */
 .backButton {
-  padding: 0.5rem 1rem;
+  padding: var(--button-padding-md);
   background: var(--color-white);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);

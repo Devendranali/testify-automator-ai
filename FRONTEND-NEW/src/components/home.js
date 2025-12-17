@@ -761,13 +761,6 @@ const Home = () => {
           </button>
         </div>
 
-        <button
-          onClick={() => setShowDialog(true)}
-          className={styles.newProjectButton}
-        >
-          <i className="fa-solid fa-plus" style={{ fontSize: "18px" }}></i>
-          New Project
-        </button>
       </nav>
 
       {expandedProjectKey && (
@@ -888,6 +881,8 @@ const Home = () => {
         }}
         onDownload={handleDownloadProject}
         onDelete={handleDeleteProject}
+        onStartOCRProject={() => setShowDialog(true)}
+        onStartUrlExecution={() => setShowDialog(true)}
       />
 
       {/* Projects are now displayed inside Dashboard's Recent Projects */}
