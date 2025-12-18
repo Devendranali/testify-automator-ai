@@ -244,9 +244,8 @@ def run_latest_generated_story_test(
             tdir = src / "tests"
             if not tdir.exists():
                 continue
-            # Recursively find all runnable scripts in subdirectories
-            for pattern in ("*_script_*.py", "*_script.py"):
-                for f in tdir.rglob(pattern):
+            for pattern in ("ui_script_*.py", "ui_script.py", "ui_script*.py"):
+                for f in tdir.glob(pattern):
                     if f.is_file():
                         found.append((src, f))
         if not found:
@@ -254,13 +253,12 @@ def run_latest_generated_story_test(
                 tdir = src / "tests"
                 if not tdir.exists():
                     continue
-                # Fallback to test files if no runnable scripts are found
-                for f in sorted(tdir.rglob("test_*.py")):
+                for f in sorted(tdir.glob("test_*.py")):
                     if f.is_file():
                         found.append((src, f))
             if not found:
                 searched = ", ".join(str((d / "tests").resolve()) for d in candidates) or "(no candidates)"
-                raise HTTPException(status_code=404, detail=f"No generated script files (*_script_*.py, test_*.py) found. Searched: {searched}")
+                raise HTTPException(status_code=404, detail=f"No generated ui_script_*.py or test_*.py files found. Searched: {searched}")
 
         src_dir, latest_ui_script = sorted(found, key=lambda p: p[1].stat().st_mtime, reverse=True)[0]
 
@@ -295,12 +293,8 @@ def run_latest_generated_story_test(
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(src_dir)
-        
-        # Correctly determine the relative path of the script for execution
-        script_to_run = latest_ui_script.relative_to(src_dir)
-        
         result = subprocess.run(
-            [sys.executable, str(script_to_run)],
+            [sys.executable, f"tests/{latest_ui_script.name}"],
             cwd=src_dir,
             env=env,
             stdout=subprocess.PIPE,

@@ -31,4 +31,3 @@ pytest-html
 duckdb
 matplotlib
 plotly==5.24.1
-axe-playwright-python

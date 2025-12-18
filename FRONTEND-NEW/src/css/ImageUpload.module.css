@@ -65,7 +65,7 @@
 }
 
 .selectFilesButton {
-  padding: var(--button-padding-md);
+  padding: 10px 20px;
   border: 1px solid var(--color-gray);
   border-radius: var(--border-radius-small);
   cursor: pointer;
@@ -154,7 +154,7 @@
 }
 
 .uploadImagesButton {
-  padding: var(--button-padding-lg);
+  padding: 0.6rem 1.5rem;
   font-size: 15px;
   color: var(--color-white);
   border: 0;
@@ -175,7 +175,7 @@
 }
 
 .generateMethodsButton {
-  padding: var(--button-padding-lg);
+  padding: 0.6rem 1.8rem;
   font-size: 15px;
   color: var(--color-white);
   border: 0;
@@ -203,7 +203,7 @@
 }
 
 .nextButton {
-  padding: var(--button-padding-lg);
+  padding: 0.6rem 2rem;
   font-size: 16px;
   color: var(--color-white);
   border: 0;

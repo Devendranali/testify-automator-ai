@@ -4,7 +4,7 @@
   --color-primary: #5b4bea;
   --color-secondary: #e353ed;
   --color-accent: #4c3ecb;
-  --color-background-light: #ffffff;
+  --color-background-light: #f8f9fa;
   --color-white: #ffffff;
   --color-gray: #6c757d;
   --color-gray-dark: #495057;
@@ -24,10 +24,6 @@
   --border-radius-medium: 8px;
   --border-radius-large: 12px;
   --border-radius-round: 50%;
-
-  --button-padding-sm: 0.4rem 0.8rem;
-  --button-padding-md: 0.6rem 1.2rem;
-  --button-padding-lg: 0.8rem 1.6rem;
 
   --gradient-primary: linear-gradient(90deg, rgb(87, 72, 222), rgb(47, 28, 220), rgb(236, 7, 253));
   --gradient-button: linear-gradient(90deg, rgb(76, 62, 203), rgb(87, 72, 222), rgb(227, 83, 237));

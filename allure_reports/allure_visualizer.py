@@ -1305,14 +1305,6 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    if interactive_only:
-        # Remove any legacy static charts so only HTML files remain in the output.
-        for png_file in Path(output_dir).glob("*.png"):
-            try:
-                png_file.unlink()
-            except FileNotFoundError:
-                continue
-
     # Define chart file paths
     def chart_paths(filename):
         base = os.path.join(output_dir, filename)
