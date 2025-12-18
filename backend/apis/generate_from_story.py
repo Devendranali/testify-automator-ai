@@ -13,7 +13,7 @@ import pandas as pd
 # Kept for future use (silence linter if configured)
 from services.graph_service import read_dependency_graph, get_adjacency_list, find_path  # noqa: F401
 from services.test_generation_utils import openai_client
-from utils.prompt_utils import build_prompt
+from utils.prompt_utils import build_prompt, build_security_prompt, build_accessibility_prompt
 from utils.chroma_client import get_collection
 from utils.file_utils import generate_unique_name
 from utils.match_utils import normalize_page_name
@@ -161,6 +161,41 @@ def inject_assertions_after_actions(code: str) -> str:
     return "".join(out_lines)
 
 
+def _split_generated_tests_by_category(code: str) -> dict[str, list[str]]:
+    """
+    Partition generated test code into UI, security, and accessibility buckets.
+    Only named test functions (def test_*(page):) are considered to keep the output
+    aligned with the generated folders.
+    """
+    functions: List[tuple[str, str]] = []
+    current_name: Optional[str] = None
+    current_lines: List[str] = []
+
+    for line in code.splitlines(True):
+        m = re.match(r"^def\s+(test_[a-zA-Z0-9_]+)\(page\):", line)
+        if m:
+            if current_name and current_lines:
+                functions.append((current_name, "".join(current_lines)))
+            current_name = m.group(1)
+            current_lines = [line]
+            continue
+        if current_name:
+            current_lines.append(line)
+
+    if current_name and current_lines:
+        functions.append((current_name, "".join(current_lines)))
+
+    grouped = {"ui": [], "security": [], "accessibility": []}
+    for name, body in functions:
+        if name.startswith("test_security"):
+            grouped["security"].append(body)
+        elif name.startswith("test_accessibility"):
+            grouped["accessibility"].append(body)
+        else:
+            grouped["ui"].append(body)
+    return grouped
+
+
 # ----------------------------------------------------------------------
 
 
@@ -245,6 +280,134 @@ def next_index(target_dir: Path, pattern: str = "test_{}.py") -> int:
     files = list(target_dir.glob(pattern.format("*")))
     indices = [int(m.group(1)) for f in files if (m := re.match(r".*_(\d+)\.", f.name))]
     return max(indices, default=0) + 1
+
+
+def generate_security_test_code_from_methods(
+    user_story: str,
+    method_map: dict,
+    page_names: List[str],
+    site_url: str,
+    run_folder: Path,
+) -> str:
+    prompt = build_security_prompt(
+        story_block=user_story,
+        method_map=method_map,
+        page_names=page_names,
+        site_url=site_url,
+    )
+
+    # Save prompt
+    prompt_dir = run_folder / "logs" / "prompts"
+    prompt_dir.mkdir(parents=True, exist_ok=True)
+    i = 1
+    while True:
+        prompt_file = prompt_dir / f"security_prompt_{i}.md"
+        if not prompt_file.exists():
+            break
+        i += 1
+    with open(prompt_file, "w", encoding="utf-8") as f:
+        f.write(prompt)
+
+    output_dir = run_folder / "logs" / "test_output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    i = 1
+    while True:
+        output_file = output_dir / f"security_test_output_{i}.py"
+        if not output_file.exists():
+            break
+        i += 1
+    # Call LLM to generate test code
+    model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
+    result = openai_client.chat.completions.create(
+        model=model_name,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=int(os.getenv("AI_MAX_TOKENS", "4096")),
+        temperature=float(os.getenv("AI_TEMPERATURE", "0")),
+    )
+
+    clean_output = re.sub(
+        r"```(?:python)?|^\s*Here is.*?:",
+        "",
+        (result.choices[0].message.content or "").strip(),
+        flags=re.MULTILINE,
+    ).strip()
+
+    try:
+        if site_url and str(site_url).strip():
+            goto_literal = json.dumps(site_url)
+            clean_output = re.sub(r"page\.goto\([^\)]*\)", f"page.goto({goto_literal})", clean_output)
+    except Exception:
+        pass
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(clean_output)
+
+    return clean_output
+
+
+def generate_accessibility_test_code_from_methods(
+    user_story: str,
+    method_map: dict,
+    page_names: List[str],
+    site_url: str,
+    run_folder: Path,
+) -> str:
+    prompt = build_accessibility_prompt(
+        story_block=user_story,
+        method_map=method_map,
+        page_names=page_names,
+        site_url=site_url,
+    )
+
+    # Save prompt
+    prompt_dir = run_folder / "logs" / "prompts"
+    prompt_dir.mkdir(parents=True, exist_ok=True)
+    i = 1
+    while True:
+        prompt_file = prompt_dir / f"accessibility_prompt_{i}.md"
+        if not prompt_file.exists():
+            break
+        i += 1
+    with open(prompt_file, "w", encoding="utf-8") as f:
+        f.write(prompt)
+
+    # Call LLM to generate test code
+    model_name = os.getenv("AI_MODEL_NAME", "gpt-4o")
+    result = openai_client.chat.completions.create(
+        model=model_name,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=int(os.getenv("AI_MAX_TOKENS", "4096")),
+        temperature=float(os.getenv("AI_TEMPERATURE", "0")),
+    )
+
+    clean_output = re.sub(
+        r"```(?:python)?|^\s*Here is.*?:",
+        "",
+        (result.choices[0].message.content or "").strip(),
+        flags=re.MULTILINE,
+    ).strip()
+
+    # If a site_url was provided, ensure any page.goto(...) uses it
+    try:
+        if site_url and str(site_url).strip():
+            goto_literal = json.dumps(site_url)
+            clean_output = re.sub(r"page\.goto\([^\)]*\)", f"page.goto({goto_literal})", clean_output)
+    except Exception:
+        pass
+
+    # Save generated test code for debugging
+    output_dir = run_folder / "logs" / "test_output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    i = 1
+    while True:
+        output_file = output_dir / f"accessibility_test_output_{i}.py"
+        if not output_file.exists():
+            break
+        i += 1
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(clean_output)
+
+    return clean_output
 
 
 def generate_test_code_from_methods(
@@ -389,6 +552,7 @@ async def generate_from_user_story(
     ai_model: Optional[str] = Form(None),
     infer_pages: Optional[bool] = Form(False),
     test_data_json: Optional[str] = Form(None),
+    test_type: Optional[str] = Form("ui"),
 ):
     src_env = os.environ.get("SMARTAI_SRC_DIR")
     if not src_env:
@@ -397,12 +561,25 @@ async def generate_from_user_story(
     run_folder = Path(src_env)
     pages_dir = run_folder / "pages"
     tests_dir = run_folder / "tests"
+    ui_tests_dir = tests_dir / "ui_scripts"
+    security_tests_dir = tests_dir / "security_tests"
+    accessibility_tests_dir = tests_dir / "accessibility_tests"
     logs_dir = run_folder / "logs"
     meta_dir = run_folder / "metadata"
-    for d in [pages_dir, tests_dir, logs_dir, meta_dir]:
+
+    # Create all directories and __init__.py files
+    all_dirs = [
+        pages_dir,
+        tests_dir,
+        ui_tests_dir,
+        security_tests_dir,
+        accessibility_tests_dir,
+        logs_dir,
+        meta_dir,
+    ]
+    for d in all_dirs:
         d.mkdir(parents=True, exist_ok=True)
         (d / "__init__.py").touch()
-    (run_folder / "__init__.py").touch()
 
     # Parse incoming user stories
     stories: List[str] = []
@@ -484,8 +661,8 @@ async def generate_from_user_story(
     method_map_full = get_all_page_methods(pages_dir)
 
     results: List[dict] = []
-    test_functions: List[str] = []
     all_path_pages: List[str] = []
+    test_file: Optional[Path] = None
 
     # Determine site_url: param -> env -> empty
     if not site_url:
@@ -505,31 +682,86 @@ async def generate_from_user_story(
             continue
         all_path_pages.extend(path_pages)
         sub_method_map = {p: method_map_full[p] for p in path_pages if p in method_map_full}
-        code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
-        test_functions.append(code)
-        results.append({
-            "Prompt": f" Prompt\n\n1. {story}\nExpected: Success",
-            "auto_testcase": code,
-        })
 
-    test_idx = next_index(tests_dir, "test_{}.py")
+        if test_type == "security":
+            code = generate_security_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
+        elif test_type == "accessibility":
+            code = generate_accessibility_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
+        else:  # "ui"
+            code = generate_test_code_from_methods(story, sub_method_map, path_pages, site_url, run_folder)
+
+        page_method_files = sorted(pages_dir.glob("*_page_methods.py"))
+        page_security_files = sorted(pages_dir.glob("*_security_methods.py"))
+        page_accessibility_files = sorted(pages_dir.glob("*_accessibility_methods.py"))
+        import_lines = [
+            "from playwright.sync_api import sync_playwright, expect",
+            "import json",
+            "from pathlib import Path",
+            "from lib.smart_ai import patch_page_with_smartai",
+        ]
+        for f in page_method_files + page_security_files + page_accessibility_files:
+            module_name = f.stem
+            import_lines.append(f"from pages.{module_name} import *")
+
+        grouped_tests = _split_generated_tests_by_category(code)
+        category_dirs = {
+            "ui": ui_tests_dir,
+            "security": security_tests_dir,
+            "accessibility": accessibility_tests_dir,
+        }
+
+        test_file_for_type: Optional[Path] = None
+        last_created_file: Optional[Path] = None
+
+        categories_to_process = {test_type} if test_type in grouped_tests else set()
+        for category, func_blocks in grouped_tests.items():
+            if not func_blocks:
+                continue
+            if category not in categories_to_process:
+                continue
+            function_code = "\n\n".join(func_blocks).strip()
+            if not function_code:
+                continue
+            target_dir = category_dirs.get(category)
+            if not target_dir:
+                continue
+            test_idx = next_index(target_dir, "test_{}.py")
+            test_path = target_dir / f"test_{test_idx}.py"
+
+            category_imports = list(import_lines)
+            if category == "accessibility":
+                category_imports.append("from services.accessibility_test_utils import run_accessibility_scan")
+
+            content = "\n\n".join(category_imports + [function_code])
+            if not content.endswith("\n"):
+                content += "\n"
+            test_path.write_text(content, encoding="utf-8")
+
+            last_created_file = test_path
+            if category == test_type and test_file_for_type is None:
+                test_file_for_type = test_path
+
+            entry = {
+                "Prompt": f" Prompt\n\n1. {story}\nExpected: Success",
+                "auto_testcase": function_code,
+                "test_file_path": str(test_path),
+                "original_story": story,
+            }
+            results.append(entry)
+            _generate_execution_script_for_category(
+                category,
+                target_dir,
+                test_path,
+                story,
+                site_url,
+                import_lines,
+                method_map_full,
+            )
+
+        test_file = test_file_for_type or last_created_file
+
     log_idx = next_index(logs_dir, "logs_{}.log")
-    test_file = tests_dir / f"test_{test_idx}.py"
     log_file = logs_dir / f"logs_{log_idx}.log"
-
-    page_method_files = sorted(pages_dir.glob("*_page_methods.py"))
-    import_lines = [
-        "from playwright.sync_api import sync_playwright",
-        "import json",
-        "from pathlib import Path",
-        "from lib.smart_ai import patch_page_with_smartai",
-    ]
-    for f in page_method_files:
-        module_name = f.stem
-        import_lines.append(f"from pages.{module_name} import *")
-
-    # Write the raw test(s) as produced by LLM
-    test_file.write_text("\n\n".join(import_lines + test_functions), encoding="utf-8")
 
     if all_path_pages:
         log_file.write_text("\n".join(all_path_pages), encoding="utf-8")
@@ -538,73 +770,109 @@ async def generate_from_user_story(
 
     create_default_test_data(run_folder, method_map_full=method_map_full, test_data_json=test_data_json)
 
-    # ================== ui_script.py generation block =======================
-    test_files = sorted(tests_dir.glob("test_*.py"), key=lambda f: f.stat().st_mtime, reverse=True)
-    if test_files:
-        latest_test = test_files[0]
 
-        # Parse all test functions and inline their bodies as run_* functions
-        func_blocks: List[tuple[str, str]] = []
-        lines = latest_test.read_text(encoding="utf-8").splitlines(True)
 
-        func_name: Optional[str] = None
-        func_body: List[str] = []
-        in_func = False
-        for line in lines:
-            m = re.match(r"def (test_[a-zA-Z0-9_]+)\(page\):", line)
-            if m:
-                if func_name and func_body:
-                    body = ''.join(func_body)
-                    func_blocks.append((func_name, body))
-                func_name = m.group(1)
-                func_body = []
-                in_func = True
+    _persist_directory_to_db(run_folder, tests_dir)
+
+    return {
+        "results": results,
+        "test_file": str(test_file),
+        "log_file": str(log_file),
+    }
+
+def _generate_execution_script_for_category(
+    category: str,
+    target_dir: Path,
+    test_file_path: Path,
+    original_story: str,
+    site_url: Optional[str],
+    import_lines: List[str],
+    method_map: dict,
+) -> Optional[Path]:
+    lines = test_file_path.read_text(encoding="utf-8").splitlines(True)
+    func_blocks: List[tuple[str, str]] = []
+    current_name: Optional[str] = None
+    current_body: List[str] = []
+    in_function = False
+    for line in lines:
+        m = re.match(r"^\s*def (test_[a-zA-Z0-9_]+)\(page\):", line)
+        if m:
+            if current_name and current_body:
+                func_blocks.append((current_name, "".join(current_body)))
+            current_name = m.group(1)
+            current_body = []
+            in_function = True
+            continue
+        if in_function:
+            if re.match(r"^\s*def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(", line):
+                in_function = False
                 continue
-            if in_func:
-                if re.match(r"def [a-zA-Z_]", line):
-                    in_func = False
-                    continue
-                func_body.append(line)
-        if func_name and func_body:
-            body = ''.join(func_body)
-            func_blocks.append((func_name, body))
+            current_body.append(line)
+    if current_name and current_body:
+        func_blocks.append((current_name, "".join(current_body)))
+    if not func_blocks:
+        return None
 
-        # Collect optional storage_state override from story text
+    story_text = original_story or ""
+    storage_override_js = None
+    try:
+        m = re.search(r'storage state\s*"([^"]+)"', story_text, re.I)
+        if m:
+            storage_override_js = json.dumps(m.group(1))
+    except Exception:
         storage_override_js = None
-        try:
-            storage_override = None
-            for s in stories:
-                m = re.search(r'storage state\s*"([^"]+)"', s, re.I)
-                if m:
-                    storage_override = m.group(1)
-                    break
-            if storage_override:
-                storage_override_js = json.dumps(storage_override)
-        except Exception:
-            storage_override_js = None
 
-        wrapper_blocks: List[str] = []
-        for func_name, func_body in func_blocks:
-            runner_name = "run_" + func_name.replace("test_", "")
-            dedented = textwrap.dedent(func_body)
-            step_lines = ["        " + l if l.strip() else "" for l in dedented.strip('\n').splitlines()]
-            steps = "\n".join(step_lines)
+    wrapper_blocks: List[str] = []
+    for func_name, func_body in func_blocks:
+        runner_name = "run_" + func_name.replace("test_", "")
+        dedented = textwrap.dedent(func_body)
+        step_lines = ["        " + l if l.strip() else "" for l in dedented.strip("\n").splitlines()]
+        if category == "accessibility":
+            step_lines.append("        run_accessibility_scan(page)")
 
-            if storage_override_js:
-                storage_snippet = (
-                    f"""        try:
+        steps = "\n".join(step_lines)
+
+        # Rewrite helper calls back to the imported page-level functions instead of bound page methods.
+        helper_names = set()
+        for methods in (method_map or {}).values():
+            for method_def in methods:
+                name = method_def.split("(", 1)[0].replace("def ", "").strip()
+                if name:
+                    helper_names.add(name)
+        for helper_name in helper_names:
+            pattern = rf"(?<!\w)page\.{re.escape(helper_name)}\((.*?)\)"
+
+            def repl(match, helper_name=helper_name):
+                args_raw = match.group(1).strip()
+                if not args_raw:
+                    new_args = "page"
+                elif args_raw.startswith("page"):
+                    new_args = args_raw
+                else:
+                    new_args = f"page, {args_raw}"
+                return f"{helper_name}({new_args})"
+
+            steps = re.sub(pattern, repl, steps)
+
+            # Also strip module-qualified helper invocations (e.g., bank_dashboard.enter_full_name)
+            module_pattern = rf"(?:[a-zA-Z_][a-zA-Z0-9_]*\.)+{re.escape(helper_name)}\("
+            steps = re.sub(module_pattern, f"{helper_name}(", steps)
+
+        if storage_override_js:
+            storage_snippet = (
+                f"""        try:
             context = browser.new_context(storage_state={storage_override_js})
             page = context.new_page()
-            print(f\"[ui_runner] Restored storage_state from provided path\")
+            print(f"[{category}_runner] Restored storage_state from provided path")
         except Exception as e:
-            print(f\"[ui_runner] Failed to restore provided storage_state: {{e}}\")
+            print(f"[{category}_runner] Failed to restore provided storage_state: {{e}}")
             context = browser.new_context()
             page = context.new_page()
 """
-                )
-            else:
-                storage_snippet = (
-                    """        # Attempt to restore cookies / localStorage from a Playwright storage_state file.
+            )
+        else:
+            storage_snippet = (
+                f"""        # Attempt to restore cookies / localStorage from a Playwright storage_state file.
         # Priority: UI_STORAGE_FILE env -> backend/storage/cookies.json (project-relative)
         storage_file = None
         env_sf = os.getenv("UI_STORAGE_FILE", "").strip()
@@ -619,25 +887,36 @@ async def generate_from_user_story(
             try:
                 context = browser.new_context(storage_state=str(storage_file))
                 page = context.new_page()
-                print(f"[ui_runner] Restored storage_state from: {storage_file}")
+                print(f"[{category}_runner] Restored storage_state from: {{storage_file}}")
             except Exception as e:
-                print(f"[ui_runner] Failed to restore storage_state: {e}")
+                print(f"[{category}_runner] Failed to restore storage_state: {{e}}")
                 context = browser.new_context()
                 page = context.new_page()
         else:
             context = browser.new_context()
             page = context.new_page()
 """
-                )
-
-            goto_line = ""
+            )
+        goto_line = ""
+        goto_target = ""
+        try:
+            goto_target = (site_url or "").strip()
+            if not goto_target:
+                goto_target = os.getenv("SITE_URL", "").strip()
+            if not goto_target:
+                goto_target = "https://bank-buddy-crm-react.lovable.app/"
+        except Exception:
+            goto_target = "https://bank-buddy-crm-react.lovable.app/"
+        if goto_target and not re.search(r"page\.goto\(", steps):
             try:
-                if site_url and str(site_url).strip():
-                    goto_line = f"        page.goto({json.dumps(site_url)})\n"
+                goto_literal = json.dumps(goto_target)
             except Exception:
-                goto_line = ""
-
-            runner_block = f"""def {runner_name}():
+                goto_literal = f"\"{goto_target}\""
+            goto_line = (
+                f"        page.goto({goto_literal})\n"
+                f"        page.wait_for_load_state(\"networkidle\")\n"
+            )
+        runner_block = f"""def {runner_name}():
     import time
     import os
     from pathlib import Path as _Path
@@ -645,8 +924,9 @@ async def generate_from_user_story(
         browser = p.chromium.launch(headless=False, slow_mo=300)
 
 {storage_snippet}
+        _attach_page_helpers(page)
         # Patch SmartAI
-        metadata_path = Path(__file__).parent.parent / "metadata" / "after_enrichment.json"
+        metadata_path = Path(__file__).parent.parent.parent / "metadata" / "after_enrichment.json"
         with open(metadata_path, "r") as f:
             actual_metadata = json.load(f)
 {goto_line}        patch_page_with_smartai(page, actual_metadata)
@@ -655,53 +935,76 @@ async def generate_from_user_story(
         browser.close()
 
 """
-            wrapper_blocks.append(runner_block)
+        wrapper_blocks.append(runner_block)
 
-        header = """# Auto-generated UI runner
+    page_imports = "\n".join([ln for ln in import_lines if ln.startswith("from pages.")])
+    extra_imports = ""
+    if category == "accessibility":
+        extra_imports = "from services.accessibility_test_utils import run_accessibility_scan\n"
+    header = f"""# Auto-generated {category} runner
 import sys
 from pathlib import Path as _Path
-# Ensure generated_runs/src is on sys.path so 'from pages.*' imports work when running
-# this script from the repository root or the backend folder.
-_ROOT = _Path(__file__).resolve().parents[1]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+# Ensure generated_runs/src and the main backend directory are on sys.path
+_SCRIPT_PATH = _Path(__file__).resolve()
+_SRC_ROOT = _SCRIPT_PATH.parents[2]
+if str(_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SRC_ROOT))
+
+# Add the main backend directory to sys.path to allow imports like 'from services.*'
+_BACKEND_ROOT = _SCRIPT_PATH.parents[7]
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
 from playwright.sync_api import sync_playwright
 import json
+import inspect
+import functools
 from pathlib import Path
 {page_imports}
-from lib.smart_ai import patch_page_with_smartai
-""".format(page_imports="\n".join([ln for ln in import_lines if ln.startswith("from pages.")]))
+{extra_imports}from lib.smart_ai import patch_page_with_smartai
 
-        main_block = "\nif __name__ == '__main__':\n"
-        for func_name, _ in func_blocks:
-            runner_name = "run_" + func_name.replace("test_", "")
-            main_block += (
-                f"    try:\n"
-                f"        {runner_name}()\n"
-                f"    except Exception as exc:\n"
-                f"        print(f\"[ui_runner] {runner_name} failed: {{exc}}\")\n"
-            )
+def _attach_page_helpers(target_page):
+    for name, helper in globals().items():
+        if not inspect.isfunction(helper):
+            continue
+        module = getattr(helper, "__module__", "")
+        if not module.startswith("pages."):
+            continue
+        if name.startswith("_"):
+            continue
+        if hasattr(target_page, name):
+            continue
+        setattr(target_page, name, functools.partial(helper, target_page))
 
-                # Always emit a single ui_script.py (clean up older ui_script_* first)
-        for stale in tests_dir.glob("ui_script_*.py"):
-            try:
-                stale.unlink()
-            except Exception:
-                pass
-        ui_script_filename = "ui_script1.py"
-        ui_script_path = tests_dir / ui_script_filename
-        with open(ui_script_path, "w", encoding="utf-8") as f:
-            f.write(header)
-            for block in wrapper_blocks:
-                f.write(block)
-            f.write(main_block)
-        print(f"{ui_script_filename} generated with {len(wrapper_blocks)} runner(s) in {tests_dir}")
-    # ================== End ui_script.py generation block ===================
-
-    _persist_directory_to_db(run_folder, tests_dir)
-
-    return {
-        "results": results,
-        "test_file": str(test_file),
-        "log_file": str(log_file),
-    }
+"""
+    main_block = "\nif __name__ == '__main__':\n"
+    main_block += "    import sys\n"
+    main_block += "    failures = 0\n"
+    for func_name, _ in func_blocks:
+        runner_name = "run_" + func_name.replace("test_", "")
+        main_block += (
+            f"    try:\n"
+            f"        print(f'\\n[{category}_runner] Running test: {runner_name}...\\n')\n"
+            f"        {runner_name}()\n"
+            f"        print(f'\\n[{category}_runner] {runner_name}: PASS\\n')\n"
+            f"    except Exception as exc:\n"
+            f"        failures += 1\n"
+            f"        print(f'\\n[{category}_runner] {runner_name}: FAIL\\nDetails: {{exc}}\\n')\n"
+        )
+    main_block += (
+        f"\n    if failures > 0:\n"
+        f"        print(f'\\n[{category}_runner] Summary: {{failures}} test(s) failed.')\n"
+        f"        sys.exit(1)\n"
+        f"    else:\n"
+        f"        print(f'\\n[{category}_runner] Summary: All tests passed.')\n"
+        f"        sys.exit(0)\n"
+    )
+    script_idx = next_index(target_dir, f"{category}_script_{{}}.py")
+    script_name = f"{category}_script_{script_idx}.py"
+    script_path = target_dir / script_name
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write(header)
+        for block in wrapper_blocks:
+            f.write(block)
+        f.write(main_block)
+    print(f"{script_name} generated with {len(wrapper_blocks)} runner(s) in {target_dir}")
+    return script_path

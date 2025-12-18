@@ -43,7 +43,6 @@ const Execute = ({ onBack, fullTestData }) => {
   const [loadingExecution, setLoadingExecution] = useState(false);
   const [executionSuccess, setExecutionSuccess] = useState(false);
   const [executionError, setExecutionError] = useState(false);
-  const [executionResult, setExecutionResult] = useState(null);
   const [error, setError] = useState("");
 
   const [reportLoading, setReportLoading] = useState(false);
@@ -58,25 +57,53 @@ const Execute = ({ onBack, fullTestData }) => {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [metricsError, setMetricsError] = useState("");
 
+  const formatServerError = (err, fallbackMessage) => {
+    const detail =
+      err?.response?.data?.detail ??
+      err?.response?.data?.message ??
+      err?.response?.data ??
+      err?.message;
+    if (typeof detail === "object") {
+      try {
+        return JSON.stringify(detail);
+      } catch {
+        return fallbackMessage;
+      }
+    }
+    return detail || fallbackMessage;
+  };
+
   const executeStoryTest = async () => {
     setLoadingExecution(true);
     setError("");
-    setExecutionResult(null);
+    setExecutionSuccess(false);
+    setExecutionError(false);
 
-      try {
-        const res = await axios.get(`${API_BASE_URL}/tests/report`, { params: { test: "tests/test_1.py" } });
-        const data = res.data;
-        if (!data) throw new Error("No response data returned from server");
-        const uri = data.report_url || data.report_uri || data.file_uri || data.path;
-        if (!uri) throw new Error("No report URL/URI returned");
-        window.open(uri, "_blank", "noopener,noreferrer");
-        setExecutionResult(data);
-        toast.success("✅ Execution & report generated.");
+    try {
+      // Calls the correct RAG runner endpoint using POST
+      const res = await axios.post(`${API_BASE_URL}/rag/run-generated-story-test`, {});
+      const data = res.data;
+
+      if (!data) {
+        throw new Error("No response data returned from server");
+      }
+
+      if (data.status === "PASS") {
+        toast.success(`✅ Test executed successfully: ${data.executed_from}`);
         setExecutionSuccess(true);
-        await fetchMetrics();
-      } catch (err) {
-      setError(err.response?.data || err.message || "Error executing and generating report.");
+      } else {
+        toast.error(`❌ Test failed. Check logs for details.`);
+        setExecutionError(true);
+      }
+      
+      // After execution, refresh the metrics dashboard
+      await fetchMetrics();
+
+    } catch (err) {
+      const formattedError = formatServerError(err, "Error executing the test script.");
+      setError(formattedError);
       setExecutionError(true);
+      toast.error(formattedError);
     } finally {
       setLoadingExecution(false);
     }
@@ -93,7 +120,7 @@ const Execute = ({ onBack, fullTestData }) => {
       if (!uri) throw new Error("No report URL/URI returned from server");
       window.open(uri, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err.response?.data || err.message || "Failed to open report");
+      setError(formatServerError(err, "Failed to open report"));
     } finally {
       setReportLoading(false);
     }
@@ -132,12 +159,7 @@ const Execute = ({ onBack, fullTestData }) => {
 
       setShowVisualizer(true);
     } catch (err) {
-      const detail =
-        err?.response?.data?.detail ||
-        err?.response?.data ||
-        err?.message ||
-        "Failed to load visualizations.";
-      setVisualizerError(detail);
+      setVisualizerError(formatServerError(err, "Failed to load visualizations."));
     } finally {
       setVisualizerLoading(false);
     }
@@ -193,8 +215,8 @@ const Execute = ({ onBack, fullTestData }) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/metrics/dashboard`);
       setMetrics(res.data);
-    } catch (err) {
-      setMetricsError(err?.response?.data?.detail || err?.message || "Unable to load quality metrics.");
+      } catch (err) {
+      setMetricsError(formatServerError(err, "Unable to load quality metrics."));
     } finally {
       setMetricsLoading(false);
     }
@@ -428,7 +450,7 @@ const Execute = ({ onBack, fullTestData }) => {
               {visualizerLoading ? "Loading visuals..." : showVisualizer ? "Hide Visual Charts" : "Visualize Charts"}
             </button>
           </div>
-          {error && <div style={{ color: "red", marginTop: "0.5rem" }}>{error}</div>}
+          {error && <div className={styles.errorLog}>{error}</div>}
 
           {showVisualizer && (
             <div className={styles.visualizerPanel}>

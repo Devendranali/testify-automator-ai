@@ -7,6 +7,8 @@ const Dashboard = ({
   onDelete,
   onToggle,
   onDownload,
+  onStartOCRProject,
+  onStartUrlExecution,
   expandedProjectKey,
   loadingProjectKey,
   getProjectKey,
@@ -54,6 +56,37 @@ const Dashboard = ({
             <p className={styles.cardValue}> 3 </p>
           </div>
           <i className={`fa-solid fa-code ${styles.cardIcon}`}></i>
+        </div>
+      </div>
+
+      {/* Workflow Cards */}
+      <div className={styles.workflowContainer}>
+        <div className={styles.workflowCard}>
+          <i className="fa-solid fa-camera-retro"></i>
+          <span>OCR + Execution</span>
+          <button
+            className={styles.workflowStartButton}
+            onClick={() => onStartOCRProject && onStartOCRProject()}
+          >
+            <i className="fa-solid fa-play"></i> Start Project
+          </button>
+        </div>
+        <div className={styles.workflowCard}>
+          <i className="fa-solid fa-link"></i>
+          <span>URL + Execution</span>
+          <button
+            className={styles.workflowStartButton}
+            onClick={() => onStartUrlExecution && onStartUrlExecution()}
+          >
+            <i className="fa-solid fa-play"></i> Start Project
+          </button>
+        </div>
+        <div className={styles.workflowCard}>
+          <i className="fa-solid fa-mobile-screen-button"></i>
+          <span>Mobile Testing</span>
+          <button className={styles.workflowStartButton}>
+            <i className="fa-solid fa-play"></i> Start Project
+          </button>
         </div>
       </div>
 

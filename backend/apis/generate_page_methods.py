@@ -63,6 +63,205 @@ def _parse_functions(code: str) -> tuple[str, list[tuple[str, list[str]]]]:
                 current_block.append(line)
     flush()
     return "".join(header), functions
+
+
+def _merge_generated_module(filename: Path, code: str) -> None:
+    """
+    Merge the newly generated code with any existing module file at `filename`.
+    Later definitions override old ones; stale functions are dropped.
+    """
+    existing_header, existing_funcs = ("", [])
+    if filename.exists():
+        try:
+            existing_header, existing_funcs = _parse_functions(filename.read_text(encoding="utf-8"))
+        except Exception:
+            existing_header, existing_funcs = ("", [])
+
+    new_header, new_funcs = _parse_functions(code)
+
+    existing_map = {name: block for name, block in existing_funcs}
+    new_map = {name: block for name, block in new_funcs}
+
+    merged_blocks: list[list[str]] = []
+
+    for name, block in existing_funcs:
+        if name in new_map:
+            merged_blocks.append(new_map[name])
+
+    for name, block in new_funcs:
+        if name not in existing_map:
+            merged_blocks.append(block)
+
+    merged_header = new_header or existing_header
+    final_code = merged_header + "".join("".join(block) for block in merged_blocks)
+
+    filename.write_text(final_code, encoding="utf-8")
+
+
+def build_accessibility_module(page_name: str, entries: list[dict]) -> str:
+    """
+    Build an accessibility helper module for the supplied page metadata entries.
+    """
+    header = """from playwright.sync_api import expect
+
+def _find_accessibility_target(page, label, placeholder, unique):
+    if label:
+        try:
+            return page.get_by_label(label)
+        except Exception:
+            pass
+    if placeholder:
+        try:
+            return page.get_by_placeholder(placeholder)
+        except Exception:
+            pass
+    if unique:
+        try:
+            return page.smartAI(unique)
+        except Exception:
+            pass
+    return None
+
+"""
+    used = {}
+    check_functions: list[str] = []
+    check_names: list[str] = []
+
+    for entry in entries or []:
+        label = (entry.get("label_text") or "").strip()
+        placeholder = (entry.get("placeholder") or "").strip()
+        unique = entry.get("unique_name") or ""
+        base = safe(label or placeholder or unique or "accessibility")
+        fn_name = ensure_unique(f"check_{base}_accessible", used)
+        check_names.append(fn_name)
+        label_json = json.dumps(label)
+        placeholder_json = json.dumps(placeholder)
+        unique_json = json.dumps(unique or "")
+
+        function_code = (
+            f"def {fn_name}(page):\n"
+            f"    locator = _find_accessibility_target(page, {label_json}, {placeholder_json}, {unique_json})\n"
+            f"    if locator is None:\n"
+            f"        return\n"
+            f"    expect(locator).to_be_visible(timeout=6000)\n"
+        )
+        check_functions.append(function_code)
+
+    if check_names:
+        run_block_lines = ["def run_accessibility_checks(page):"]
+        for name in check_names:
+            run_block_lines.append(f"    {name}(page)")
+        run_block = "\n".join(run_block_lines) + "\n"
+    else:
+        run_block = "def run_accessibility_checks(page):\n    pass\n"
+
+    module_parts = [header.strip()]
+    if check_functions:
+        module_parts.extend(check_functions)
+    module_parts.append(run_block)
+    return "\n\n".join(part for part in module_parts if part) + "\n"
+
+
+def build_security_module(page_name: str, entries: list[dict]) -> str:
+    """
+    Build a security helper module that injects XSS/SQLi payloads and exposes verification helpers.
+    """
+    header = """from playwright.sync_api import expect
+
+XSS_PAYLOAD = "<script>alert('XSS')</script>"
+SQLI_PAYLOAD = "' OR '1'='1'"
+
+def _security_target(page, unique, placeholder, label):
+    if unique:
+        try:
+            return page.smartAI(unique)
+        except Exception:
+            pass
+    if placeholder:
+        try:
+            return page.get_by_placeholder(placeholder)
+        except Exception:
+            pass
+    if label:
+        try:
+            return page.get_by_label(label)
+        except Exception:
+            pass
+    try:
+        return page.get_by_role('textbox').first
+    except Exception:
+        return None
+
+"""
+    used = {}
+    injection_defs: list[str] = []
+    injection_names: list[str] = []
+    input_types = {"textbox", "text", "input", "textarea", "email", "password"}
+
+    for entry in entries or []:
+        ocr_type = (entry.get("ocr_type") or "").lower()
+        if ocr_type not in input_types:
+            continue
+        label = (entry.get("label_text") or "").strip()
+        placeholder = (entry.get("placeholder") or "").strip()
+        unique = entry.get("unique_name") or ""
+        base = safe(label or placeholder or unique or "field")
+
+        for prefix, payload in (("xss", "XSS_PAYLOAD"), ("sqli", "SQLI_PAYLOAD")):
+            fn_name = ensure_unique(f"inject_{prefix}_{base}", used)
+            injection_names.append(fn_name)
+            function_code = (
+                f"def {fn_name}(page):\n"
+                f"    locator = _security_target(page, {json.dumps(unique or '')}, {json.dumps(placeholder)}, {json.dumps(label)})\n"
+                f"    if locator is None:\n"
+                f"        return\n"
+                f"    try:\n"
+                f"        locator.fill({payload})\n"
+                f"        return\n"
+                f"    except Exception:\n"
+                f"        pass\n"
+                f"    try:\n"
+                f"        locator.type({payload}, delay=20)\n"
+                f"    except Exception:\n"
+                f"        pass\n"
+            )
+            injection_defs.append(function_code)
+
+    assert_lines = [
+        "def assert_no_xss_executed(page):",
+        "    content = page.content()",
+        "    if \"<script>alert('XSS')</script>\" in content or \"alert('XSS')\" in content:",
+        "        raise AssertionError('Detected XSS payload rendered in the page content')",
+        "",
+        "def assert_security_headers(page):",
+        "    try:",
+        "        response = page.wait_for_response(lambda resp: resp.url == page.url, timeout=3000)",
+        "    except Exception:",
+        "        return",
+        "    headers = {k.lower(): v for k, v in response.headers.items()}",
+        "    required = ('content-security-policy', 'x-frame-options', 'strict-transport-security', 'x-content-type-options')",
+        "    missing = [h for h in required if h not in headers]",
+        "    if missing:",
+        "        raise AssertionError(f\"Missing security headers: {', '.join(missing)}\")",
+    ]
+    assert_block = "\n".join(assert_lines) + "\n"
+
+    if injection_names:
+        run_lines = ["def run_security_injections(page):"]
+        for name in injection_names:
+            run_lines.append(f"    {name}(page)")
+        run_lines.append("    assert_no_xss_executed(page)")
+        run_lines.append("    assert_security_headers(page)")
+        run_block = "\n".join(run_lines) + "\n"
+    else:
+        run_block = "def run_security_injections(page):\n    assert_no_xss_executed(page)\n    assert_security_headers(page)\n"
+
+    module_parts = [header.strip()]
+    if injection_defs:
+        module_parts.extend(injection_defs)
+    module_parts.append(assert_block.strip())
+    module_parts.append(run_block)
+    return "\n\n".join(part for part in module_parts if part) + "\n"
  
 # ---------- Helper block to prepend to every page file ----------
 ASSERT_HELPER_BLOCK = """import re
@@ -835,7 +1034,15 @@ except Exception:
 
         with open(filename, "w", encoding="utf-8") as f:
             f.write(final_code)
- 
+
+        access_code = build_accessibility_module(page, entries)
+        access_file = outdir / f"{page}_accessibility_methods.py"
+        _merge_generated_module(access_file, access_code)
+
+        security_code = build_security_module(page, entries)
+        security_file = outdir / f"{page}_security_methods.py"
+        _merge_generated_module(security_file, security_code)
+
         result[page] = {
             "filename": str(filename),
             "code": page_code

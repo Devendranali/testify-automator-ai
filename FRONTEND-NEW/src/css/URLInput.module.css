@@ -49,10 +49,11 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 20px;
+  gap: 0.8rem;
 }
 
 .enrichButton {
-  padding: 0.6rem 1.6rem;
+  padding: var(--button-padding-lg);
   font-size: 15px;
   background: var(--gradient-button-secondary);
   color: var(--color-white);
@@ -110,7 +111,7 @@
 }
 
 .navButton {
-  padding: 0.6rem 1.5rem;
+  padding: var(--button-padding-lg);
   font-size: 15px;
   background: var(--color-gray);
   color: var(--color-white);

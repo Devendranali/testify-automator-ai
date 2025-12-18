@@ -5,9 +5,16 @@ import { toast, ToastContainer } from "react-toastify";
 import styles from "../css/StoryInput.module.css";
 import API_BASE_URL from "../config";
 
+const TEST_TYPE_OPTIONS = [
+  { label: "UI Tests", value: "ui" },
+  { label: "Security Tests", value: "security" },
+  { label: "Accessibility Tests", value: "accessibility" },
+];
+
 const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
   const [userStoriesInput, setUserStoriesInput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedTestTypes, setSelectedTestTypes] = useState([]);
 
   const [loadingGeneration, setLoadingGeneration] = useState(false);
   const [loadingJira, setLoadingJira] = useState(false);
@@ -20,6 +27,17 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
   const [commitMessage, setCommitMessage] = useState("Add automated test cases");
   const [isPushingToGit, setIsPushingToGit] = useState(false);
 
+  const handleTestTypeChange = (e) => {
+    const { value, checked } = e.target;
+    setSelectedTestTypes((prev) => {
+      if (checked) {
+        return [...prev, value];
+      } else {
+        return prev.filter((type) => type !== value);
+      }
+    });
+  };
+
   // Fetch test cases from backend
   const fetchTestCases = async () => {
     if ((!userStoriesInput || userStoriesInput.trim() === "") && !selectedFile) {
@@ -27,25 +45,32 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
       return;
     }
 
+    if (selectedTestTypes.length === 0) {
+      setError("Select at least one test type.");
+      return;
+    }
+
     try {
       setLoadingGeneration(true);
       setError("");
 
-      let response;
-
-      // If a file was selected (Excel/CSV)
       if (selectedFile) {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
+        const aggregated = [];
+        for (const type of selectedTestTypes) {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("test_type", type);
+          const res = await axios.post(`${API_BASE_URL}/rag/generate-from-story`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          if (Array.isArray(res.data?.results)) {
+            aggregated.push(...res.data.results);
+          }
+        }
 
-        response = await axios.post(`${API_BASE_URL}/rag/generate-from-story`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        setTestCases(response.data.results || []);
+        setTestCases(aggregated);
         toast.success("Test cases generated successfully.");
       } else {
-        // Manual textarea: split stories by '|', trim, ignore empties
         const stories = userStoriesInput
           .split("|")
           .map((s) => s.trim())
@@ -57,17 +82,19 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
           return;
         }
 
-        // Send ONE request per story, aggregate results
         const aggregated = [];
         for (const s of stories) {
-          const res = await axios.post(
-            `${API_BASE_URL}/rag/generate-from-story`,
-            new URLSearchParams({
-              user_story: s, // ← send a single story per request
-            })
-          );
-          if (Array.isArray(res.data?.results)) {
-            aggregated.push(...res.data.results);
+          for (const type of selectedTestTypes) {
+            const res = await axios.post(
+              `${API_BASE_URL}/rag/generate-from-story`,
+              new URLSearchParams({
+                user_story: s,
+                test_type: type,
+              })
+            );
+            if (Array.isArray(res.data?.results)) {
+              aggregated.push(...res.data.results);
+            }
           }
         }
 
@@ -80,9 +107,7 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
     } finally {
       setLoadingGeneration(false);
     }
-  };
-
-  // Import from Jira
+  };  // Import from Jira
   const handleJiraImport = async () => {
     setLoadingJira(true);
     try {
@@ -275,6 +300,26 @@ const StoryInput = ({ onBack, onNext, testCases, setTestCases }) => {
         ></textarea>
 
         {error && <p className={styles.errorText}>{error}</p>}
+
+        <div className={styles.testTypesContainer}>
+          <h4 className={styles.testTypesTitle}>Select Test Types to Generate</h4>
+          <p className={styles.testTypesHint}>
+            No selection is prefilled. Choose only the test suites you currently need.
+          </p>
+          <div className={styles.checkboxGroup}>
+            {TEST_TYPE_OPTIONS.map((option) => (
+              <label key={option.value} className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  value={option.value}
+                  checked={selectedTestTypes.includes(option.value)}
+                  onChange={handleTestTypeChange}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
 
         {/* Generate */}
         <div className={styles.generateButtonContainer}>

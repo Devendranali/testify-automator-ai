@@ -69,7 +69,7 @@
 }
 
 .viewAllButton {
-  padding: 0.6rem 1rem;
+  padding: var(--button-padding-md);
   background-color: var(--color-white);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
@@ -227,7 +227,7 @@
 .actionButton,
 .executeButton {
   flex: 1;
-  padding: 0.55rem;
+  padding: var(--button-padding-sm);
   font-size: clamp(0.8rem, 2vw, 0.9rem);
   border-radius: var(--border-radius-medium);
   display: flex;
@@ -391,4 +391,86 @@
     font-size: 0.85rem;
     padding: 0.5rem 0.8rem;
   }
+}
+
+/* ---------- WORKFLOW CARDS ---------- */
+.workflowContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem clamp(1rem, 6vw, 4rem);
+  background-color: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workflowCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  background-color: var(--color-background-light);
+  border-radius: var(--border-radius-large);
+  border: 1px solid var(--color-border);
+  padding: 1.5rem;
+  width: clamp(10rem, 18vw, 12rem);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.workflowCard:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-medium);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.workflowCard i {
+  font-size: 2rem;
+  color: var(--color-primary);
+  transition: color 0.3s ease;
+}
+
+.workflowCard:hover i {
+  color: inherit;
+}
+
+.workflowCard span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
+}
+
+.workflowCard:hover span {
+  color: inherit;
+}
+
+.workflowStartButton {
+  background: var(--gradient-button-secondary);
+  color: var(--color-white);
+  border: none;
+  padding: var(--button-padding-sm);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: var(--transition-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  width: 80%; /* Adjust as needed */
+  font-size: 0.9rem;
+}
+
+.workflowStartButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.workflowStartButton i {
+  color: var(--color-white); /* Ensure icon color is white */
+  font-size: 0.9rem;
 }

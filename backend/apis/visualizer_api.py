@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from database.models import Project, ProjectAllureChart
@@ -86,6 +87,64 @@ def _dashboard_path() -> Path:
     return (VISUALIZER_DIR / INTERACTIVE_DASHBOARD).resolve()
 
 
+def _chart_asset_type(path: Path) -> Optional[str]:
+    suffix = path.suffix.lower()
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
+    if suffix == ".html":
+        if path.name == INTERACTIVE_DASHBOARD:
+            return "dashboard"
+        return "interactive"
+    return None
+
+
+def _friendly_chart_label(chart_key: str) -> str:
+    if chart_key.lower() == "interactive_charts":
+        return "Interactive Dashboard"
+    return chart_key.replace("_", " ").strip().title()
+
+
+def _list_project_visualizations_from_disk(project: Project) -> dict:
+    project_root = _project_root(project).resolve()
+    charts_dir = (project_root / "generated_runs" / "src" / "allure_charts").resolve()
+    if not charts_dir.is_dir():
+        return {"project_id": project.id, "images": [], "interactive_charts": [], "interactive_dashboard": None}
+
+    images = []
+    interactive = []
+    dashboard_url = None
+    base_url = "/visualizer/projects"
+    for asset in sorted(charts_dir.iterdir()):
+        if not asset.is_file():
+            continue
+        asset_type = _chart_asset_type(asset)
+        if not asset_type:
+            continue
+        relative_path = asset.relative_to(charts_dir).as_posix()
+        media_type_guess, _ = mimetypes.guess_type(str(asset))
+        entry = {
+            "id": None,
+            "name": asset.stem,
+            "label": _friendly_chart_label(asset.stem),
+            "url": f"{base_url}/{project.id}/assets/{relative_path}",
+            "media_type": media_type_guess or "application/octet-stream",
+            "asset_type": asset_type,
+        }
+        if asset_type == "image":
+            images.append(entry)
+        elif asset_type == "interactive":
+            interactive.append(entry)
+        elif asset_type == "dashboard" and dashboard_url is None:
+            dashboard_url = entry["url"]
+
+    return {
+        "project_id": project.id,
+        "images": images,
+        "interactive_charts": interactive,
+        "interactive_dashboard": dashboard_url,
+    }
+
+
 @router.get("/images")
 def list_visualizations(
     project_id: Optional[int] = Query(None, description="Project ID to scope the charts to"),
@@ -128,12 +187,22 @@ def _list_project_visualizations(project_id: int, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with id '{project_id}' not found")
-    records = (
-        db.query(ProjectAllureChart)
-        .filter(ProjectAllureChart.project_id == project_id)
-        .order_by(ProjectAllureChart.asset_type.asc(), ProjectAllureChart.chart_key.asc())
-        .all()
-    )
+    try:
+        records = (
+            db.query(ProjectAllureChart)
+            .filter(ProjectAllureChart.project_id == project_id)
+            .order_by(ProjectAllureChart.asset_type.asc(), ProjectAllureChart.chart_key.asc())
+            .all()
+        )
+    except ProgrammingError as exc:
+        message = str(exc).lower()
+        if "project_allure_charts" in message:
+            logger.warning(
+                "project_allure_charts table missing for project %s, falling back to disk for assets",
+                project_id,
+            )
+            return _list_project_visualizations_from_disk(project)
+        raise
     images = []
     interactive = []
     dashboard_url = None

@@ -58,7 +58,7 @@
   background-color: transparent;
   border: 1px solid #ccc;
   color: #333;
-  padding: 0.4rem 0.75rem;
+  padding: var(--button-padding-sm);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -75,7 +75,7 @@
   background-color: #007bff;
   color: white;
   border: none;
-  padding: 0.6rem 1.2rem;
+  padding: var(--button-padding-md);
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -164,7 +164,7 @@
 .cancelButton,
 .startButton {
   flex: 1;
-  padding: 0.6rem 1.2rem;
+  padding: var(--button-padding-md);
   border: none;
   border-radius: var(--border-radius-small);
   font-size: clamp(0.85rem, 2vw, 1rem);
@@ -397,7 +397,7 @@
   background-color: var(--color-white);
   color: var(--color-text-primary);
   border-radius: var(--border-radius-small);
-  padding: 0.35rem 0.6rem;
+  padding: var(--button-padding-sm);
   cursor: pointer;
   font-size: clamp(0.8rem, 2vw, 0.85rem);
   transition: background-color 0.2s ease;
@@ -429,7 +429,7 @@
 .loginButton,
 .signupButton,
 .ctaButton {
-  padding: 0.6rem 1.2rem;
+  padding: var(--button-padding-md);
   font-size: clamp(0.85rem, 2vw, 0.95rem);
   border-radius: var(--border-radius-small);
   cursor: pointer;
@@ -579,7 +579,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.45rem 0.9rem;
+  padding: var(--button-padding-sm);
   border-radius: var(--border-radius-small);
   border: 1px solid var(--color-border);
   background-color: var(--color-white);
