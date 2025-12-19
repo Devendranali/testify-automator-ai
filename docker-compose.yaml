@@ -31,12 +31,12 @@ services:
       driver: awslogs
       options:
         awslogs-region: us-east-1
-        awslogs-group: Testify-backend-logs
-        awslogs-stream: Backend-Container
+        awslogs-group: Testify-Application-Logs-Grp
+        awslogs-stream: backend-logs
         awslogs-create-group: "true"
 
   chromadb:
-    image: chromadb/chroma
+    image: chromadb/chroma:1.0.12
     volumes:
       - chroma_data:/chroma/.chroma/index
     networks:

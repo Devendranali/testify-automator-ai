@@ -111,7 +111,7 @@ _DEFAULT_COOKIES = _DEFAULT_STORAGE_DIR / "cookies.json"
 # -----------------------------------------------------------------------------
 class LaunchRequest(BaseModel):
     url: str = Field(..., description="Target URL (scheme optional; https tried first)")
-    headless: bool = False
+    headless: bool = True
     slow_mo: int = 80
     ignore_https_errors: bool = True
     viewport_width: int = 1400
