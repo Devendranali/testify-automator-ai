@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8001:8001"
-      - "6080:6080"
+      - "6080:6080"   # 🔥 THIS IS CRITICAL
     env_file:
       - .env
     depends_on:
@@ -31,9 +31,11 @@ services:
       - testify-net
 
   chromadb:
-    image: chromadb/chroma
+    image: chromadb/chroma:latest
     volumes:
       - chroma_data:/chroma/.chroma/index
+    ports:
+      - "8000:8000"
     networks:
       - testify-net
 
