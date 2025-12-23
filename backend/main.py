@@ -1,6 +1,5 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import traceback
 import asyncio
 import subprocess
@@ -8,6 +7,15 @@ import logging
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# -------------------------------------------------------
+# ENSURE DATABASE SCHEMA IS UP TO DATE (PERMANENT FIX)
+# -------------------------------------------------------
+from database.migrate import run_migrations
+
+# 🔒 This guarantees migrations run on every deploy
+run_migrations()
+
 
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
@@ -33,22 +41,12 @@ from apis.report_api import router as report_router
 
 import auth
 from database.models import Organization, User
-from database.session import Base, engine, get_db
+from database.session import get_db
 from utils.security import hash_password, verify_password
 
 
 # -------------------------------------------------------
-# DB INIT
-# -------------------------------------------------------
-if os.getenv("SQLALCHEMY_SKIP_AUTO_INIT", "0") not in {"1", "true", "True"}:
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as db_init_err:
-        print("Database initialization failed:", db_init_err)
-
-
-# -------------------------------------------------------
-# Playwright Windows Fix
+# Playwright Windows Fix (unchanged)
 # -------------------------------------------------------
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -119,19 +117,9 @@ def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
     try:
         org = Organization.get_or_create(db, payload.organization)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    try:
-        password_hash = hash_password(payload.password)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-    except Exception as exc:  # Defensive: ensure callers see a clean error.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unable to process password securely.",
-        ) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    password_hash = hash_password(payload.password)
 
     user = User(
         organization=org.display_name,
@@ -139,18 +127,16 @@ def signup_user(payload: SignupRequest, db: Session = Depends(get_db)):
         email=payload.normalized_email(),
         password_hash=password_hash,
     )
+
     try:
         db.add(user)
         db.flush()
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail="A user with this email already exists.",
         )
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     db.refresh(user)
     return {"status": "created", "user": user.to_dict()}
@@ -165,13 +151,13 @@ def login_for_access_token(payload: LoginRequest, db: Session = Depends(get_db))
     organization = payload.normalized_org()
 
     user = db.query(User).filter(User.email == email).first()
-
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect credentials.")
 
-    stored_org = (user.organization or "").strip().lower()
-
-    if stored_org != organization or not verify_password(payload.password, user.password_hash):
+    if (
+        user.organization.strip().lower() != organization
+        or not verify_password(payload.password, user.password_hash)
+    ):
         raise HTTPException(status_code=401, detail="Incorrect credentials.")
 
     access_token = auth.create_access_token(
@@ -186,18 +172,10 @@ def login_for_access_token(payload: LoginRequest, db: Session = Depends(get_db))
 # -------------------------------------------------------
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print("❌ Unhandled Exception:")
     traceback.print_exc()
-
-    headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Credentials": "true",
-    }
-
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc)},
-        headers=headers
     )
 
 
@@ -222,19 +200,6 @@ app.include_router(report_router, prefix="/reports")
 # MAIN SERVER
 # -------------------------------------------------------
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s: %(message)s"
-    )
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("chromadb").setLevel(logging.WARNING)
-    logging.getLogger("PIL").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("asyncio").setLevel(logging.WARNING)
-    logging.getLogger("python_multipart").setLevel(logging.WARNING)
-    logging.getLogger("watchfiles").setLevel(logging.ERROR)
-    logging.getLogger("tqdm").setLevel(logging.WARNING)
-
+    logging.basicConfig(level=logging.INFO)
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False)

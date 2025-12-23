@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, event, text, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-Base = declarative_base()
+# Base = declarative_base()
 
 
 def _normalized_slug(name: str) -> str:
