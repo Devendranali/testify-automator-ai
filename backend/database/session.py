@@ -21,7 +21,10 @@ def _build_database_url() -> str:
     db_password = (os.getenv("DB_PASSWORD") or "").strip()
 
     if all([db_host, db_user, db_password]):
-        return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        return (
+            f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+            "?sslmode=require"
+        )
 
     raise RuntimeError(
         "Set DATABASE_URL or provide DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD."
