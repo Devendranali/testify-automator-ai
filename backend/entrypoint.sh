@@ -1,8 +1,11 @@
 #!/bin/sh
 set -e
 
-echo "Waiting for Postgres to be ready..."
-until pg_isready -h postgres -p 5432; do
+DB_HOST="${DB_HOST:-postgres}"
+DB_PORT="${DB_PORT:-5432}"
+
+echo "Waiting for Postgres to be ready at ${DB_HOST}:${DB_PORT}..."
+until pg_isready -h "$DB_HOST" -p "$DB_PORT"; do
   sleep 2
 done
 
